@@ -1,0 +1,303 @@
+package com.aol.sportal.servlets;
+
+import java.io.*;
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+import jxl.common.Logger;
+
+import com.aol.sportal.util.*;
+import com.aol.sportal.app.*;
+import com.aol.sportal.beans.*;
+import com.aol.sportal.model.*;
+import com.aol.cc.common.asq.*;
+import com.aol.cc.common.biz.CCBizAccount;
+import com.aol.cc.common.biz.CCBizSubAccount;
+
+public class ChangeAsqServlet extends HttpServlet {
+	private static final Logger logger = Logger.getLogger(ChangeAsqServlet.class);
+	public void doGet(HttpServletRequest req, HttpServletResponse rspn)
+			throws ServletException, IOException {
+		rspn.sendRedirect("main.jsp");
+	}
+
+	public void doPost(HttpServletRequest req, HttpServletResponse rspn)
+    throws ServletException, IOException {
+		if(AccountAccess.isGoodKeyStringForUpdating(req, rspn, req.getParameter("updateKey"))==false) {
+			rspn.sendRedirect("main.jsp");
+			return;
+		}
+		req.setCharacterEncoding("UTF-8");
+		String jspPage="main.jsp";
+	
+		ModelManager mgr=new ModelManager();
+		
+		ChangeAsqBean updData = ChangeAsqBean.getUpdatedData(req);
+		String asqSn=updData.get("selectedscreenname");
+	
+		//afw
+		if (AccountAccess.isAValidSnForASQ(req, rspn,asqSn)==false)
+		{
+			logger.error("selected SN does not belong to account - redirecting to main.jsp  selectedSNpassedInUrl=" + asqSn);
+		
+			rspn.sendRedirect("main.jsp");
+			return;
+		}
+		//afw
+		
+		long selectedAcctNum=getSelectedAccountNumber(req, rspn,asqSn);
+		if (selectedAcctNum==-1)
+		{
+			logger.error("change asq error: someone tried to change other acct sn.");
+			req.setAttribute("omniture", "asq"); 
+			AccountAccess.displayError(req, rspn, "error.systemError");
+			return;
+		}
+	
+		if (updData.isValid())
+		{ 
+			int errCode=-1;
+			String errTxt="";
+			int statusRet=-1;
+								
+			ResetAsqResponse asqRsp=resetAsq(mgr,req, rspn, updData);
+			
+			if (asqRsp != null)
+			{
+				statusRet=asqRsp.getStatus();
+				errCode=asqRsp.getErrorCode();
+				errTxt=asqRsp.getErrorMsg();
+			}
+			else
+			{
+				logger.error("SPortal-509, ResetAsqResponse is null");
+				
+				SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_CHG_ASQ", false, 0,0,selectedAcctNum);
+				
+				req.setAttribute("omniture", "asq");
+				AccountAccess.displayError(req, rspn, "error.systemError");
+				
+				return;
+			}
+								
+			if ((statusRet==100) &&(errCode == 200)) //success
+			{
+				// if return code =0, main page's message display
+				req.setAttribute("confirmMsgName", "asq.updated");
+				req.setAttribute("omniturepagename", "ASQ:Successful Edit Completion");
+				req.setAttribute("omnitureprop2", "ASQ Successful Edit Completion");
+				req.setAttribute("issuccessupdate", ";My Account ASQ Update;1;0");
+				
+				jspPage="main.jsp";
+				
+				SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_CHG_ASQ", true, 0,0,selectedAcctNum);
+
+				logger.debug("Reset ASQ is successful.");
+			}
+			else if(statusRet==-1)
+			{
+				logger.error("SPortal-510, CBI did not return anything, either CBI or BK has isuue" );
+				
+				SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_CHG_ASQ", false, 0,0,selectedAcctNum);
+               
+				req.setAttribute("omniture", "asq");	
+				AccountAccess.displayError(req, rspn, "error.systemError");
+				return;
+			}
+			else if (errCode==213)
+			{
+				AccountAccess.getSession(req, rspn).setAsqBlocked(true);
+				
+				jspPage="asq_restricted.jsp";
+			}
+			else //other error like 208, 229,...
+			{
+				if ((errCode==228) || (errCode==235))
+				{
+					SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_CHG_ASQ_NOALPHA", false, 0,0,selectedAcctNum);
+				}
+				else if (errCode==229)
+				{
+					SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_CHG_ASQ_LENGTH", false, 0,0,selectedAcctNum);
+				}
+				else if (errCode==210)
+				{
+					req.setAttribute("nocurrentasq", "disabled");	
+				}
+				else
+				{
+					SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_CHG_ASQ", false, 0,0,selectedAcctNum);
+				}
+				
+				String alertString=updData.getInvalidMsgFromRetCode(errCode, req);  //handled error, could put inline error
+				if (alertString.length()>0)
+				{ 
+					logger.debug("BK gave inline field error. error msg is "+ errTxt +" error code is "+ errCode);
+					req.setAttribute("errorMsgText", alertString);
+						
+					jspPage="change_asq.jsp?sn="+asqSn; 						
+				}
+				// else other errors, log it
+				else
+				{
+					logger.debug("BK return error that can not set to inline error. code is "+ errCode +", error text is "+errTxt );
+						
+					req.setAttribute("omniture", "asq");
+											
+					AccountAccess.displayError(req, rspn, "error.systemError");
+					return;
+				}
+			}//208 or 229
+		}//valid
+		else  //not valid
+		{
+			String alertString=updData.getInvalidBlankMsg();
+				
+			logger.debug("Change asq has invalid fields.");
+				
+			if (alertString!=null)
+			{
+				req.setAttribute("errorMsgText", alertString);
+			}
+			else
+			{
+				req.setAttribute("errorMsgName", "generic.error");
+			}
+				
+			jspPage="change_asq.jsp?sn="+asqSn; 	
+		}
+
+		RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+		dispatcher.forward(req, rspn);	
+		return;
+	}
+	
+	private long getSelectedAccountNumber(HttpServletRequest request,
+			HttpServletResponse response,
+			String selectedScreenName)
+		throws ServletException, IOException 
+	{
+		boolean isMasterSnOnly=AccountAccess.getLoginItem(request,"mst_acct_number").equals(AccountAccess.getLoginItem(request,"sub_acct_number"));
+		boolean isDesignatedOnly=AccountAccess.getLoginItem(request,"sub_is_master_acct").equals("1");
+		AccountInformationModel acctObj=AccountAccess.getAcctObj(request, response);
+		CCBizAccount bizAcct = acctObj.getAccount();
+		CCBizSubAccount[] subs = bizAcct.getSubAccounts();
+		boolean goodRequest = false;
+		int index=1000;
+		long selectedSNAcctNum = bizAcct.getAccountNumber();
+		
+		if( selectedScreenName.equalsIgnoreCase(bizAcct.getScreenName().getAolScreenName())==true) 
+		{
+			selectedSNAcctNum = bizAcct.getAccountNumber();
+			goodRequest = true;
+		} 
+		else if (subs != null) 
+		{
+			if (isMasterSnOnly)
+			{
+				for (index = 0; index<subs.length; index++) 
+				{
+					if(	selectedScreenName.equalsIgnoreCase(subs[index].getScreenName().getAolScreenName())==true ||
+							selectedScreenName.equalsIgnoreCase(bizAcct.getScreenName().getAolScreenName())==true) 
+					{
+						selectedSNAcctNum = subs[index].getAcctNumber();
+						break;
+					}
+				}
+		} 
+		else if(isDesignatedOnly) 
+		{
+			for (index = 0; index<subs.length; index++) 
+			{
+				if(bizAcct.getAccountNumber()!=subs[index].getAcctNumber()) 
+				{
+					if(selectedScreenName.equalsIgnoreCase(subs[index].getScreenName().getAolScreenName())==true) 
+					{
+						selectedSNAcctNum = subs[index].getAcctNumber();
+						break;
+					}
+				}
+			}
+		} 
+		else 
+		{
+			for (index = 0; index<subs.length; index++) 
+			{
+				if(selectedScreenName.equalsIgnoreCase(subs[index].getScreenName().getAolScreenName())==true) 
+				{
+					selectedSNAcctNum = subs[index].getAcctNumber();
+					break;
+				}
+			}
+		}
+		if(index>=subs.length)
+			goodRequest = false;
+		else
+			goodRequest = true;
+		}
+		
+		if (goodRequest==false) 
+		{
+			return -1;
+		}
+		
+		return selectedSNAcctNum;
+	}
+	
+	private ResetAsqResponse resetAsq(ModelManager modelManager,HttpServletRequest req, HttpServletResponse rspn,ChangeAsqBean updDataBean)
+	{
+		ResetAsqResponse resetAsqResponse=null;
+		
+		try {
+			ASQModelHelper asqHelpModel = AccountAccess.getSession(req, rspn).getASQModelHelper();
+			ResetAsqRequest resetAsqRequest = new ResetAsqRequest();
+	
+			resetAsqRequest.setGuid(updDataBean.get("selectedscreenname"));
+			
+			resetAsqRequest.setOriginator(702);
+			
+			SpAsqValidationKey keys = new SpAsqValidationKey();
+			keys.setBrandi(AccountAccess.getBrandiNum(req));
+			
+			keys.setCountryCode(SPortalSession.getLangLocaleFromHeader(req).getCountry());
+			keys.setLanguage(AccountAccess.getLangCode(SPortalSession.getLangLocaleFromHeader(req).getLanguage()));
+						
+			keys.setMemberType(400);   // here 400 and below 1001 from name's server
+			keys.setValidationClass(1001);
+			
+			resetAsqRequest.setSpAsqValidationKey(keys);
+			
+			long[] oldQId = new long[1]; 
+			
+			oldQId[0]=Long.parseLong(updDataBean.getCurrAsqId(req, rspn, updDataBean.get("selectedscreenname")));
+			resetAsqRequest.setOldSpAsqValidatorId(oldQId);		
+
+			//new validator
+			SpAsqValidator [] newValidator = new SpAsqValidator [1];
+			newValidator[0]= new SpAsqValidator();
+			newValidator[0].setQuestionId(Integer.parseInt(updDataBean.get("newquestion"))); 
+			newValidator[0].setAnswerText(updDataBean.get("newanswer"));
+			resetAsqRequest.setNewSpAsqValidator(newValidator);
+			if(AccountAccess.isFreeAccount(req)){
+				resetAsqRequest.setProductId(ActionWriter.PRODUCT_ID_FOR_FREE);
+			} else {
+				resetAsqRequest.setProductId(ActionWriter.PRODUCT_ID_DEFAULT);
+			}
+			
+			try {
+				resetAsqResponse = asqHelpModel.resetASQ(resetAsqRequest);	
+			} catch (Exception e) {
+				logger.error("SPortal-508, get ASQ list: exception when calling asqModel.updateAsq(req)",e);
+				return null;
+			}
+		}
+		catch (Exception e)
+		{
+			logger.error("ASQModelHelper,exception", e);
+		}
+		
+		return resetAsqResponse;
+	}
+		
+}

@@ -1,0 +1,51 @@
+package pack;
+
+public class DynamicDP {
+
+	public static void main(String args[]) {
+		
+	}
+}
+
+class LCSubsequence {
+	
+	String s1 = "" ;
+	String s2 = "";
+	
+	public String lcs(String s1, String s2) {
+		
+		int l1 = s1.length();
+		int l2 = s2.length();
+		
+		if(l1 == 0 || l2 == 0) 
+			return "";
+		
+		String r1 = "", r2 = "", r3 = "" ;
+		if(s1.charAt(0) == s2.charAt(0)) {
+			r1 = s1.substring(0, 1) + lcs(s1.substring(1, l1), s2.substring(1, l2));
+		} else { 
+			r2 = lcs(s1, s2.substring(1, l2));
+			r3 = lcs(s1.substring(1, l1), s2);
+		}
+		
+		String max = "";
+		
+		if(r1.length() > r2.length()) {
+			if(r1.length() > r3.length()) {
+				max = r1;
+			} else {
+				max = r3;
+			}
+		} else if(r2.length() > r3.length()) {
+			max = r2;
+		} else {
+			max = r3;
+		}
+		
+		return max;
+	}
+}
+
+class LCString {
+	
+}

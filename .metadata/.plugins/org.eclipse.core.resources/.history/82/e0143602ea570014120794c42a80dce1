@@ -1,0 +1,98 @@
+package pack;
+
+import java.util.Arrays;
+import java.util.PriorityQueue;
+
+public class PriorityQueueDS {
+
+	public static void main(String[] args) {
+		PriorityQ<Integer> queue = new PriorityQ<>();
+		queue.
+	}
+
+}
+
+class PriorityQ<T> {
+	
+	private Heap heap ;
+	
+	public PriorityQ() {
+		heap = new Heap(10);
+	}
+	
+	private class Heap { 
+		Object[] queue = null;
+		int elementCount = 0;
+		static final int DEF_SIZE = 10;
+		static final int MAX_LEN = Integer.MAX_VALUE - 8;
+		int capacityIncrement;
+		
+		public Heap(int size) {
+			this(size, 0);
+		}
+		
+		public Heap(int size, int capacityIncrement) {
+			this.queue = new Object[size];
+			this.capacityIncrement = capacityIncrement;
+		}
+		
+		public void insert(Object o) {
+			if(elementCount >= queue.length) {
+				grow(elementCount + 1);
+			}
+			queue[elementCount++] = o;
+			heapify(elementCount-1);
+		}
+		
+		private void heapify(int index) {
+			if(index <= 0){
+				return;
+			}
+			int parentIndex = parentIndex(index);
+			int currIndex = index;
+			
+			Object parentObj = queue[parentIndex];
+			Object currObj = queue[currIndex];
+			Comparable<T> key = (Comparable<T>) currObj;
+			if(key.compareTo((T)parentObj) > 0) {
+				queue[parentIndex] = currObj;
+				queue[currIndex] = parentObj;
+				heapify(parentIndex);
+			}
+		}
+		
+		private int parentIndex(int i) {
+			return ((int)Math.ceil((double)i/2)) - 1;
+		}
+		
+		private int leftIndex(int i) {
+			return 2 * i + 1;
+		}
+		
+		private int rightIndex(int i) {
+			return 2*i + 2;
+		}
+		
+		private void grow(int minCapacity) {
+			int oldCapacity = queue.length;
+			int newCapacity = oldCapacity + ((capacityIncrement == 0) ?  oldCapacity : capacityIncrement);
+			if(newCapacity - minCapacity <0 ) {
+				newCapacity = minCapacity;
+			}
+			if(newCapacity - MAX_LEN > 0) {
+				newCapacity = hugeCapacity(newCapacity);
+			}
+			
+			queue = Arrays.copyOf(queue, newCapacity);
+		}
+		
+		private int hugeCapacity(int minCapacity) {
+			if(minCapacity < 0) {
+				throw new OutOfMemoryError();
+			}
+			return (minCapacity > MAX_LEN) ? Integer.MAX_VALUE : MAX_LEN;
+			
+		}
+	}
+}
+

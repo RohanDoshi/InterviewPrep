@@ -1,0 +1,8 @@
+package pack;
+
+public class DynamicDP {
+
+	public static void main(String args[]) {
+		
+	}
+}

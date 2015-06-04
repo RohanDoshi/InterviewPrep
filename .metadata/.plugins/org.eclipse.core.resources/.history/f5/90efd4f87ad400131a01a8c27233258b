@@ -1,0 +1,2555 @@
+package com.aol.sportal.util;
+
+import java.util.*;
+import java.util.Map.Entry;
+import java.text.*;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.xml.datatype.XMLGregorianCalendar;
+
+import jxl.common.Logger;
+
+import com.aol.sportal.app.*;
+import com.aol.sportal.beans.*;
+import com.aol.cc.common.biz.CCBizAccount;
+import com.aol.cc.common.biz.CCBizBillPaymentInfo;
+import com.aol.cc.common.biz.CCBizPaymentMethod;
+import com.aol.sportal.model.AccountInformationModel;
+import com.aol.sportal.model.BrsModelHelper;
+import com.aol.sportal.model.ModelManager;
+import com.aol.sportal.model.ModelType;
+import com.aol.sportal.model.PricePlanChangeModelHelper;
+import com.aol.mm.common.subscription.ListSubscriptionsResp.SubscriptionInfo;
+import com.aol.obi.schema.*;
+
+public class PremiumServiceUtil {
+	
+	public static String productFreeJSStr=""; 
+	public static String productFreeHtmlStr=""; 
+	public static String productActiveJSStr=""; 
+	public static String productActiveHtmlStr=""; 
+	public static String productCancelledJSStr=""; 
+	public static String productCancelledHtmlStr=""; 
+	private static final Logger logger = Logger.getLogger(PremiumServiceUtil.class);
+	
+	public static ArrayList loadAolPlanFeatures(Map subscriptionMap, HttpServletRequest request, HttpServletResponse response, boolean show18minus)
+	{
+		logger.debug("START of loadAolPlanFeatures");
+		
+		ArrayList productFeaturesList = new ArrayList();
+		String freeTrialSubs= "";
+		String screenName ="";
+        String productName="";
+        String effectiveDateStr="";
+        String nextBillingDateStr="";
+        String rate ="";
+        String prodDesc="";
+        String prodHelpLink ="";
+    	
+        if(!show18minus && AccountAccess.isMasterAccount(request)==false && AccountAccess.isOver_18(request, response)==false) {
+        	logger.debug("loadAolPlanFeatures: sub SN 18- , do not display AOL PLan Features");
+        	return productFeaturesList;
+        }
+        
+    	try{
+                String serviceName = (String) request.getAttribute("serviceName");
+    		ResourceBundle appRes = SPortalSession.getResources(request);
+	        Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(request);
+	        if(subscriptionMap!=null)
+	        	logger.debug("PremiumServUtil::loadAolPlanFeatures subscriptionMap size=" + subscriptionMap.size());
+	        if(subscriptionMap!=null && subscriptionMap.size()!=0)
+	        {
+	        	
+	        	logger.debug("*********************loadAolPlanFeatures::subscriptionMap.size()=" + subscriptionMap.size());
+				int i=0;
+				for (Iterator it=subscriptionMap.entrySet().iterator(); it.hasNext(); )
+				{ 
+					Map.Entry entry = (Map.Entry)it.next(); 
+					Object key = entry.getKey(); 
+					Object value = entry.getValue();
+					logger.debug("key=" + key + "Value=" + value);
+					
+					String prodTos ="";
+					String subscriptionType= null;
+				
+					String keyFromMap= (String)key;	
+					StringTokenizer tokenizer = new StringTokenizer(keyFromMap , ":");
+					screenName = tokenizer.nextToken();
+					logger.debug(" screenName=" + screenName);
+					
+					if (tokenizer.hasMoreTokens())
+						subscriptionType= tokenizer.nextToken();	
+					else
+						continue;
+					
+					if(subscriptionType!=null && subscriptionType.equalsIgnoreCase("mybenefits")){
+						
+						try{	
+							
+							Map productIdMap=(HashMap)entry.getValue();
+							String productFeaturesIdStr=null;
+							for (Iterator itProducts=productIdMap.entrySet().iterator(); itProducts.hasNext(); )
+							{
+								String loggedUser = AccountAccess.getLoginItem(request, "Username");
+								if(AccountAccess.compressSN(loggedUser).equalsIgnoreCase(AccountAccess.compressSN(screenName))==false) {
+									break;
+								}
+
+								//Integer productFeaturesId = (Integer)itProducts.next();
+								Map.Entry productFeaturesEntry = (Map.Entry)itProducts.next(); 
+								productFeaturesIdStr = (String)productFeaturesEntry.getKey(); 
+								if(productFeaturesIdStr==null ||productFeaturesIdStr.equalsIgnoreCase("0")) {
+									logger.error("loadAolPlanFeatures::invalid svu id value. productFeaturesIdStr=" + productFeaturesIdStr);
+									continue;
+								}
+								
+								String status = "";
+								String orderId ="";
+								Map featurePropertiesMap= (HashMap)productFeaturesEntry.getValue();
+								PremiumServiceDetailsBean premiumServiceDetailsBean = new PremiumServiceDetailsBean();
+								premiumServiceDetailsBean.setTopKey(keyFromMap);
+								premiumServiceDetailsBean.setType("myBenefits");
+								
+								if(featurePropertiesMap!=null && featurePropertiesMap.size()!=0)
+								{
+									String status2 = "";
+									status = (String)featurePropertiesMap.get("status");
+									
+									if(status!=null && status.equalsIgnoreCase("Always On")==true)
+									{
+										status2 = status;
+										status = "Active";
+									}
+									premiumServiceDetailsBean.setStatus2(status2);
+									
+									if(status==null || (status.equalsIgnoreCase("Active")==false && status.equalsIgnoreCase("Eligible")==false))
+										break;
+									
+									premiumServiceDetailsBean.setType("myBenefits");	
+									//For norton, when active, we need to get login SN
+									if(productFeaturesIdStr.equalsIgnoreCase("60403")==true && status.equalsIgnoreCase("Active")==true )
+										premiumServiceDetailsBean.setNortonActivatedSn((String)featurePropertiesMap.get("activatedBySN"));
+									
+								}
+								
+								Map svuDataMap=new HashMap();
+								if(featurePropertiesMap!=null && featurePropertiesMap.size()!=0)
+								{
+									svuDataMap = (HashMap)featurePropertiesMap.get("svu_action_data");
+									if(svuDataMap!=null && svuDataMap.size()!=0)
+									{
+										logger.debug("*************++++++++ SVU action data is not null..size=" + svuDataMap.size());
+										//premiumServiceDetailsBean.setSvuData(svuDataMap);	
+										for (Iterator itSvuData=svuDataMap.entrySet().iterator();itSvuData.hasNext(); )
+										{
+											Map.Entry svuDataEntry = (Map.Entry)itSvuData.next(); 
+											logger.debug("SVU data =" + "Key=" + svuDataEntry.getKey() + "value=" + svuDataEntry.getValue());
+											
+											//change this to Hyatt legal registration number
+											if(svuDataEntry.getKey()!=null && ((String)(svuDataEntry.getKey())).equals("membership_number"))
+											{
+												premiumServiceDetailsBean.setSvuDataName((String)(svuDataEntry.getKey()));
+												premiumServiceDetailsBean.setSvuDataValue((String)(svuDataEntry.getValue()));
+												
+											}	
+											orderId = (String)svuDataMap.get("order_id");
+											if(orderId!=null && !orderId.equalsIgnoreCase(""))
+												premiumServiceDetailsBean.setOrderId(orderId);
+										}
+										
+									}
+								}
+								
+								
+								
+								//productFeaturesIdStr= productFeaturesId.toString();
+								logger.debug("loadAolPlanFeatures::productFeaturesIdStr=" + productFeaturesIdStr);
+								
+								
+								premiumServiceDetailsBean.setProductId(productFeaturesIdStr);
+								premiumServiceDetailsBean.setProductName(premiumServiceResources.getProperty(productFeaturesIdStr, ""));
+								premiumServiceDetailsBean.setManagePremiumServicesPageImage(premiumServiceResources.getProperty(productFeaturesIdStr + "Image2", ""));
+								premiumServiceDetailsBean.setManagePremiumServicesPageImage1(premiumServiceResources.getProperty(productFeaturesIdStr + "Image1", ""));
+								
+								if(status.equalsIgnoreCase("active")) {
+									premiumServiceDetailsBean.setActiveTooltip(premiumServiceResources.getProperty(productFeaturesIdStr + "Promo1Title", ""));
+									premiumServiceDetailsBean.setLinkInPopupText(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_activebtn_text", ""));
+									premiumServiceDetailsBean.setLinkInPopupUrl(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_activebtn_url", ""));
+									if(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_activebtn_newwindow", "").equalsIgnoreCase("true")==true)
+										premiumServiceDetailsBean.setLinkInPopupTarget("_blank");
+									else
+										premiumServiceDetailsBean.setLinkInPopupTarget("_top");
+								} else {
+									premiumServiceDetailsBean.setEligibleTootip(premiumServiceResources.getProperty(productFeaturesIdStr + "Promo2Title", ""));
+									premiumServiceDetailsBean.setLinkInPopupText(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_eligiblebtn_text", ""));
+									premiumServiceDetailsBean.setLinkInPopupUrl(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_eligiblebtn_url", ""));
+									if(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_eligiblebtn_newwindow", "").equalsIgnoreCase("true")==true)
+										premiumServiceDetailsBean.setLinkInPopupTarget("_blank");
+									else
+										premiumServiceDetailsBean.setLinkInPopupTarget("_top");									
+								}
+								
+								premiumServiceDetailsBean.setHelpLinkText(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_help_text", ""));
+								premiumServiceDetailsBean.setHelpLinkUrl(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_help_url", ""));
+								
+								premiumServiceDetailsBean.setBulletInPopupLeft(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_left_bullets", ""));
+								premiumServiceDetailsBean.setBulletInPopupRight(premiumServiceResources.getProperty(productFeaturesIdStr + "popup_right_bullets", ""));
+																
+								premiumServiceDetailsBean.setNotes(premiumServiceResources.getProperty(productFeaturesIdStr + "Desc", ""));
+								
+                                                                if (serviceName == null || serviceName.length() == 0) {
+                                                                    premiumServiceDetailsBean.setRate("Included in your AOL plan ");
+                                                                } else {
+                                                                    premiumServiceDetailsBean.setRate("Included in your " + serviceName + " plan ");
+                                                                }
+								logger.debug("premiumServiceDetailsBean.setNotes=" + premiumServiceDetailsBean.getNotes());
+								premiumServiceDetailsBean.setLongDesc(premiumServiceResources.getProperty(productFeaturesIdStr + "LongDesc", ""));
+								premiumServiceDetailsBean.setPsbShortDesc(premiumServiceResources.getProperty(productFeaturesIdStr + "ShortDesc", ""));
+								premiumServiceDetailsBean.setPsbTos(premiumServiceResources.getProperty(productFeaturesIdStr + "Tos", ""));
+								premiumServiceDetailsBean.setHelpLink(premiumServiceResources.getProperty(productFeaturesIdStr + "HelpLink", ""));
+								premiumServiceDetailsBean.setStatus(status);
+								
+								// For testing purpose
+								/*if(premiumServiceDetailsBean.getProductId().equalsIgnoreCase("60404")) {
+									premiumServiceDetailsBean.setStatus("Eligible");
+									status = "Eligible";
+								}
+								*/
+								/////////////////////////////////////
+								
+								try {
+									if(productFeaturesIdStr.equalsIgnoreCase("60353")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60414")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60415")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60408")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60407")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60400")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60403")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60404")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60407")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60410")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60409")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60401")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60405")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60449")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60450")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60451")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60411")==true) {
+										//60353 - life lock; 60414 - McAfee; 60415 - McAfee;  
+										//60408 - $250 Extended Computer Protection;  60407 - $750 Extended Computer Protection Plan*
+										//60400 - $1250 Extended Computer Protection Plan*;   60401 - Sprint Discount;
+										//60403 - Norton; 60404-Hyatt Legal. 60407 - $750 Extended Computer Protection from AOL
+										//60451- AOL Client; 60450- Chartis; AIM-60449; 60411-Back Up Dial-up Access (5hrs/mo)
+										//60405 - Unlimited Dial-up Access; 60409-Back Up Dial-up Access (50 hrs/mo) 
+										//60410 - Back Up Dial-up Access (10 hrs/mo)	
+										
+										
+										// 60495 AOL Advantage Plan
+										// 60496 AOL Video
+										// 60497 pricecheck by AOL
+										// 60498 Shortcuts
+										// 60499 My Portfolios
+										// 60500 Easy Transfer
+										// 60317 AOL MyBenefits Toolbar
+										
+										if(status.equalsIgnoreCase("active")) {
+											premiumServiceDetailsBean.setActionText(appRes.getString(productFeaturesIdStr+"ActiveActionText"));
+											premiumServiceDetailsBean.setActionUrl(appRes.getString(productFeaturesIdStr+"ActiveActionUrl"));
+											premiumServiceDetailsBean.setHasActionText(true);											
+										} else {
+											//Eligible
+											premiumServiceDetailsBean.setActionText(appRes.getString(productFeaturesIdStr+"EligibleActionText"));
+											premiumServiceDetailsBean.setActionUrl(appRes.getString(productFeaturesIdStr+"EligibleActionUrl"));
+											premiumServiceDetailsBean.setHasActionText(true);
+										}
+									} else if(productFeaturesIdStr.equalsIgnoreCase("60411")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60406")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60413")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60405")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60412")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60409")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60402")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60423")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60495")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60496")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60497")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60498")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60499")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60500")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60317")==true ||
+											//productFeaturesIdStr.equalsIgnoreCase("60424")==true ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60482") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60483") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60484") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60485") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60486") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60545") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60547") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60548") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60550") ||
+                                                                                        productFeaturesIdStr.equalsIgnoreCase("60551") ||
+											productFeaturesIdStr.equalsIgnoreCase("60409")==true ||
+											productFeaturesIdStr.equalsIgnoreCase("60410")==true) {
+										//60411 - Back Up Dial-up Access (5hrs/mo);   60406 - 24X7 Live Technical Support
+										//60413 - AOL Mail;  60405 - Unlimited Dial-up Access; 60412 - Limited Live Technical Support
+										//60409 - Back Up Dial-up Access (50 hrs/mo); 60410 - Back Up Dial-up Access (10 hrs/mo)
+										//60402, 60423, 60424 - VIP Loyalty Program
+										
+										if(status.equalsIgnoreCase("active")) {
+											premiumServiceDetailsBean.setActionText(appRes.getString(productFeaturesIdStr+"ActiveActionText"));
+											premiumServiceDetailsBean.setActionUrl(appRes.getString(productFeaturesIdStr+"ActiveActionUrl"));
+											premiumServiceDetailsBean.setHasActionText(true);
+										} else {
+											//Eligible
+											 
+										}										
+									}  
+								} catch (Exception e) {
+									logger.error("PremiumServiceUtil::loadAolPlanFeatures: Error in reading application resource contents.",e);
+									e.printStackTrace();
+								}								
+								
+								if(premiumServiceResources.getProperty(productFeaturesIdStr, "")!=null && !premiumServiceResources.getProperty(productFeaturesIdStr, "").trim().equalsIgnoreCase("") && premiumServiceResources.getProperty(productFeaturesIdStr, "").trim().length()>1)
+									productFeaturesList.add(premiumServiceDetailsBean);
+							}
+							
+						}
+						catch(Exception ex){
+							logger.error("PremiumServiceUtil::loadAolPlanFeatures: Error parsing Features.",ex);
+							ex.printStackTrace();
+							
+						}
+					}
+				}		
+	       }
+    	}
+    	catch(Exception ex){
+    		logger.error("PremiumServiceUtil::loadAolPlanFeatures Error getting Features list from REE ",ex);
+    		ex.printStackTrace();
+    	}
+        
+        logger.debug("End of loadAolPlanFeatures premiumServicesList.size=" + productFeaturesList.size());
+		return productFeaturesList;
+		
+	}
+
+	
+	public static ArrayList loadAolPlanBenefits(Map subscriptionMap, HttpServletRequest request, HttpServletResponse response, String orderListProductIds, boolean show18minus)
+	{
+		logger.debug("START of loadAolPlanBenefits subscriptionMap size=" + subscriptionMap.size());
+
+		ArrayList orderList = AccountAccess.getFeaturesListOrder( request, response, 1);
+		if(orderList!=null)
+		{
+			
+			for (Iterator it=orderList.iterator(); it.hasNext(); )
+			{ 
+				
+				logger.debug("OrderedList for features " + it.next());
+				
+			}
+			
+		}
+		
+		
+		ArrayList productFeaturesList;
+		ArrayList sortedBenefitsList = new ArrayList();
+		
+		ArrayList tempEligibleArrayList = new ArrayList();
+		ArrayList tempActiveArrayList = new ArrayList();
+		
+		productFeaturesList = loadAolPlanFeatures(subscriptionMap, request, response, show18minus);
+		logger.debug("productFeaturesList (mybenefits) size=" + productFeaturesList.size());
+		if(orderListProductIds==null || orderListProductIds.length()<3)
+			return productFeaturesList;
+				
+		String updateOrderStr = orderListProductIds.substring(1, orderListProductIds.length()-1);
+		logger.debug("updateOrderStr="+updateOrderStr);
+		StringTokenizer stk = new StringTokenizer(updateOrderStr, ",");
+		//Eligible loop. 
+        while (stk.hasMoreTokens()) 
+        {   	
+			String currentProdId=stk.nextToken();
+			
+			for (Iterator it=productFeaturesList.iterator(); it.hasNext(); )
+			{
+				PremiumServiceDetailsBean premiumServiceDetailsBean = (PremiumServiceDetailsBean)it.next();
+			
+				logger.debug(" ========currentProdId=" + currentProdId+", premiumServiceDetailsBean.getProductId()"+premiumServiceDetailsBean.getProductId() + ", status="+premiumServiceDetailsBean.getStatus());
+				if(premiumServiceDetailsBean.getProductId()!=null && premiumServiceDetailsBean.getProductId().equalsIgnoreCase(currentProdId) 
+						&& premiumServiceDetailsBean.getStatus()!=null && premiumServiceDetailsBean.getStatus().equalsIgnoreCase("Eligible"))
+				{
+					sortedBenefitsList.add(premiumServiceDetailsBean);
+					break;
+				}	
+					
+			}
+		
+        }		
+        
+		//Active loop.
+        stk = new StringTokenizer(updateOrderStr, ",");
+        while (stk.hasMoreTokens()) 
+        {   	
+			String currentProdId=stk.nextToken();
+			
+			for (Iterator it=productFeaturesList.iterator(); it.hasNext(); )
+			{
+				PremiumServiceDetailsBean premiumServiceDetailsBean = (PremiumServiceDetailsBean)it.next();
+			
+				logger.debug("currentProdId=" + currentProdId+", premiumServiceDetailsBean.getProductId()"+premiumServiceDetailsBean.getProductId() + ", status="+premiumServiceDetailsBean.getStatus());
+				if(premiumServiceDetailsBean.getProductId()!=null && premiumServiceDetailsBean.getProductId().equalsIgnoreCase(currentProdId) 
+						&& premiumServiceDetailsBean.getStatus()!=null && premiumServiceDetailsBean.getStatus().equalsIgnoreCase("Active"))
+				{
+					sortedBenefitsList.add(premiumServiceDetailsBean);
+					break;
+				}	
+				
+				
+			}
+		
+        }
+        
+        //to take care of products that are returned from REE, but not in the categoryFeaturesList.
+        for (Iterator it=productFeaturesList.iterator(); it.hasNext(); ){
+        	
+        	PremiumServiceDetailsBean premiumServiceDetailsBean = (PremiumServiceDetailsBean)it.next();
+        	if(!sortedBenefitsList.contains(premiumServiceDetailsBean)) {
+        		sortedBenefitsList.add(premiumServiceDetailsBean);
+                }
+        }
+        
+        return sortedBenefitsList;
+		
+	}
+
+	@SuppressWarnings({ "unchecked", "unchecked" })
+	public static ArrayList loadSubscriptions(Map subscriptionMap, HttpServletRequest request, HttpServletResponse response)
+	{
+		
+		logger.debug("START of loadSubscriptions");
+		
+		ArrayList premiumServicesList = new ArrayList();
+		String freeTrialSubs= "";
+		String screenName ="";
+        String productId="";
+        String productName="";
+        String effectiveDateStr="";
+        String nextBillingDateStr="";
+        String rate ="";
+        String prodDesc="";
+        String prodHelpLink ="";
+        DateFormat formatter = SimpleDateFormat.getDateInstance(SimpleDateFormat.SHORT, AppSession.getLocale(request));
+    	SimpleDateFormat df = new SimpleDateFormat("MM/dd/yy");
+    	
+    	/*
+    	* SN:legacy � Value is a map with the key as SVU_PRODUCT_ID and value is a list of ListSubscriptionsResp.SubscriptionInfo objects 
+		* SN:instruments � Value is a  map with the key as INSTRUMENT_ID and value is an Instrument object
+		* SN:obisubs � Value is a map with the key as SUBSCRITION_ID and value is an CustomerSubPaymentInfo object
+    	 */
+    	
+    	try{
+	        Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(request);
+	        if(subscriptionMap!=null)
+	        	logger.debug("PremiumServUtil::loadSubscriptions subscriptionMap size=" + subscriptionMap.size());
+	        if(subscriptionMap!=null && subscriptionMap.size()!=0)
+	        {
+	        	String cof = loadCof(subscriptionMap, request, response);
+	        	logger.debug("*********************subscriptionMap.size()=" + subscriptionMap.size());
+	        	boolean isCurrentSN18plusOnly = false;
+				for (Iterator it=subscriptionMap.entrySet().iterator(); it.hasNext(); )
+				{ 
+					Map.Entry entry = (Map.Entry)it.next(); 
+					Object key = entry.getKey(); 
+					Object value = entry.getValue();
+					logger.debug("key=" + key + "Value=" + value);
+					//logger.debug("=============== TOP Level --> key=" + key + "Value=" + value);
+					String prodTos ="";
+					String subscriptionType= null;
+					String keyFromMap= (String)key;	
+					StringTokenizer tokenizer = new StringTokenizer(keyFromMap , ":");
+					screenName = tokenizer.nextToken();
+					isCurrentSN18plusOnly = AccountAccess.isOver_18only_sn(screenName, request, response);
+					
+					if (tokenizer.hasMoreTokens())
+						subscriptionType= tokenizer.nextToken();	
+					else
+						continue;
+									
+					logger.debug("After tokenize loadSubscriptions values from REE=" + key + "Value="+  value + " productId=" + productId);
+					if(subscriptionType!=null && subscriptionType.equalsIgnoreCase("legacy")){
+						
+						logger.debug("LEGACY SUBS" + entry.getValue().getClass().getName());
+						try{	
+							
+							Map legacyMap=(HashMap)entry.getValue();
+							for (Iterator itLegacy=legacyMap.keySet().iterator(); itLegacy.hasNext(); )
+							{
+							
+								String legacyID=(String)itLegacy.next(); 
+								SubscriptionInfo legacyValue=(SubscriptionInfo)legacyMap.get(legacyID);
+								PremiumServiceDetailsBean premiumServiceDetailsBean = new PremiumServiceDetailsBean();
+								if(legacyValue!=null)
+								{
+									logger.debug("Legacy legacyID=" + legacyID);
+									StringTokenizer legacyTokenizer = new StringTokenizer(legacyID , ":");
+									productId = legacyTokenizer.nextToken();
+									logger.debug("Legacy ProductID=" + productId);
+									premiumServiceDetailsBean.setReeKey(legacyID);
+									premiumServiceDetailsBean.setType("legacy");
+									premiumServiceDetailsBean.setTopKey(keyFromMap);
+									premiumServiceDetailsBean.setOfferSubscriptionID("AOL");
+									premiumServiceDetailsBean.setProductName(premiumServiceResources.getProperty(productId, ""));
+									premiumServiceDetailsBean.setManagePremiumServicesPageImage(premiumServiceResources.getProperty(productId + "Image3", ""));
+									premiumServiceDetailsBean.setNotes(premiumServiceResources.getProperty(productId + "Desc", ""));
+									premiumServiceDetailsBean.setLongDesc(premiumServiceResources.getProperty(productId + "LongDesc", ""));
+									premiumServiceDetailsBean.setPsbTos(premiumServiceResources.getProperty(productId + "Tos", ""));
+									premiumServiceDetailsBean.setHelpLink(premiumServiceResources.getProperty(productId + "HelpLink", ""));
+									premiumServiceDetailsBean.setBillingFrequency("/ month");
+									premiumServiceDetailsBean.setInfoTitle("Subscription Information");
+																		
+									try{
+									DateFormat dtformatter = new SimpleDateFormat("yyyy-MM-dd");
+									if(legacyValue.getEffectiveDate()!=null)
+									{
+										Date date = (Date)dtformatter.parse(legacyValue.getEffectiveDate().trim());
+										logger.debug("legacyValue.getEffectiveDate()=" + legacyValue.getEffectiveDate() + "parsedDate " + date);
+										String formattedDate= df.format(date);
+										premiumServiceDetailsBean.setRegistrationDate(formattedDate);
+									}
+									}
+									catch(Exception ex)
+									{
+										logger.error("Error parsing registration date for Legacy sub" + legacyValue.getEffectiveDate(),ex);
+										ex.printStackTrace();
+									}
+									AccountData AD = AccountAccess.getAcctData(request, response);  
+									String nextBillDt = AD.getBillingInfoObj(request).getPaymentdtString(request, response);
+									premiumServiceDetailsBean.setNextBillDate(nextBillDt);
+									
+									String status = " ";
+			        				if(legacyValue.getStatus()!=null && legacyValue.getStatus().equalsIgnoreCase("A"))
+			        				{    
+			        					status = "active";
+			        					premiumServiceDetailsBean.setHasActivateLink(false);
+			        					premiumServiceDetailsBean.setHasCancelLink(true);
+			        					if(!isCurrentSN18plusOnly)
+			        						premiumServiceDetailsBean.setHasPaymentLink(true);
+			        					else 
+			        						premiumServiceDetailsBean.setHasPaymentLink(false);
+			        				}
+			        				else if(legacyValue.getStatus()!=null && legacyValue.getStatus().equalsIgnoreCase("P"))
+			        				{
+			        					status = "pending";
+			        					premiumServiceDetailsBean.setHasActivateLink(false);
+			        					premiumServiceDetailsBean.setHasCancelLink(true);
+			        					if(!isCurrentSN18plusOnly)
+			        						premiumServiceDetailsBean.setHasPaymentLink(true);
+			        					else 
+			        						premiumServiceDetailsBean.setHasPaymentLink(false);
+			        				}
+			                        else if(legacyValue.getStatus()!=null && legacyValue.getStatus().equalsIgnoreCase("C"))
+			                        {
+			                        	status = "cancelled";
+			                        	premiumServiceDetailsBean.setHasActivateLink(true);
+			        					premiumServiceDetailsBean.setHasCancelLink(false);
+			        					premiumServiceDetailsBean.setHasPaymentLink(false);
+			                        }
+									premiumServiceDetailsBean.setStatus(status);
+									if(legacyValue.getScreenName()!=null)
+										premiumServiceDetailsBean.setBilledTo(legacyValue.getScreenName());
+								
+									logger.debug("legacyValue.getFee()=" + legacyValue.getFee());
+									DecimalFormat df1 = new DecimalFormat("####.##");
+									df1.setMinimumFractionDigits(2);
+									
+									String monthlyFeeReturnStr="";
+									double feeFromBe= legacyValue.getFee();
+									double monthlyFeedbl =feeFromBe/100;
+									logger.error("feeFromBE=" + feeFromBe + " monthlyFeedbl=" +monthlyFeedbl);
+									String monthlyFeeStr = df1.format(monthlyFeedbl);
+									logger.debug("monthlyFeeStr after formatting=" + monthlyFeeStr);
+									monthlyFeeReturnStr = monthlyFeeStr;
+									premiumServiceDetailsBean.setHasGetStartedLink(false);
+									premiumServiceDetailsBean.setRate(monthlyFeeReturnStr);
+									premiumServiceDetailsBean.setProductId(productId);
+									if(!isCurrentSN18plusOnly)
+										premiumServiceDetailsBean.setPaymentMethodString(cof);
+									else 
+										premiumServiceDetailsBean.setPaymentMethodString("");
+									premiumServiceDetailsBean.setPaymentInstrumentId("cof");
+									premiumServicesList.add(premiumServiceDetailsBean);
+									
+								}
+							}
+							
+						}
+						catch(Exception ex){
+							logger.error("PremiumServiceUtil::loadSubscriptions: Error parsing legacy Subscriptions.",ex);
+							ex.printStackTrace();
+							
+						}
+						
+					}
+					
+					else if(subscriptionType!=null && subscriptionType.equalsIgnoreCase("obisubs")){
+						
+						try{
+						
+							logger.debug("OBI SUBS" + entry.getValue().getClass().getName());
+							LinkedHashMap obiMap = (LinkedHashMap)entry.getValue();
+							if(obiMap!=null && obiMap.size()>0){
+								
+								for (Iterator it2=obiMap.entrySet().iterator(); it2.hasNext(); )
+								{									
+									Map.Entry obiEntry = (Map.Entry)it2.next(); 
+									String obiKey = (String)obiEntry.getKey(); 
+									CustomerSubPaymentInfo obiValue = (CustomerSubPaymentInfo)obiEntry.getValue();
+									
+									logger.debug("*********** obiKey= " + obiKey + "obiValue=" + obiValue);
+									
+									
+									if(obiValue!=null && productId!=null)
+									{	 
+										PremiumServiceDetailsBean premiumServiceDetailsBean = populateObiSubsFromCustomerSubObj(obiValue, obiKey, keyFromMap, screenName, productId, premiumServiceResources, request, response, isCurrentSN18plusOnly); 
+										
+										logger.debug("productName=" + premiumServiceDetailsBean.getProductName() + " billingFrequency=" + obiValue.getBillingFrequency());
+										premiumServicesList.add(premiumServiceDetailsBean);
+									}		
+								}
+								
+							}
+						}
+						catch(Exception ex)
+						{
+							logger.error("PremiumServiceUtil::loadSubscriptions: Error parsing OBI Subscriptions.",ex);
+							ex.printStackTrace();
+						}
+						
+						
+					}
+					else if(subscriptionType!=null && subscriptionType.equalsIgnoreCase("obiBundles")){
+						
+						try{
+							logger.debug("OBI BUNDLES" + entry.getValue().getClass().getName());
+							LinkedHashMap obiMap = (LinkedHashMap)entry.getValue();
+							PremiumServiceDetailsBean bundle = null;
+							if(obiMap!=null && obiMap.size()>0){
+								
+								for (Iterator it2=obiMap.entrySet().iterator(); it2.hasNext(); )
+								{									
+									Map.Entry obiEntry = (Map.Entry)it2.next(); 
+									String obiKey = (String)obiEntry.getKey(); 
+									logger.debug("++++++++++++=obiKey=" + obiKey);
+									String subType = "";
+									StringTokenizer tokenizer1 = new StringTokenizer(obiKey , ":");
+									String offerSubscriptionID  = tokenizer1.nextToken();
+									
+									if (tokenizer1.hasMoreTokens())
+										subType =  tokenizer1.nextToken();	
+									else
+										continue;
+									
+									
+									Map<String,Object> bundleHeader = null;
+									ArrayList<CustomerSubPaymentInfo> subsList = null;
+									
+									ArrayList<PremiumServiceDetailsBean> bundleSubs= new ArrayList<PremiumServiceDetailsBean>();
+									
+									if(subType.equalsIgnoreCase("bundle"))
+									{
+										String bundleRate ="";
+										String bundleSetUpFee ="";
+										//bundle header..
+										bundle = new PremiumServiceDetailsBean();
+										bundleHeader = (Map<String,Object>) obiEntry.getValue();
+										
+										if(bundleHeader!=null)
+										{
+											
+											for (Iterator headerIterator=bundleHeader.entrySet().iterator(); headerIterator.hasNext(); )
+											{
+												Map.Entry headerEntry = (Map.Entry)headerIterator.next();
+												String headerName = (String)headerEntry.getKey(); 
+												bundle.setHasBundle(true);
+												bundle.setType("obi");
+												bundle.setTopKey(keyFromMap);
+												bundle.setSn(screenName);
+												bundle.setBilledTo(screenName);
+												bundle.setReeKey(obiKey);
+												bundle.setInfoTitle("Subscription Information");
+												//bundle.setTopKey(topKey);
+												
+												if(headerName!=null && headerName.equalsIgnoreCase("bundleSvuProdId"))
+												{
+													bundle.setProductId((String)headerEntry.getValue());
+													bundle.setType("obi");
+													bundle.setProductName(premiumServiceResources.getProperty(bundle.getProductId(), ""));
+													bundle.setManagePremiumServicesPageImage(premiumServiceResources.getProperty(bundle.getProductId() + "Image2", ""));
+													bundle.setNotes(premiumServiceResources.getProperty(bundle.getProductId() + "Desc", ""));
+													bundle.setLongDesc(premiumServiceResources.getProperty(bundle.getProductId() + "LongDesc", ""));
+													bundle.setPsbShortDesc(premiumServiceResources.getProperty(bundle.getProductId() + "ShortDesc", ""));
+													bundle.setPsbTos(premiumServiceResources.getProperty(bundle.getProductId() + "Tos", ""));
+													bundle.setHelpLink(premiumServiceResources.getProperty(bundle.getProductId() + "HelpLink", ""));
+													
+													logger.debug("+++++++++++++++++ bundle svu productID=" + bundle.getProductId());
+													
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("billingFrequency"))
+												{
+													String billingFrequency = (String)headerEntry.getValue(); 
+													if(billingFrequency.equals("ONETIMEPAYMENT"))
+													{	
+														bundle.setBillingFrequency("");
+														bundle.setHasCancelLink(false);
+														bundle.setHasPaymentLink(false);
+														bundle.setHasActivateLink(false);
+														bundle.setStatus("Previous Purchase");
+														bundle.setInfoTitle("Order Information");
+														bundle.setHasOneTime(true);
+													}
+													else if(billingFrequency.equals("BIMONTHLY"))
+														bundle.setBillingFrequency("/ bi-monthly");
+													else if(billingFrequency.equals("HALFYEARLY"))
+														bundle.setBillingFrequency("/ half-yearly");
+													else if(billingFrequency.equals("MONTHLY"))
+														bundle.setBillingFrequency("/ month");
+													else if(billingFrequency.equals("NONE"))
+														bundle.setBillingFrequency("");
+													else if(billingFrequency.equals("QUARTERLY"))
+														bundle.setBillingFrequency("/ 3 months");
+													else if(billingFrequency.equals("YEARLY"))
+														bundle.setBillingFrequency("/ year");
+													
+													logger.debug("+++++++++++++++++ bundle billingFrequency=" + bundle.getBillingFrequency());
+													
+												}
+												
+												if(headerName!=null && headerName.equalsIgnoreCase("merchantId"))
+												{
+													String merchantId = (String)headerEntry.getValue();;
+													if(merchantId!=null && merchantId.equalsIgnoreCase("gps"))
+														bundle.setHasGetStartedLink(true);
+													else 
+														bundle.setHasGetStartedLink(false);
+													
+													
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("inTrial"))
+												{
+													Boolean inTrial = (Boolean)headerEntry.getValue();
+													if(inTrial!=null && inTrial==true)
+														bundle.setFreeTrial(true);
+													
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("subscriptionStatus"))
+												{
+													
+													String status = (String)headerEntry.getValue();
+													if(status!=null && (status.equalsIgnoreCase("ACTIVE")|| status.equalsIgnoreCase("PROVISIONED") || status.equalsIgnoreCase("VENDOR_PROVISIONED")))
+													{
+														
+														bundle.setHasActivateLink(false);
+														bundle.setHasCancelLink(true);
+														bundle.setStatus("active");
+														if(!isCurrentSN18plusOnly)
+															bundle.setHasPaymentLink(true);
+														else 
+															bundle.setHasPaymentLink(false);
+														
+													}
+													
+													else if(status!=null && (status.equalsIgnoreCase("CANCELLED") || 
+															status.equalsIgnoreCase("TERMINATED") || 
+															status.equalsIgnoreCase("PENDING_SUSPEND") ||
+															status.equalsIgnoreCase("SUSPENDED") ||
+															status.equalsIgnoreCase("VENDOR_SUSPENDED") || 
+															status.equalsIgnoreCase("SWITCHED") ||
+															status.equalsIgnoreCase("EXPIRED") || 
+															status.equalsIgnoreCase("VENDOR_CANCELLED")||status.equalsIgnoreCase("VENDOR_CLEANUP") ) )
+													{
+														bundle.setHasGetStartedLink(false);
+														bundle.setHasActivateLink(true);
+														bundle.setHasCancelLink(false);
+														bundle.setStatus("cancelled");
+														bundle.setHasPaymentLink(false);
+													}
+													
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("setupFee"))
+												{
+													String setUpFee = (String)headerEntry.getValue();
+													float obisetUpFloat=new Float(setUpFee).longValue();
+													DecimalFormat df1 = new DecimalFormat("####.##");
+													df1.setMinimumFractionDigits(2);
+													bundle.setRate(df1.format(obisetUpFloat/100));
+													bundleSetUpFee = df1.format(obisetUpFloat/100);
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("contactEmail"))
+												{
+													
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("merchantId"))
+												{
+													
+													bundle.setMerchantID((String)headerEntry.getValue());
+													
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("nextBillDate"))
+												{
+													XMLGregorianCalendar nextBillDate = (XMLGregorianCalendar)headerEntry.getValue();
+													logger.debug("obiValue.getNextBillDate()=" + nextBillDate);
+													if(nextBillDate!=null && nextBillDate.toGregorianCalendar()!=null)
+														bundle.setNextBillDate(formatter.format(nextBillDate.toGregorianCalendar().getTime()));
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("offerId"))
+												{
+													bundle.setOfferId((String) headerEntry.getValue());
+													
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("subscriptionDate"))
+												{
+													XMLGregorianCalendar registrationDate = (XMLGregorianCalendar)headerEntry.getValue();
+													logger.debug("Registration Date=" + registrationDate);
+													if(registrationDate!=null && registrationDate.toGregorianCalendar()!=null)
+													bundle.setRegistrationDate(formatter.format(registrationDate.toGregorianCalendar().getTime()));
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("offerPrice"))
+												{
+													DecimalFormat df1 = new DecimalFormat("####.##");
+													df1.setMinimumFractionDigits(2);
+													float obiRateFloat=new Float((Integer)headerEntry.getValue()).longValue();
+													logger.debug("obiRateFloat=" + obiRateFloat);
+													String monthlyFeeStr = df1.format(obiRateFloat/100);
+													bundleRate = monthlyFeeStr;
+													bundle.setRate(monthlyFeeStr);
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("offerSubscriptionId"))
+												{
+													bundle.setOfferSubscriptionID((String)headerEntry.getValue());
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("paymentInsrument"))
+												{
+													PaymentInstrument paymentInstrument = (PaymentInstrument) headerEntry.getValue();
+													if(!isCurrentSN18plusOnly)
+														bundle.setPaymentAcountNumber(paymentInstrument.getAccountNumber());
+													else
+														bundle.setPaymentAcountNumber("");
+													
+													if(paymentInstrument.getPaymentType()!=null)
+													{
+														if(!isCurrentSN18plusOnly)
+															bundle.setPaymentMethodString(lookupPaymentTypeName(paymentInstrument.getPaymentType().name()));
+														else 
+															bundle.setPaymentMethodString("");
+													}
+												}
+												if(headerName!=null && headerName.equalsIgnoreCase("paymentMethodId"))
+												{
+													bundle.setPaymentInstrumentId((String) headerEntry.getValue());
+												}
+												
+											}
+											
+										}
+										
+										/*
+										 * {billingFrequency=MONTHLY, bundleSvuProdId=null, bundleType=STATIC, cancelDate=null, contactEmail=gps10test1@aol.com, freeMonthStartDate=null, inFreeMonth=false, merchantId=GPS, nextBillDate=2011-12-07T15:00:00.000Z, offerId=1003533, offerName=AOL PC & Identity Protection, offerPrice=1499, offerSubscriptionId=MTY4ODQxNg==, orderId=GPSSFUSQH42051, paymentInsrument=PaymentInstrument ( accountNumber=************4448,routingNumber=null,expiryDate=2011-12-31T00:00:00.000Z,creditVerificationValue=null,lastFourDigits=4448,pinNumber=null,authorizeIPAddress=null,authorizeEmailAddress=null,ibanCode=null,swiftCode=null,accountHolderName=null,internationalBankName=null,bankCountry=null,encodedAccountNumber=null,paymentType=VISA, )
+											, paymentMethodId=10003839, setupFee=0, sourceOfOrder=null, subscriptionDate=2011-10-07T19:57:39.000Z, subscriptionStatus=PROVISIONED, trialEndDate=null, trialStartDate=null}
+										 */
+										
+										if(bundle!=null && bundle.getStatus()!=null && bundle.getStatus().equalsIgnoreCase("active"))
+										{
+											if(bundle.getMerchantID()!=null && bundle.getMerchantID().equalsIgnoreCase("gps"))
+												bundle.setHasGetStartedLink(true);
+											else 
+												bundle.setHasGetStartedLink(false);
+											
+											
+											if(bundle.isFreeTrial())
+											{	
+												//show free trial only if the status is active. BLT#581051
+												bundle.setStatus("free_trial");
+												bundle.setHasActivateLink(false);
+												bundle.setHasCancelLink(true);
+												
+												if(!isCurrentSN18plusOnly)
+													bundle.setHasPaymentLink(true);	
+												else 
+													bundle.setHasPaymentLink(false);	
+											}
+											
+											
+										}
+										
+										if(bundle.isHasOneTime())
+											bundle.setRate(bundleSetUpFee);
+										else 
+											bundle.setRate(bundleRate);
+										
+										if(productId!=null && bundle!=null)
+											premiumServicesList.add(bundle);
+										
+									}
+									else 
+									{
+										// bundle subs..
+										subsList = (ArrayList<CustomerSubPaymentInfo>)obiEntry.getValue();
+										if(subsList!=null)
+										{	
+											
+											Iterator bundleSubsItr = subsList.iterator();
+											while(bundleSubsItr.hasNext())
+											{
+												CustomerSubPaymentInfo customerSubPaymentInfo = (CustomerSubPaymentInfo)bundleSubsItr.next();
+												PremiumServiceDetailsBean premiumServiceDetailsBean = populateObiSubsFromCustomerSubObj(customerSubPaymentInfo, obiKey, keyFromMap, screenName, productId, premiumServiceResources, request, response, isCurrentSN18plusOnly);
+												bundleSubs.add(premiumServiceDetailsBean);
+											}
+										}
+										bundle.setBundleSubsList(bundleSubs);
+									}
+																		
+									logger.debug("*********** obiKey= " + obiKey + "obiValue=" + bundleHeader);
+									logger.debug("*********** obiKey= " + obiKey + "obiSubsValue=" + subsList);
+									
+									
+								}
+								
+							}
+						}
+						catch(Exception ex)
+						{
+							logger.error("PremiumServiceUtil::loadSubscriptions: Error parsing OBI Subscriptions.",ex);
+							ex.printStackTrace();
+						}
+						
+						
+					}
+					
+				}
+	            		
+	       }
+    	}
+    	catch(Exception ex){
+    		
+    		logger.error("PremiumServiceUtil::loadSubscriptions Error getting subscriptions list from OBI ",ex);
+    		ex.printStackTrace();
+    	}
+        
+        logger.debug("End of LOADSUBS premiumServicesList.size=" + premiumServicesList.size());
+        
+        
+        
+       if(premiumServicesList!=null )
+       {
+    	   
+    	   Iterator it =  premiumServicesList.iterator();
+    	   while(it.hasNext())
+			{
+    		   
+    		   PremiumServiceDetailsBean premiumServiceDetailsBean = (PremiumServiceDetailsBean)it.next();
+    		   
+    		   if((!AccountAccess.getLoginItem(request, "Username").equalsIgnoreCase(premiumServiceDetailsBean.getSn())) && 
+    				   	( premiumServiceDetailsBean.getStatus().equalsIgnoreCase("pending")|| premiumServiceDetailsBean.getStatus().equalsIgnoreCase("cancelled")))
+    		   {
+    			   premiumServiceDetailsBean.setHasGetStartedLink(false);
+    			   premiumServiceDetailsBean.setHasActivateLink(false);
+    			   premiumServiceDetailsBean.setHasCancelLink(false);
+    			   
+    		   }
+    		   
+    		   if(premiumServiceDetailsBean!=null)
+    		   {
+    			   boolean isCurrentSN18plusOnly = AccountAccess.isOver_18only_sn(premiumServiceDetailsBean.getSn(), request, response);
+    			   
+    			   int accountType = AccountAccess.getAccountType(premiumServiceDetailsBean.getSn(), request, response);
+    			   if(accountType<4 && accountType!=-1)
+    			   {
+    				   
+    				   if(premiumServiceDetailsBean.getStatus().equalsIgnoreCase("pending")|| premiumServiceDetailsBean.getStatus().equalsIgnoreCase("cancelled"))
+    				   {
+    					 
+    					   premiumServiceDetailsBean.setHasGetStartedLink(false);
+    					   premiumServiceDetailsBean.setHasActivateLink(false);
+    					   premiumServiceDetailsBean.setHasPaymentLink(false);
+    					   
+    				   }
+    				   
+    				   
+    			   }
+    			   //logger.debug("**********************isCurrentSN18plusOnly=" + isCurrentSN18plusOnly + ", SN=" + premiumServiceDetailsBean.getSn());
+    			   if(isCurrentSN18plusOnly)
+    			   {
+    				   premiumServiceDetailsBean.setHasPaymentLink(false);
+    				   if(premiumServiceDetailsBean.getPaymentAcountNumber()!=null && !premiumServiceDetailsBean.getPaymentAcountNumber().equalsIgnoreCase(""))
+    				   {
+    					   logger.debug("**********************BEFORE premiumServiceDetailsBean.getPaymentAcountNumber()="  + premiumServiceDetailsBean.getPaymentAcountNumber());
+    					   premiumServiceDetailsBean.setPaymentAcountNumber("****************");
+    					   premiumServiceDetailsBean.getPaymentAcountNumber().replaceAll("/[a-zA-Z0-9]*/", "");
+    					   logger.debug("**********************premiumServiceDetailsBean.getPaymentAcountNumber()="  + premiumServiceDetailsBean.getPaymentAcountNumber());
+    					   //replaceAll(premiumServiceDetailsBean.getPaymentAcountNumber(), "\\*");
+    				   }
+    				   
+    			   }
+    			   else if(premiumServiceDetailsBean.getPaymentInstrumentId()!=null)
+    			   {
+    				   
+    				   Instrument instrument = PremiumServiceUtil.getPaymentInstrumentById(premiumServiceDetailsBean.getPaymentInstrumentId(), subscriptionMap, request, response,premiumServiceDetailsBean.getSn());
+    				   /*
+    				   if(instrument!=null)
+    				   {
+    					  boolean eligibleForPurchase = instrument.getEligForPurchase();
+    					  if(!eligibleForPurchase)
+    						  premiumServiceDetailsBean.setHasPaymentLink(false);
+    				   }
+    				   */
+    				   
+    			   }
+    		   }
+			}
+    	  
+    	   
+        
+       }
+        
+        
+        
+        
+		return premiumServicesList;
+		
+	}
+	
+	
+	
+	private static PremiumServiceDetailsBean populateObiSubsFromCustomerSubObj(CustomerSubPaymentInfo obiValue, String  obiKey, String keyFromMap, String screenName, String productId,  Properties premiumServiceResources, HttpServletRequest request, HttpServletResponse response, boolean isCurrentSN18plusOnly){
+		
+		PremiumServiceDetailsBean premiumServiceDetailsBean = new PremiumServiceDetailsBean();
+		DateFormat formatter = SimpleDateFormat.getDateInstance(SimpleDateFormat.SHORT, AppSession.getLocale(request));
+	    SimpleDateFormat df = new SimpleDateFormat("MM/dd/yy");
+	   // boolean isCurrentSN18plusOnly = AccountAccess.isOver_18only_sn(screenName, request, response);
+		if(obiValue!=null)
+		{	
+			
+			premiumServiceDetailsBean.setInfoTitle("Subscription Information");
+			productId=obiValue.getSvuProductId();
+			logger.debug("OBI obiKey=" + obiKey);
+			premiumServiceDetailsBean.setReeKey(obiKey);
+			premiumServiceDetailsBean.setTopKey(keyFromMap);
+			if(obiValue.getOfferSubscriptionId()!=null)
+				premiumServiceDetailsBean.setOfferSubscriptionID(obiValue.getOfferSubscriptionId().getValue());
+			premiumServiceDetailsBean.setType("obi");
+			premiumServiceDetailsBean.setProductName(premiumServiceResources.getProperty(productId, ""));
+			premiumServiceDetailsBean.setManagePremiumServicesPageImage(premiumServiceResources.getProperty(productId + "Image2", ""));
+			premiumServiceDetailsBean.setNotes(premiumServiceResources.getProperty(productId + "Desc", ""));
+			premiumServiceDetailsBean.setLongDesc(premiumServiceResources.getProperty(productId + "LongDesc", ""));
+			premiumServiceDetailsBean.setPsbShortDesc(premiumServiceResources.getProperty(productId + "ShortDesc", ""));
+			premiumServiceDetailsBean.setPsbTos(premiumServiceResources.getProperty(productId + "Tos", ""));
+			premiumServiceDetailsBean.setHelpLink(premiumServiceResources.getProperty(productId + "HelpLink", ""));
+			premiumServiceDetailsBean.setMerchantID(obiValue.getMerchantId());
+			
+			//afw, for onetimepurchase
+			premiumServiceDetailsBean.setSn(screenName);
+			
+			if(obiValue.getNextBillDate()!=null)
+			{
+				logger.debug("obiValue.getNextBillDate()=" + obiValue.getNextBillDate());
+				premiumServiceDetailsBean.setNextBillDate(formatter.format(obiValue.getNextBillDate().toGregorianCalendar().getTime()));
+			}
+			else 
+			{
+				premiumServiceDetailsBean.setNextBillDate("Unavailable");
+				logger.debug("obiValue.getNextBillDate()=NULL"  );
+			}
+			
+			if(obiValue.getSubscriptionDate()!=null)
+			{
+				premiumServiceDetailsBean.setRegistrationDate(formatter.format(obiValue.getSubscriptionDate().toGregorianCalendar().getTime()));
+			}
+			else
+				premiumServiceDetailsBean.setRegistrationDate("Unavailable");
+			
+			//logger.error(" obiValue.getInTrial().booleanValue() " + obiValue.getInTrial().booleanValue());
+			if(obiValue!=null && (obiValue.getSubscriptionStatus()==Status.ACTIVE || obiValue.getSubscriptionStatus()==Status.PROVISIONED || obiValue.getSubscriptionStatus()==Status.VENDOR_PROVISIONED))
+			{
+				if(obiValue.getMerchantId()!=null && obiValue.getMerchantId().equalsIgnoreCase("gps"))
+					premiumServiceDetailsBean.setHasGetStartedLink(true);
+				else 
+					premiumServiceDetailsBean.setHasGetStartedLink(false);
+				
+				premiumServiceDetailsBean.setHasActivateLink(false);
+				premiumServiceDetailsBean.setHasCancelLink(true);
+				premiumServiceDetailsBean.setStatus("active");
+				premiumServiceDetailsBean.setHasPaymentLink(true);
+				//show free trial only if the status is active. BLT#581051
+				if(obiValue!=null && obiValue.getInTrial()!=null &&  obiValue.getInTrial().booleanValue())
+				{
+					
+					premiumServiceDetailsBean.setStatus("free_trial");
+					if(obiValue.getMerchantId()!=null && obiValue.getMerchantId().equalsIgnoreCase("gps"))
+						premiumServiceDetailsBean.setHasGetStartedLink(true);
+					else 
+						premiumServiceDetailsBean.setHasGetStartedLink(false);
+					
+					premiumServiceDetailsBean.setHasActivateLink(false);
+					premiumServiceDetailsBean.setHasCancelLink(true);
+					premiumServiceDetailsBean.setHasPaymentLink(true);	
+				}
+			}
+			
+			else if(obiValue!=null && (obiValue.getSubscriptionStatus()==Status.CANCELLED || 
+					obiValue.getSubscriptionStatus()==Status.TERMINATED || 
+					obiValue.getSubscriptionStatus()==Status.SUSPENDED ||
+					obiValue.getSubscriptionStatus()==Status.VENDOR_SUSPENDED || 
+					obiValue.getSubscriptionStatus()==Status.SWITCHED ||
+					obiValue.getSubscriptionStatus()==Status.EXPIRED || 
+					obiValue.getSubscriptionStatus()==Status.VENDOR_CANCELLED)|| 
+					obiValue.getSubscriptionStatus()==Status.VENDOR_CLEANUP)
+			{
+				premiumServiceDetailsBean.setHasGetStartedLink(false);
+				premiumServiceDetailsBean.setHasActivateLink(true);
+				premiumServiceDetailsBean.setHasCancelLink(false);
+				premiumServiceDetailsBean.setStatus("cancelled");
+				premiumServiceDetailsBean.setHasPaymentLink(false);
+				
+			}
+			else if(obiValue.getSubscriptionStatus()==Status.PENDING_SUSPEND)
+			{
+				premiumServiceDetailsBean.setHasGetStartedLink(false);
+				premiumServiceDetailsBean.setHasActivateLink(true);
+				premiumServiceDetailsBean.setHasCancelLink(false);
+				premiumServiceDetailsBean.setStatus("pending");
+				premiumServiceDetailsBean.setHasPaymentLink(false);
+				
+			}
+			
+			
+			String offerId = null;
+			if( obiValue.getOfferId()!=null) 
+				offerId=obiValue.getOfferId().getValue();
+			premiumServiceDetailsBean.setOfferId(offerId);
+			logger.debug("productName=" + premiumServiceDetailsBean.getProductName() + " productId=" + productId + " offerId=" + offerId);
+			//handle lifelock
+			if(productId!=null && productId.equalsIgnoreCase("60353") && offerId!=null  && offerId.equalsIgnoreCase("1003299")) //free lifelock
+			{
+				
+				premiumServiceDetailsBean.setHasPaymentLink(false);
+				premiumServiceDetailsBean.setBilledTo(screenName);
+				premiumServiceDetailsBean.setPaymentMethodString("N/A");
+				premiumServiceDetailsBean.setHasGetStartedLink(false);
+				
+				
+			}
+			else if(productId!=null && productId.equalsIgnoreCase("60354")&& offerId!=null  && offerId.equalsIgnoreCase("1003297")) //paid lifelock
+			{
+				//premiumServiceDetailsBean.setHasPaymentLink(true);
+				
+				
+				List<ArrayOfAttribute> obiAttr = obiValue.getAttributes();
+				if(obiAttr!=null && obiAttr.size()>0)
+				{
+					Iterator ita = obiAttr.iterator();
+					while(ita.hasNext())
+					{
+						ArrayOfAttribute arrayOfAttribute= (ArrayOfAttribute)ita.next();
+						if(arrayOfAttribute!=null)
+						{
+							List<Attribute> attributeList = arrayOfAttribute.getAttribute();
+							Iterator itl = attributeList.iterator();
+							String attributesToShowStr="";
+							String emailToShowStr="";
+							if(itl!=null)
+							{
+								while(itl.hasNext())
+								{
+									Attribute attr = (Attribute)itl.next();
+									//if(attr!=null && attr.getAttributeName()!=null && attr.getAttributeName().equalsIgnoreCase("EMAIL_ADDRESS") )
+									if(attr!=null && attr.getAttributeName()!=null)
+									{
+										
+										if(attr.getAttributeName().trim().equalsIgnoreCase("EMAIL_ADDRESS"))
+										{
+											premiumServiceDetailsBean.setShowAdditionalFields(true);
+											attributesToShowStr+= "<b>Email</b>" + ":" + attr.getAttributeValue() + "<br>";
+											emailToShowStr="<b>Email</b>" + ":" + attr.getAttributeValue();
+											
+											if(!isCurrentSN18plusOnly){
+												premiumServiceDetailsBean.setAttributesToShow(attributesToShowStr);
+												premiumServiceDetailsBean.setEmailToShow(emailToShowStr);
+												premiumServiceDetailsBean.setHasGetStartedLink(false);
+											}
+											
+										}
+										/*else if(attr.getAttributeName().trim().equalsIgnoreCase("AccessUrl"))
+										{
+											premiumServiceDetailsBean.setShowAdditionalFields(true);
+											attributesToShowStr+= "<b>Access Url</b>" + ":" + attr.getAttributeValue() + "<br>";
+											
+										}
+										else if(attr.getAttributeName().trim().equalsIgnoreCase("AccessKey"))
+										{
+											premiumServiceDetailsBean.setShowAdditionalFields(true);
+											attributesToShowStr+= "<b>Access Key</b>" + ":" + attr.getAttributeValue() + "<br>";
+											
+										}
+										else if(attr.getAttributeName().trim().equalsIgnoreCase("Password"))
+										{
+											premiumServiceDetailsBean.setShowAdditionalFields(true);
+											attributesToShowStr+= "<b>Password</b>" + ":" + attr.getAttributeValue() + "<br>";
+											
+										}
+										else if(attr.getAttributeName().trim().equalsIgnoreCase("Username"))
+										{
+											premiumServiceDetailsBean.setShowAdditionalFields(true);
+											attributesToShowStr+= "<b>User Name</b>" + ":" + attr.getAttributeValue() + "<br>";
+											
+										}
+										else if(attr.getAttributeName().trim().equalsIgnoreCase("AlternateAccountNumber"))
+										{
+											premiumServiceDetailsBean.setShowAdditionalFields(true);
+											attributesToShowStr+= "<b>Alternate Account Number</b>" + ":" + attr.getAttributeValue() + "<br>";
+											
+										}
+										*/
+																		
+									}
+									
+								}
+								
+								
+								
+								
+							}
+							
+							
+							
+						}
+						
+						
+					}
+					
+					
+					
+				}
+				
+				
+				
+			}
+			
+			
+			DecimalFormat df1 = new DecimalFormat("####.##");
+			df1.setMinimumFractionDigits(2);
+			float obiRateFloat=new Float(obiValue.getRate()).longValue();
+			//apply the discount..
+			int discount = obiValue.getDiscountAmount();
+			obiRateFloat = obiRateFloat-discount;
+			logger.debug("obiRateFloat=" + obiRateFloat);
+			String monthlyFeeStr = df1.format(obiRateFloat/100);
+			premiumServiceDetailsBean.setRate(monthlyFeeStr);
+			premiumServiceDetailsBean.setHasOneTime(false);
+			
+			if(obiValue.getBillingFrequency().equals(BillingFrequency.ONETIMEPAYMENT))
+			{
+				float obisetUpFloat=new Float(obiValue.getSetupFee()).longValue();
+				premiumServiceDetailsBean.setRate(df1.format(obisetUpFloat/100));
+				premiumServiceDetailsBean.setBillingFrequency("");
+				premiumServiceDetailsBean.setHasCancelLink(false);
+				premiumServiceDetailsBean.setHasPaymentLink(false);
+				
+				premiumServiceDetailsBean.setHasActivateLink(false);
+				premiumServiceDetailsBean.setStatus("Previous Purchase");
+				premiumServiceDetailsBean.setInfoTitle("Order Information");
+				premiumServiceDetailsBean.setHasOneTime(true);
+			}
+			else if(obiValue.getBillingFrequency().equals(BillingFrequency.BIMONTHLY))
+				premiumServiceDetailsBean.setBillingFrequency("/ bi-monthly");
+			else if(obiValue.getBillingFrequency().equals(BillingFrequency.HALFYEARLY))
+				premiumServiceDetailsBean.setBillingFrequency("/ half-yearly");
+			else if(obiValue.getBillingFrequency().equals(BillingFrequency.MONTHLY))
+				premiumServiceDetailsBean.setBillingFrequency("/ month");
+			else if(obiValue.getBillingFrequency().equals(BillingFrequency.NONE))
+				premiumServiceDetailsBean.setBillingFrequency("");
+			else if(obiValue.getBillingFrequency().equals(BillingFrequency.QUARTERLY))
+				premiumServiceDetailsBean.setBillingFrequency("/ 3 months");
+			else if(obiValue.getBillingFrequency().equals(BillingFrequency.YEARLY))
+				premiumServiceDetailsBean.setBillingFrequency("/ year");
+			
+			
+			if(obiValue.getPaymentInsrument()!=null && !(productId!=null && productId.equalsIgnoreCase("60353") && offerId!=null  && offerId.equalsIgnoreCase("1003299"))) // not free lifelock - then only add payment. 
+			{
+				
+				logger.debug("obiValue.getPaymentInsrument().getAccountNumber()=" + obiValue.getPaymentInsrument().getAccountNumber() + " obiValue.getPaymentInsrument().getPaymentType()=" + obiValue.getPaymentInsrument().getPaymentType());
+				premiumServiceDetailsBean.setPaymentAcountNumber(obiValue.getPaymentInsrument().getAccountNumber());
+				premiumServiceDetailsBean.setPaymentInstrumentId(obiValue.getPaymentMethodId());
+				if(obiValue.getPaymentInsrument().getPaymentType()!=null)
+					premiumServiceDetailsBean.setPaymentMethodString(lookupPaymentTypeName(obiValue.getPaymentInsrument().getPaymentType().name()));
+				premiumServiceDetailsBean.setBilledTo(screenName);
+			}
+			else if(obiValue.getPaymentInsrument()==null)
+			{
+				//premiumServiceDetailsBean.setPaymentAcountNumber("N/A");
+				//premiumServiceDetailsBean.setPaymentInstrumentId("N/A");
+				premiumServiceDetailsBean.setPaymentMethodString("Unavailable");
+				premiumServiceDetailsBean.setHasPaymentLink(false);
+				premiumServiceDetailsBean.setBilledTo(screenName);
+				
+			}
+			else
+				logger.error("obiValue.getPaymentInsrument() is NULL" );
+		
+		
+		
+			premiumServiceDetailsBean.setProductId(obiValue.getSvuProductId());
+			logger.debug("productName=" + premiumServiceDetailsBean.getProductName() + " billingFrequency=" + obiValue.getBillingFrequency());
+			
+		}	
+
+		return premiumServiceDetailsBean;
+		
+	}
+	
+	public static ArrayList<PremiumServiceDetailsBean> getSubscriptionsBySn(String screenName, Map subscriptionMap, HttpServletRequest request, HttpServletResponse response)
+	{
+		ArrayList<PremiumServiceDetailsBean> premiumServicesBySnList = new ArrayList<PremiumServiceDetailsBean>(); 
+		
+		ArrayList<PremiumServiceDetailsBean> completeSubsList = loadSubscriptions(subscriptionMap, request, response);
+		
+		if(completeSubsList!=null && completeSubsList.size()>0)
+		{
+			Iterator it = completeSubsList.iterator();
+			if(it!=null)
+			{
+				while(it.hasNext())
+				{
+					PremiumServiceDetailsBean premiumServiceDetailsBean= (PremiumServiceDetailsBean)it.next();
+					if(premiumServiceDetailsBean!=null && premiumServiceDetailsBean.getBilledTo()!=null 
+							&& premiumServiceDetailsBean.getBilledTo().equalsIgnoreCase(screenName) 
+							&& (premiumServiceDetailsBean.getStatus().equalsIgnoreCase("active")||premiumServiceDetailsBean.getStatus().equalsIgnoreCase("free_trial")) 
+							&& (premiumServiceDetailsBean.getProductId()!=null && !premiumServiceDetailsBean.getProductId().equalsIgnoreCase("60353"))//complementary lifelock - do not add it
+							&& (premiumServiceDetailsBean.getOfferId()!=null && !premiumServiceDetailsBean.getProductId().equalsIgnoreCase("1003299)"))//complementary lifelock - do not add it
+					)
+					{
+						//if(productId!=null && productId.equalsIgnoreCase("60353") && offerId!=null  && offerId.equalsIgnoreCase("1003299")) //free lifelock
+						premiumServicesBySnList.add(premiumServiceDetailsBean);
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		logger.debug("getSubscriptionsBySn returning products list, size =" + premiumServicesBySnList.size());
+		
+		return premiumServicesBySnList;
+	}
+	
+	
+	public static Instrument getPaymentInstrumentById(String paymentInstrumentId, Map subscriptionMap, HttpServletRequest request, HttpServletResponse response, String sn)
+	{
+		Instrument paymentInstrument =  null ; 
+		String screenName="";
+    	
+		try{
+	        
+	        if(subscriptionMap!=null && subscriptionMap.size()!=0)
+	        {
+	        	logger.debug("*********************subscriptionMap.size()=" + subscriptionMap.size());
+				int i=0;
+				for (Iterator it=subscriptionMap.entrySet().iterator(); it.hasNext(); )
+				{ 
+					Map.Entry entry = (Map.Entry)it.next(); 
+					Object key = entry.getKey(); 
+					Object value = entry.getValue();
+					
+					String prodTos ="";
+					String subscriptionType= null;
+				
+					String keyFromMap= (String)key;	
+					StringTokenizer tokenizer = new StringTokenizer(keyFromMap , ":");
+					screenName = tokenizer.nextToken();
+					screenName=AccountAccess.compressSN(screenName);
+					
+					sn=AccountAccess.compressSN(sn);
+					if ((sn==null) || (sn.equalsIgnoreCase(screenName)==false))
+					{
+						continue;
+					}
+					
+					if (tokenizer.hasMoreTokens())
+						subscriptionType= tokenizer.nextToken();	
+					else
+						continue;
+									
+					logger.debug("loadSubscriptions values from REE=" + key + "Value="+  value);
+					if(subscriptionType!=null && subscriptionType.equalsIgnoreCase("instruments")){
+						
+						LinkedHashMap paymentMap = (LinkedHashMap)value;
+						if(paymentMap!=null && paymentMap.size()>0){
+							String lastItemStr = "";
+							
+							for (Iterator it2=paymentMap.entrySet().iterator(); it2.hasNext(); )
+							{
+								Map.Entry paymentEntry = (Map.Entry)it2.next(); 
+								String paymentKey = (String)paymentEntry.getKey(); 
+								paymentInstrument = (com.aol.obi.schema.Instrument)paymentEntry.getValue();
+							
+								if((paymentInstrument.getPaymentInstrument()!=null && paymentInstrument.getId().equalsIgnoreCase(paymentInstrumentId)))
+									return paymentInstrument;
+							}
+						}
+					}
+				}
+	        }
+    	}
+    	catch(Exception ex){
+    		logger.error("PremiumServiceUtil::getPaymentInstrumentById Error getting payment list from OBI ", ex);
+    		return null;
+    	}
+		
+		return null;
+	}
+	
+	
+	public static String loadUkSubsList(Map subscriptionMap, HttpServletRequest request, HttpServletResponse response){
+		
+		String ukSubsList = "";
+		logger.debug("loadUkSubsList start");
+		ArrayList subscriptionList = PremiumServiceUtil.loadSubscriptions(subscriptionMap, request,  response);
+		if(subscriptionList!=null && subscriptionList.size()>0)
+		{
+			Iterator it = subscriptionList.iterator();
+			int i=0;
+			while(it.hasNext()){
+			
+				
+				PremiumServiceDetailsBean premiumServiceDetailsBean = (PremiumServiceDetailsBean)it.next();
+				logger.debug("loadUkSubsList::premiumServiceDetailsBean=" + premiumServiceDetailsBean);
+				//function psbInfo( productName, screenName, effectiveDate , rate,productDesc, productTos,productType, indexFromMap, helpLink, status, nextBillingDate, reeKey, topKey) {
+				//ukSubsList+=("productList[" + i + "] = new psbInfo('" + premiumServiceDetailsBean.getProductName() + "', '" + premiumServiceDetailsBean.getBilledTo() + "', '', '', '" + premiumServiceDetailsBean.getLongDesc() +"', '" + premiumServiceDetailsBean.getPsbTos() + "', 'o', '" + premiumServiceDetailsBean.getProductId() + "', '" + premiumServiceDetailsBean.getHelpLink() + "', '" + premiumServiceDetailsBean.getStatus() + "', '" + premiumServiceDetailsBean.getNextBillDate() + "');");
+				
+				ukSubsList+=("productList[" + i + "] = new psbInfo('" + premiumServiceDetailsBean.getProductName() + "', '" + premiumServiceDetailsBean.getBilledTo() + "', '" + premiumServiceDetailsBean.getRegistrationDate()+ "', '" + premiumServiceDetailsBean.getRate() + "', '" +  premiumServiceDetailsBean.getLongDesc() +"'," + "'" +  premiumServiceDetailsBean.getPsbTos()  + "','" +  premiumServiceDetailsBean.getType() + "','" + premiumServiceDetailsBean.getProductId()  +  "', '" + premiumServiceDetailsBean.getHelpLink() + "', '" + premiumServiceDetailsBean.getStatus() + "', '" + premiumServiceDetailsBean.getNextBillDate() + "', '" + premiumServiceDetailsBean.getReeKey() + "', '" + premiumServiceDetailsBean.getTopKey()+ "', '" + premiumServiceDetailsBean.getOfferSubscriptionID() + "', '" + premiumServiceDetailsBean.getMerchantID() +  "', '" + premiumServiceDetailsBean.isHasCancelLink() + "', '" + premiumServiceDetailsBean.isHasActivateLink() + "');");
+				
+				i++;
+			
+			}
+			
+			
+		}
+		logger.debug("loadUkSubsList end ukSubsList=" + ukSubsList);
+		return ukSubsList;
+	}
+	
+	
+	public static String loadUkPaymenList(Map subscriptionMap, HttpServletRequest request, HttpServletResponse response){
+		String paymentList = "";
+		String screenName=null;
+		boolean hasAtLeastOneActiveSub = false; 
+    	ArrayList subsList = PremiumServiceUtil.loadSubscriptions(subscriptionMap, request, response);
+		try{
+	        Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(request);
+	        if(subscriptionMap!=null && subscriptionMap.size()!=0)
+	        {
+	        	logger.debug("*********************loadUkPaymenList::subscriptionMap.size()=" + subscriptionMap.size());
+				int i=0;
+				for (Iterator it=subscriptionMap.entrySet().iterator(); it.hasNext(); )
+				{ 
+					Map.Entry entry = (Map.Entry)it.next(); 
+					Object key = entry.getKey(); 
+					Object value = entry.getValue();
+					String subscriptionType= null;
+				
+					String keyFromMap= (String)key;	
+					StringTokenizer tokenizer = new StringTokenizer(keyFromMap , ":");
+					screenName = tokenizer.nextToken();
+					
+					if (tokenizer.hasMoreTokens())
+						subscriptionType= tokenizer.nextToken();	
+					else
+						continue;
+								
+					logger.debug("loadSubscriptions values from REE=" + key + "Value="+  value);
+					if(subscriptionType!=null && subscriptionType.equalsIgnoreCase("instruments")){
+						
+						LinkedHashMap paymentMap = (LinkedHashMap)value;
+						if(paymentMap!=null && paymentMap.size()>0){
+							String lastItemStr = "";
+							for (Iterator it2=paymentMap.entrySet().iterator(); it2.hasNext(); )
+							{
+								
+								Map.Entry paymentEntry = (Map.Entry)it2.next(); 
+								String paymentKey = (String)paymentEntry.getKey(); 
+								com.aol.obi.schema.Instrument paymentInstrument = (com.aol.obi.schema.Instrument)paymentEntry.getValue();
+								boolean isFirst = true;
+								
+								if(paymentInstrument.getPaymentInstrument()!=null){
+									String subsForCurrentPayment="";
+									String paymentType = lookupPaymentTypeName(paymentInstrument.getPaymentInstrument().getPaymentType().name());
+									paymentList+=paymentType + " ending in " + paymentInstrument.getPaymentInstrument().getAccountNumber() ;
+									
+									if(subsList!=null && subsList.size()>0)
+									{
+										
+										Iterator subsIterator = subsList.iterator();
+										
+
+										while(subsIterator.hasNext()){
+											
+											PremiumServiceDetailsBean premiumServiceDetailsBean = (PremiumServiceDetailsBean)subsIterator.next();
+											logger.debug("loadUkPaymenList:: premiumServiceDetailsBean status=" + premiumServiceDetailsBean.getStatus() + " productName=" + premiumServiceDetailsBean.getProductName() );
+											String subsPaymentInstrumentId = premiumServiceDetailsBean.getPaymentInstrumentId();
+											
+											if(subsPaymentInstrumentId!=null && subsPaymentInstrumentId.equalsIgnoreCase(paymentKey) && (premiumServiceDetailsBean.getStatus().equalsIgnoreCase("active")|| premiumServiceDetailsBean.getStatus().equalsIgnoreCase("free_trial")))
+											{
+												hasAtLeastOneActiveSub = true;
+												if(isFirst)
+													subsForCurrentPayment=" ( ";
+												else 
+													subsForCurrentPayment+=" , ";
+												subsForCurrentPayment+= premiumServiceDetailsBean.getProductName();
+												isFirst= false;
+											}
+											
+										}
+									
+									}// end subs appending. 
+									if(subsForCurrentPayment!="")
+									{
+										subsForCurrentPayment+=" )";
+										paymentList+=subsForCurrentPayment; //append the subscriptions for current payment.
+									}
+									paymentList+="<br><br>";
+								}
+							}
+							
+						}
+						
+					}
+				}
+	        }
+    	}
+    	catch(Exception ex){
+    		logger.error("PremiumServiceUtil::loadUKPaymentList Error getting payment list from OBI ",ex);
+    		ex.printStackTrace();
+    		
+    	}
+    	logger.debug("PremiumServiceUtil::loadUKPaymentList paymentList=" + paymentList);
+    	
+    	//hasAtLeastOneActiveSub= false;
+    	if(hasAtLeastOneActiveSub)    	
+			return paymentList;
+		else 
+			return "NoPayment";
+		
+	}
+
+	
+	public static String loadCof(Map subscriptionMap, HttpServletRequest request, HttpServletResponse response)
+	{
+		String cof = "";
+		String screenName=null;
+    	
+		try{
+	        Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(request);
+	        if(subscriptionMap!=null && subscriptionMap.size()!=0)
+	        {
+	        	logger.debug("*********************subscriptionMap.size()=" + subscriptionMap.size());
+				int i=0;
+				for (Iterator it=subscriptionMap.entrySet().iterator(); it.hasNext(); )
+				{ 
+					Map.Entry entry = (Map.Entry)it.next(); 
+					Object key = entry.getKey(); 
+					Object value = entry.getValue();
+					logger.debug("In the loadCof");
+					String prodTos ="";
+					String subscriptionType= null;
+				
+					String keyFromMap= (String)key;	
+					StringTokenizer tokenizer = new StringTokenizer(keyFromMap , ":");
+					screenName = tokenizer.nextToken();
+					
+					if (tokenizer.hasMoreTokens())
+						subscriptionType= tokenizer.nextToken();	
+					else
+						continue;
+								
+					logger.debug("loadSubscriptions values from REE=" + key + "Value="+  value);
+					if(subscriptionType!=null && subscriptionType.equalsIgnoreCase("instruments")){
+						
+						
+						LinkedHashMap paymentMap = (LinkedHashMap)value;
+						if(paymentMap!=null && paymentMap.size()>0){
+							
+							for (Iterator it2=paymentMap.entrySet().iterator(); it2.hasNext(); )
+							{
+								
+								Map.Entry paymentEntry = (Map.Entry)it2.next(); 
+								String paymentKey = (String)paymentEntry.getKey(); 
+								logger.debug("paymentKey=" + paymentKey);
+								com.aol.obi.schema.Instrument paymentInstrument = (com.aol.obi.schema.Instrument)paymentEntry.getValue();
+								if((paymentKey!=null && paymentKey.equalsIgnoreCase("cof")) || (paymentInstrument.getPaymentInstrument()!=null && paymentInstrument.getCardOnFileFlag()!=null && paymentInstrument.getCardOnFileFlag().booleanValue())){
+									cof = lookupPaymentTypeName(paymentInstrument.getPaymentInstrument().getPaymentType().name()) + " ************"+ paymentInstrument.getPaymentInstrument().getLastFourDigits();
+									
+								}
+							}
+						}
+						
+					}
+				}
+	        }
+    	}
+    	catch(Exception ex){
+    		logger.error("PremiumServiceUtil::loadPaymentList Error getting payment list from OBI ",ex);
+    		ex.printStackTrace();
+    		
+    	}
+    	boolean isMorf = AccountAccess.isMorf(request);
+    	if(cof.equalsIgnoreCase("") && !isMorf )
+    	{
+    		logger.debug("Entering the get payment from MF loop");
+    		try{
+	    			CCBizBillPaymentInfo payment=null;
+	    			CCBizPaymentMethod paymentMethod=null;
+	    			int pmIndex=0;
+	    			AccountInformationModel acctObj = null;
+	    			if (isMorf==false)
+	    			{
+	    				acctObj=AccountAccess.getAcctObj(request, response);
+	    				
+	    				if ((acctObj!=null) && (acctObj.getAccount()!=null) )
+	    					payment = acctObj.getAccount().getBillingInfo();
+	    				if (payment!=null)
+	    					paymentMethod = payment.getPaymentIndex();
+	
+	    			    if (paymentMethod!=null)
+	    			    	pmIndex= paymentMethod.getIndex();
+	    			    if ((pmIndex==13) || (pmIndex==14) )
+	    			    {
+	    			    	String eveningPhone=acctObj.getContact().getEvePhone().getNumber();
+	    					cof="Phone Bill " + eveningPhone;
+	    			    }
+	    				else if (pmIndex==20)
+	    					cof="Invoice";
+	    			    short acctType = AccountAccess.getAccountType(request);
+	    				if (acctType==4)
+	    					cof="Prepaid";
+	    				else if (acctType==1)
+	    					cof="Internal";
+	    				else if (acctType==5)
+	    					cof="OnePlusOne";
+	    				else if (acctType==2)
+	    					cof="Overhead";
+	    			}
+    		}
+    		catch(Exception ex){
+    			logger.debug("Error determining the payment details for master file acct.");
+    			ex.printStackTrace();
+    			//do not do anything - since default cof=N/A will be rendered. 
+    		}
+    	}
+    	logger.debug("GetCof end cof=" + cof);
+    	
+    	return cof;
+		
+	}
+	
+	public static String loadPaymentList(Map subscriptionMap, HttpServletRequest request, HttpServletResponse response)
+	{
+		String paymentList = "";
+		String screenName=null;
+    	
+		try{
+	        Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(request);
+	        if(subscriptionMap!=null && subscriptionMap.size()!=0)
+	        {
+	        	
+	        	
+				logger.debug("*********************subscriptionMap.size()=" + subscriptionMap.size());
+				int i=0;
+				for (Iterator it=subscriptionMap.entrySet().iterator(); it.hasNext(); )
+				{ 
+					Map.Entry entry = (Map.Entry)it.next(); 
+					Object key = entry.getKey(); 
+					Object value = entry.getValue();
+					
+					String prodTos ="";
+					String subscriptionType= null;
+				
+					String keyFromMap= (String)key;	
+					StringTokenizer tokenizer = new StringTokenizer(keyFromMap , ":");
+					screenName = tokenizer.nextToken();
+					
+					if (tokenizer.hasMoreTokens())
+						subscriptionType= tokenizer.nextToken();	
+					else
+						continue;
+								
+					logger.debug("loadSubscriptions values from REE=" + key + "Value="+  value);
+					if(subscriptionType!=null && subscriptionType.equalsIgnoreCase("instruments")){
+						
+						//[[13,"Visa ************1234",true],[17,"Disc ************1234",false],[9,"Amex ************1234", false]];
+						
+						LinkedHashMap paymentMap = (LinkedHashMap)value;
+						if(paymentMap!=null && paymentMap.size()>0){
+							String lastItemStr = "";
+							for (Iterator it2=paymentMap.entrySet().iterator(); it2.hasNext(); )
+							{
+								
+								Map.Entry paymentEntry = (Map.Entry)it2.next(); 
+								String paymentKey = (String)paymentEntry.getKey(); 
+								com.aol.obi.schema.Instrument paymentInstrument = (com.aol.obi.schema.Instrument)paymentEntry.getValue();
+								
+								if(paymentInstrument.getPaymentInstrument()!=null){
+									String paymentTypeAcctNum = lookupPaymentTypeName(paymentInstrument.getPaymentInstrument().getPaymentType().name()) + " "+ paymentInstrument.getPaymentInstrument().getAccountNumber();
+									String isDebitStr = "false";
+									String isChecking= "false";
+									String isCofFlag = "false";
+									if(paymentInstrument.getPaymentInstrument().getPaymentType().name().toLowerCase().indexOf("debit")>-1 | paymentInstrument.getPaymentInstrument().getPaymentType().name().toLowerCase().indexOf("debit")>-1)
+										isDebitStr = "true";
+									if(paymentInstrument.getPaymentInstrument().getPaymentType().name().toLowerCase().indexOf("checking")>-1)
+										isChecking = "true";
+								
+									if(paymentInstrument.getCardOnFileFlag() )
+										isCofFlag = "true";
+									
+									String expMonth="12";
+									String expYear="9999";
+									if(isChecking.equalsIgnoreCase("false"))
+									{
+										expMonth = new Integer(paymentInstrument.getPaymentInstrument().getExpiryDate().getMonth()).toString();
+										expYear= new Integer(paymentInstrument.getPaymentInstrument().getExpiryDate().getYear()).toString();
+									}
+									
+									if(paymentInstrument.getEligForPurchase().equals(true))
+									{
+								
+										if(paymentKey.equalsIgnoreCase("cof")==true)
+											lastItemStr = "['"+paymentKey  + "',\"" + paymentTypeAcctNum + "\"," + isDebitStr + "," + isChecking + "," + isCofFlag+  "," + expYear+ "," + expMonth +   ", \""+ screenName  + "\"],";
+										else
+											paymentList+="['"+paymentKey + "',\"" + paymentTypeAcctNum + "\"," +isDebitStr + "," + isChecking + "," + isCofFlag+  "," + expYear+ "," + expMonth+   ", \""+ screenName  + "\"],";
+									}
+								}
+							}
+							paymentList +=lastItemStr;
+						}
+						
+					}
+				}
+	        }
+    	}
+    	catch(Exception ex){
+    		logger.error("PremiumServiceUtil::loadPaymentList Error getting payment list from OBI ",ex);
+    		ex.printStackTrace();
+    		
+    	}
+		
+		return paymentList;
+		
+	}
+	  
+	private static HashMap<String, String> paymentTypeNameMap = null;
+	public static String lookupPaymentTypeName(String obiPaymentTypeName) {
+		if(obiPaymentTypeName==null ||obiPaymentTypeName.length()<1)
+			return "";
+		if(paymentTypeNameMap==null) {
+			paymentTypeNameMap = new HashMap<String, String>();
+			paymentTypeNameMap.put("MASTER_CARD", "MasterCard Credit");
+			paymentTypeNameMap.put("VISA","Visa Credit");
+			paymentTypeNameMap.put("AMERICAN_EXPRESS", "American Express Credit");
+			paymentTypeNameMap.put("DISCOVER", "Discover Credit");
+			paymentTypeNameMap.put("VISA_DEBIT", "Visa Debit");
+			paymentTypeNameMap.put("MASTER_CARD_DEBIT", "MasterCard Debit");
+			paymentTypeNameMap.put("CHECKING", "Checking Account");
+		}
+		String value = (String) paymentTypeNameMap.get(obiPaymentTypeName);
+		if(value == null || value.length()<1)
+			value = obiPaymentTypeName;
+		 
+		return value;
+	}
+	
+	//11.6, based on PsbMaps, 
+	//divided the big map into three maps-- legacy, instrument and subs. All map keys are screen name
+	//subs will be a new map (different with psbMap), key will be screen name, value will be a map, map's key is instrument ID, map's value will be subs object.
+	//sn1-(pm1,subs1); sn2-(pm1,subs2); sn2-(pm2,subs3); 
+	////afw, 10.27
+	public static MapsWithScreenNames buildInstrumentMapByScreenName(HttpServletRequest request, HttpServletResponse response )
+	{
+		boolean isMorf = AccountAccess.isMorf(request);
+		Map psbMap=null;
+		AppSession mySession;
+		if (isMorf == true) 
+		{
+			mySession = MorfSession.getSession(request);
+			psbMap = ((MorfSession) mySession).getPsbMap(request,response);
+		}
+		else 
+		{ 
+			mySession = SPortalSession.getSession(request);
+			psbMap = ((SPortalSession) mySession).getPsbMap(request, response);
+		}
+
+		if (psbMap == null || psbMap.size() < 1) 
+			return null;
+		
+		HashMap legacyMap=new HashMap();
+		HashMap instrumentMap=new HashMap();
+		Map subsMapInFetch=null;
+		Map bundlesMapInFetch=null;
+		
+		Map newSubsMap=new HashMap();
+		Map newBundlesMap=new HashMap();
+		
+		ArrayList listSubs=null;
+		
+		for (Iterator itFetch=psbMap.keySet().iterator(); itFetch.hasNext(); )
+		{
+			String thisKey=(String)itFetch.next(); 
+			
+			StringTokenizer tokenizer = new StringTokenizer(thisKey, ":"); 
+			String screenName = tokenizer.nextToken();
+			screenName=AccountAccess.compressSN(screenName);
+			
+			if (thisKey.contains("legacy"))
+			{
+				legacyMap.put(screenName,psbMap.get(thisKey));
+			}
+			else if (thisKey.contains("instruments"))
+			{
+				instrumentMap.put(screenName,psbMap.get(thisKey));
+			}
+			else if (thisKey.contains("obisubs"))
+			{
+				subsMapInFetch=(HashMap)psbMap.get(thisKey);
+				
+				HashMap pmSubsMap=new HashMap();
+				
+				if((subsMapInFetch!=null) && (subsMapInFetch.size()>0))
+				{
+					for (Iterator itSubs=subsMapInFetch.keySet().iterator(); itSubs.hasNext(); )
+					{
+						String SubsID =(String)itSubs.next();  //key
+						
+						CustomerSubPaymentInfo subInfo=(CustomerSubPaymentInfo)(subsMapInFetch.get(SubsID));  //value, PMId
+						
+						String PMIdInSubs=subInfo.getPaymentMethodId();
+						
+						String subStatus=subInfo.getSubscriptionStatus().value();
+						
+						if((subStatus.equalsIgnoreCase("ACTIVE")==true)||(subStatus.equalsIgnoreCase("PROVISIONED")==true) 
+							|| (subStatus.equalsIgnoreCase("VENDOR_PROVISIONED")==true))
+						{
+							if (PMIdInSubs!=null)
+							{
+								ArrayList<CustomerSubPaymentInfo> thisPMIdList=(ArrayList<CustomerSubPaymentInfo>)pmSubsMap.get(PMIdInSubs);
+								
+								if (thisPMIdList==null)
+								{
+									thisPMIdList=new ArrayList<CustomerSubPaymentInfo>();
+									pmSubsMap.put(PMIdInSubs, thisPMIdList);
+								}
+								thisPMIdList.add(subInfo);
+							}
+						}
+					}//for
+					newSubsMap.put(screenName,pmSubsMap);
+				}//if(subsMapInFetch!=null)
+				//newSubsMap.put(screenName,pmSubsMap);
+			}// obisubs
+			else if (thisKey.contains("obiBundles"))
+			{
+				bundlesMapInFetch=(HashMap)psbMap.get(thisKey);
+				
+				HashMap pmBundleMap=new HashMap();
+				
+				if((bundlesMapInFetch!=null) && (bundlesMapInFetch.size()>0))
+				{
+					for (Iterator itBundles=bundlesMapInFetch.keySet().iterator(); itBundles.hasNext(); )
+					{
+						String bundleKey =(String)itBundles.next();  //1688416:bundle
+						
+						//bundleKey contains bundle or subs. If PMO list page wants to list all subs, thisPMBundleIdListshould be a list of map --
+						//this map's key will be 12345:bundle and 12345:subs, the bundle and related subs have same PMId.
+						//this release, we only list bundle, so we throw away subs
+						if (bundleKey.contains("bundle"))  
+						{
+							Map thisBundle=(Map)bundlesMapInFetch.get(bundleKey);
+							String PMIdInBundle=(String)thisBundle.get("paymentMethodId");
+							
+							String bundleStatus=(String)thisBundle.get("subscriptionStatus");
+							
+							if((bundleStatus.equalsIgnoreCase("ACTIVE")==true)||(bundleStatus.equalsIgnoreCase("PROVISIONED")==true) 
+								|| (bundleStatus.equalsIgnoreCase("VENDOR_PROVISIONED")==true))
+							{		
+								if (PMIdInBundle!=null)
+								{
+									ArrayList<Map> thisPMBundleIdList=(ArrayList<Map>)pmBundleMap.get(PMIdInBundle);
+											
+									if (thisPMBundleIdList==null)
+									{
+										thisPMBundleIdList=new ArrayList<Map>();
+										pmBundleMap.put(PMIdInBundle, thisPMBundleIdList);
+									}
+									thisPMBundleIdList.add(thisBundle);
+								}
+							}
+						}
+					}//for
+					newBundlesMap.put(screenName,pmBundleMap);
+				} //if(bundlesMapInFetch!=null)
+			}// obiBundles
+		} //for
+		
+		return new MapsWithScreenNames(legacyMap, instrumentMap,newSubsMap,newBundlesMap);
+	}
+	
+	public static class MapsWithScreenNames
+	{
+		private Map legacyMap;  
+		private Map instrumentMap;  
+		private Map newSubsMap;  //not same as subsMap in PsbMap
+		private Map newBundleMap; //similar to newSubsMap
+		
+		public Map getAllLegacyMap() 
+		{
+			return legacyMap;
+		}
+		public Map getAlltInstrumentMap() 
+		{
+			return instrumentMap;
+		}
+		public Map getAllNewSubsMap() 
+		{
+			return newSubsMap;
+		}
+		public Map getAllNewBundleMap() 
+		{
+			return newBundleMap;
+		}
+		
+		HashMap getLegacyMapByScreenName(String screenName)
+		{
+			if (legacyMap ==null)
+				return null;
+			
+			return (HashMap)(legacyMap.get(screenName));
+		}
+		HashMap getInstrumentMapByScreenName(String screenName)
+		{
+			if (instrumentMap == null)
+				return null;
+			
+			return (HashMap)(instrumentMap.get(screenName));
+		}
+		HashMap getSubsMapByScreenName(String screenName)
+		{
+			//PMid is a key
+			if (newSubsMap == null)
+				return null;
+			
+			return (HashMap)(newSubsMap.get(screenName));
+		}
+		HashMap getBundleMapByScreenName(String screenName)
+		{
+			//PMid is a key
+			if (newBundleMap == null)
+				return null;
+			
+			return (HashMap)(newBundleMap.get(screenName));
+		}
+		
+		MapsWithScreenNames(Map legacyMap, Map instrumentMap,Map newSubsMap, Map newBundleMap)
+		{
+			this.legacyMap=legacyMap;
+			this.instrumentMap=instrumentMap;
+			this.newSubsMap=newSubsMap;
+			this.newBundleMap=newBundleMap;
+		}
+	}
+	
+	// 11.7, for Master Account only, not for Morf.
+	// find an instrument for a subaccount, that has same credit card/checking number as primary sn
+	public static InstrumentWithScreenName getInstrumentForSubAccount (HttpServletRequest request, HttpServletResponse response, Instrument primryInstrument, String primarySn) 
+	{
+		AppSession mySession=SPortalSession.getSession(request);
+		Map	subscriptionMap = ((SPortalSession) mySession).getPsbMap(request, response);
+
+		if (subscriptionMap == null || subscriptionMap.size() < 1) 
+			return null;
+
+		String subscriptionType;  
+		String screenName;
+		for (Iterator it = subscriptionMap.entrySet().iterator(); it.hasNext();) 
+		{
+			Map.Entry entry = (Map.Entry) it.next();
+			Object key = entry.getKey();
+			Object value = entry.getValue();
+
+			String keyFromMap = (String) key;
+			StringTokenizer tokenizer = new StringTokenizer(keyFromMap, ":"); 
+			screenName = tokenizer.nextToken();
+			
+			if (tokenizer.hasMoreTokens())
+				subscriptionType= tokenizer.nextToken();	
+			else
+				continue;
+					
+			//only care about different SNs
+			String compressedPrimarySn=AccountAccess.compressSN(primarySn);
+			if (compressedPrimarySn.equalsIgnoreCase(screenName)==false)
+			{
+				if (subscriptionType != null && subscriptionType.equalsIgnoreCase("instruments")) 
+				{
+					LinkedHashMap paymentMap = (LinkedHashMap) value;
+				
+					if (paymentMap != null && paymentMap.size() > 0) 
+					{
+						for (Iterator it2 = paymentMap.entrySet().iterator(); it2.hasNext();) 
+						{ 
+							Map.Entry paymentEntry = (Map.Entry) it2.next();
+							Instrument thisInstrument=(Instrument) paymentEntry.getValue();
+							String paymentKey = (String) paymentEntry.getKey();
+							if (paymentKey.equalsIgnoreCase("cof")==false) 
+							{	
+								if ((thisInstrument.getPaymentInstrument().getEncodedAccountNumber().equalsIgnoreCase(primryInstrument.getPaymentInstrument().getEncodedAccountNumber())==true) 
+									&&
+									(thisInstrument.getPaymentInstrument().getPaymentType().name().equalsIgnoreCase(primryInstrument.getPaymentInstrument().getPaymentType().name()) ))
+								{
+								 	return new InstrumentWithScreenName(thisInstrument, screenName);
+								}
+							}  
+						} // end for loop
+					}
+				}
+			}//sn
+		} // end for loop
+		return new InstrumentWithScreenName(primryInstrument, primarySn);
+	}
+	
+	public static class InstrumentWithScreenName
+	{
+		private Instrument instrument;
+		private String screenName; 
+		
+		public Instrument getInstrument() {
+			return instrument;
+		}
+
+		public void setInstrument(Instrument instrument) {
+			this.instrument = instrument;
+		}
+
+		public String getScreenName() {
+			return screenName;
+		}
+
+		public void setScreenName(String screenName) {
+			this.screenName = screenName;
+		}
+
+		InstrumentWithScreenName(Instrument instrument, String screenName)
+		{
+			this.instrument=instrument;
+			this.screenName=screenName;
+		}
+	}
+	
+	public static int getNumberOfScreenNames(HttpServletRequest request, HttpServletResponse response )
+	{
+		try 
+		{
+			List<String> linkedSNs = (ArrayList)AccountAccess.getSession(request, response).getScreenNameModelObj().getListOfAssociatedScreenNames(AccountAccess.getLoginItem(request,"Username"));
+			if (linkedSNs!=null)
+			{
+				return linkedSNs.size();
+			}
+		} 
+		catch (Exception e) 
+		{
+			logger.error("Get Linked SNs failed",e);
+			e.printStackTrace();
+			return 0;
+		}	
+		return 0;
+	}
+	
+	public static int getNumberOfInstrumentByScreenName(HttpServletRequest request, HttpServletResponse response, String sn )
+	{	
+		sn=AccountAccess.compressSN(sn);
+		boolean isMorf = AccountAccess.isMorf(request);
+		Map psbMap=null;
+		AppSession mySession;
+		if (isMorf == true) 
+		{
+			mySession = MorfSession.getSession(request);
+			psbMap = ((MorfSession) mySession).getPsbMap(request,response);
+		}
+		else 
+		{ 
+			mySession = SPortalSession.getSession(request);
+			psbMap = ((SPortalSession) mySession).getPsbMap(request, response);
+		}
+
+		if (psbMap == null || psbMap.size() < 1) 
+			return 0;
+		
+		int retVal=0;
+		for (Iterator itFetch=psbMap.keySet().iterator(); itFetch.hasNext(); )
+		{
+			String thisKey=(String)itFetch.next(); 
+			
+			StringTokenizer tokenizer = new StringTokenizer(thisKey, ":"); 
+			String screenName = tokenizer.nextToken();
+			
+			screenName=AccountAccess.compressSN(screenName);
+			
+			if (sn.equalsIgnoreCase(screenName)==true)
+			{
+				if (thisKey.contains("instruments"))
+				{
+					HashMap paymentMap = (HashMap)psbMap.get(thisKey);
+					
+					if (paymentMap != null && paymentMap.size() > 0) 
+					{
+						for (Iterator it2 = paymentMap.entrySet().iterator(); it2.hasNext();) 
+						{ 
+							retVal++;
+							it2.next();
+						} 
+						break;
+					}
+				}
+			}
+		} //for
+		
+		return retVal;
+	}
+	
+	//for UK main page
+	public static boolean[] hasInstrumentAndSubsByScreenName(HttpServletRequest request, HttpServletResponse response, String sn )
+	{
+		boolean[] retVal=new boolean[2];
+		retVal[0]=false;
+		retVal[1]=false;
+		
+		boolean hasSubs=false;
+		boolean hasInstrument=false;
+		
+		boolean isMorf = AccountAccess.isMorf(request);
+		Map psbMap=null;
+		AppSession mySession;
+		if (isMorf == true) 
+		{
+			mySession = MorfSession.getSession(request);
+			psbMap = ((MorfSession) mySession).getPsbMap(request,response);
+		}
+		else 
+		{ 
+			mySession = SPortalSession.getSession(request);
+			psbMap = ((SPortalSession) mySession).getPsbMap(request, response);
+		}
+
+		if (psbMap == null || psbMap.size() < 1) 
+			return retVal;
+		
+		for (Iterator itFetch=psbMap.keySet().iterator(); itFetch.hasNext(); )
+		{
+			String thisKey=(String)itFetch.next(); 
+			
+			StringTokenizer tokenizer = new StringTokenizer(thisKey, ":"); 
+			String screenName = tokenizer.nextToken();
+			
+			if (sn.equalsIgnoreCase(screenName)==true)
+			{
+				if (thisKey.contains("obisubs"))
+				{
+					HashMap subsMap = (HashMap)psbMap.get(thisKey);
+					
+					if (subsMap != null && subsMap.size() > 0) 
+					{
+						for (Iterator itSubs=subsMap.keySet().iterator(); itSubs.hasNext(); )
+						{
+							String SubsID =(String)itSubs.next();  //key
+							
+							CustomerSubPaymentInfo subInfo=(CustomerSubPaymentInfo)(subsMap.get(SubsID));  
+							
+							String subStatus=subInfo.getSubscriptionStatus().value();
+							
+							if((subStatus.equalsIgnoreCase("ACTIVE")==true)||(subStatus.equalsIgnoreCase("PROVISIONED")==true) 
+								|| (subStatus.equalsIgnoreCase("VENDOR_PROVISIONED")==true))
+							{
+								retVal[0]=true;
+								retVal[1]=true;
+								
+								return retVal;
+							}
+						}
+					}
+				}
+				else if (thisKey.contains("instruments"))
+				{
+					HashMap paymentMap = (HashMap)psbMap.get(thisKey);
+					
+					if (paymentMap != null && paymentMap.size() > 0) 
+					{
+						hasInstrument=true;
+					}
+				}
+			}
+		} //for
+		
+		retVal[0]=hasInstrument;
+		retVal[1]=hasSubs;
+		
+		return retVal;
+	}
+	
+	//12.2
+	public static PremiumServiceUtil.EftAndAolPlan getEft(String instrumentID,HttpServletRequest request,HttpServletResponse response,String sn)
+	{
+		PremiumServiceUtil.EftAndAolPlan EftInfo=new PremiumServiceUtil.EftAndAolPlan("", "false");
+		try
+		{
+			String hasAOL="false";
+			String eftInfo="";
+			boolean isMorf = AccountAccess.isMorf(request);
+			boolean isPrimary=false;
+		
+			String primarySN="";
+			Map psbMap=null;
+			AppSession mySession;
+			if (isMorf == true) 
+			{
+				mySession = MorfSession.getSession(request);
+				psbMap = ((MorfSession) mySession).getPsbMap(request,response);
+			}
+			else 
+			{ 
+				mySession = SPortalSession.getSession(request);
+				psbMap = ((SPortalSession) mySession).getPsbMap(request, response);
+				
+				AccountInformationModel acctObj = AccountAccess.getAcctObj(request, response);
+				if (acctObj==null)
+				{
+					return EftInfo;
+				}
+				
+				CCBizAccount bizAcct =null;
+				bizAcct = acctObj.getAccount();
+				if (bizAcct==null)
+				{
+					return EftInfo;
+				}
+				if (bizAcct.getScreenName()!=null)
+				{
+					primarySN=bizAcct.getScreenName().getAolScreenName();
+					primarySN=primarySN.toLowerCase();
+				}
+			
+				sn=AccountAccess.compressSN(sn);
+				isPrimary= sn.equalsIgnoreCase(AccountAccess.compressSN(primarySN));
+			}
+
+			if (psbMap == null || psbMap.size() < 1) 
+				return EftInfo;
+			 
+			Instrument thisInstrument=PremiumServiceUtil.getPaymentInstrumentById(instrumentID, psbMap, request, response, sn);
+			
+			if (thisInstrument==null)
+				return EftInfo;
+			
+			if (isPrimary)
+			{
+				if((instrumentID.equalsIgnoreCase("cof")) || ((thisInstrument.getCardOnFileFlag()!=null)&&(thisInstrument.getCardOnFileFlag().booleanValue()==true)))
+				{
+					EftInfo=PremiumServiceUtil.getAolPlanEft(request, response,instrumentID, thisInstrument.getCardOnFileFlag().booleanValue(),primarySN);
+				}
+			}
+		
+			Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(request);
+			if (premiumServiceResources==null)
+			{
+				return EftInfo;
+			}
+			
+			boolean isCofFlag=false;
+			if (thisInstrument.getCardOnFileFlag()!=null) 
+			{
+				isCofFlag=thisInstrument.getCardOnFileFlag().booleanValue();
+			}
+			
+			String obiStr=PremiumServiceUtil.getEftText(request,response,instrumentID, isCofFlag,premiumServiceResources,sn);	
+			EftInfo.setEftText(EftInfo.getEftText()+obiStr);
+		}
+		catch(Exception e)
+		{
+			return EftInfo;
+		}
+		
+		return EftInfo;
+	}
+	
+	public static PremiumServiceUtil.EftAndAolPlan getAolPlanEft(HttpServletRequest request, HttpServletResponse response, String instrumentId, boolean isCofFlag,String sn)
+	{
+		PremiumServiceUtil.EftAndAolPlan thisInfo=new PremiumServiceUtil.EftAndAolPlan("", "false");
+		
+		ModelManager modelManager = new ModelManager();
+		BrsModelHelper brsModelHelper = (BrsModelHelper) modelManager.factory(ModelType.BRS); 
+		String monthlyFeeCurrentPi = "";
+		String prepaidFee = "";
+		String prepaidFrequencyToShow = "per month";
+		String eftStr="";
+	
+ 		try 
+ 		{
+	 		monthlyFeeCurrentPi =brsModelHelper.getPricePlanMonthlyFee(AccountAccess.getAcctData(request,response).getMAAcctCurrentPiStr(request, response));
+	 	    
+	 		prepaidFee =brsModelHelper.getPricePlanPrepaidFee(AccountAccess.getAcctData(request,response).getMAAcctCurrentPiStr(request, response));
+	 		String prepaidFrequency = brsModelHelper.getPricePlanPrepaidMonthsFrequency(AccountAccess.getAcctData(request,response).getMAAcctCurrentPiStr(request, response));
+		 	if(monthlyFeeCurrentPi==null || ( monthlyFeeCurrentPi!=null && monthlyFeeCurrentPi.trim().equalsIgnoreCase("0.00")))
+		 	{
+		 		if(prepaidFee!=null && !prepaidFee.trim().equalsIgnoreCase("0.00") && !prepaidFee.trim().equalsIgnoreCase(""))
+		 				monthlyFeeCurrentPi = prepaidFee; // is a prepaid account.
+		 
+		 		if(prepaidFrequency!=null && !prepaidFrequency.trim().equalsIgnoreCase("") && !prepaidFrequency.trim().equalsIgnoreCase("1"))
+		 		{	
+		 			if(prepaidFrequency!=null && prepaidFrequency.length()>2)
+		 			prepaidFrequency = prepaidFrequency.substring(0,2);
+		 			if(!prepaidFrequency.trim().equalsIgnoreCase("0")&& !prepaidFrequency.trim().equalsIgnoreCase("1"))
+		 				prepaidFrequencyToShow= "per " + prepaidFrequency + " month";
+		 		}
+		 		else 
+		 		{
+		 			prepaidFrequencyToShow="per month";
+		 		}
+		 	}
+
+			ResourceBundle resources = null;
+			 Properties premiumServiceResources =null;
+			 
+			resources = SPortalSession.getResources(request);
+			premiumServiceResources = SPortalSession.getPremiumServiceResources(request);
+						
+			String primaryMasterAcctNumber = AccountAccess.getLoginItem(request,"mst_acct_number");
+			
+			String currentPI = "";
+		
+	 		if(AccountAccess.getAcctData(request,response)!=null && AccountAccess.isMorf(request)==false)
+	 		{
+	 			currentPI =AccountAccess.getAcctData(request,response).getMAAcctCurrentPiStr(request, response);
+	 		}
+	 		else 
+	 		{
+	 			currentPI = AccountAccess.getLoginItem(request,"mst_price_index");
+	 		}
+		 	
+			String pricePlanTestVersion = "None";	
+		
+		    boolean isTestVersion = PricePlanTestBean.isTestEnabled(primaryMasterAcctNumber, currentPI, resources, request, response);
+		    
+		    if(isTestVersion)
+		    	request.getSession().setAttribute("pricePlanTestVersion", "TestVersion");
+		    
+		    PricePlanChangeModelHelper pricePlanChangeModelHelper = new PricePlanChangeModelHelper();
+		
+		    if (premiumServiceResources==null)
+		    	return thisInfo;
+		    
+	    	//Call BRS to get the categoryID based on the currentPI. 
+	        String categoryIdStr="";
+	        categoryIdStr = brsModelHelper.getPricePlanCategory(currentPI);
+	        
+	        String title ="";
+	    	if(currentPI!=null && currentPI.equalsIgnoreCase("-9999"))
+	    		title = SpProperties.getPricePlanProperty(premiumServiceResources, currentPI,isTestVersion, "");
+	    	else 
+	    		title=premiumServiceResources.getProperty(categoryIdStr , "");
+	        
+	    	//overwrite unsupported PI, in order to get img.
+	    	currentPI= PricePlanUtil.checkSupportedPricePlan(request, response, currentPI);
+	 	    
+		    if((instrumentId!=null && instrumentId.equalsIgnoreCase("cof")) || isCofFlag)
+		    {
+			    if ((title!=null) && (title.length()>0) )
+			    {
+			    	if (monthlyFeeCurrentPi.equals("0.00")==false)
+					{
+						eftStr=title+" $"+monthlyFeeCurrentPi+ " " + prepaidFrequencyToShow + ", ";
+					}
+			    }
+		    }
+		    else
+		    {
+		    	return thisInfo;
+		    }
+		}
+	    catch (Exception e) {
+	    	return thisInfo;
+	    }
+	    
+	    if ((eftStr!=null) && (eftStr.length()>0))
+	    	return new PremiumServiceUtil.EftAndAolPlan(eftStr,"true");
+	    else
+	    	return new PremiumServiceUtil.EftAndAolPlan(eftStr,"false");
+	}
+	
+	private static String getEftText(HttpServletRequest request,HttpServletResponse response, String instrumentId, boolean iscofFlag,
+			Properties premiumServiceResources,String sn )
+	{
+		PremiumServiceUtil.MapsWithScreenNames maps=PremiumServiceUtil.buildInstrumentMapByScreenName(request, response );
+		Map legacyMapInFetch=maps.getAllLegacyMap();
+		Map instrumentsMapInFetch=maps.getAlltInstrumentMap();
+		Map newSubsMap=maps.getAllNewSubsMap();
+		Map newBundlesMap=maps.getAllNewBundleMap();
+		
+		sn=AccountAccess.compressSN(sn);
+		
+		Map legacyMap=(Map)legacyMapInFetch.get(sn);
+		Map instrumentMap=(Map)instrumentsMapInFetch.get(sn);
+		HashMap thisSubsMap=(HashMap)newSubsMap.get(sn);
+		HashMap thisBundleMap=(HashMap)newBundlesMap.get(sn);
+		
+		Instrument thisInstrument =(Instrument)instrumentMap.get(instrumentId);
+		
+		String eftMsgStr="";
+		
+		//legacy
+		if (((instrumentId.equalsIgnoreCase("cof")) || (thisInstrument.getCardOnFileFlag().booleanValue()==true)) && (premiumServiceResources!=null) )
+		{
+			if (((legacyMap!=null) && (legacyMap.size()>0)) ) 
+			{
+				for (Iterator itLegacy=legacyMap.keySet().iterator(); itLegacy.hasNext(); )
+				{
+					String legacyID=(String)itLegacy.next(); 
+					SubscriptionInfo thisLegacy=(SubscriptionInfo)legacyMap.get(legacyID);
+					
+					if((thisLegacy.getStatus()!=null) && ((thisLegacy.getStatus().equalsIgnoreCase("A")) ||
+							(thisLegacy.getStatus().equalsIgnoreCase("P"))))
+					{
+						if( (thisLegacy!=null) && (((instrumentId!=null && instrumentId.equalsIgnoreCase("cof")) || (iscofFlag))))
+						{
+							StringTokenizer tokenizer = new StringTokenizer(legacyID , ":");
+							String halfLegacyID = tokenizer.nextToken();
+					    			
+							 String prodLegTitle =  premiumServiceResources.getProperty(halfLegacyID, "");						 
+							 String prodLegIcon =  premiumServiceResources.getProperty(halfLegacyID+"Image5", "");
+							 String rateStr = java.text.NumberFormat.getInstance().format(thisLegacy.getFee()/100.0);
+							 							
+							 eftMsgStr=prodLegTitle +" $"+rateStr+" per month, ";	
+						}//if
+					}
+				}
+				 
+				return eftMsgStr;
+			}
+		}
+		
+		//subscriptions
+		ArrayList subsList=null;
+		if (((thisSubsMap!=null)&& (thisSubsMap.size()>0)) && (premiumServiceResources!=null) )
+		{
+			subsList =(ArrayList)thisSubsMap.get(instrumentId);
+		}
+		
+		if ((subsList!=null) && (subsList.size()>0))
+		{ 
+			 for (int j=0; j<subsList.size(); j++)
+			 {
+				 CustomerSubPaymentInfo tempSubs=(CustomerSubPaymentInfo)(subsList.get(j));
+			  
+				 if (tempSubs!=null)
+				 {
+					 if(tempSubs.getBillingFrequency().equals(BillingFrequency.ONETIMEPAYMENT))
+						 continue;
+					 
+					 String subsOfferId=tempSubs.getOfferSubscriptionId().getValue();
+					  		 
+					 String svuProdId=tempSubs.getSvuProductId();
+			
+					 String prodTitle =  premiumServiceResources.getProperty(svuProdId, "");						 
+					 
+					 
+					 if ((prodTitle!=null) && (prodTitle.length()>0) )
+					 {
+						DecimalFormat df1 = new DecimalFormat("####.##");
+						df1.setMinimumFractionDigits(2);
+						float obiRateFloat=new Float(tempSubs.getRate()).longValue();	
+						
+						//apply the discount..
+						int discount = tempSubs.getDiscountAmount();
+						obiRateFloat = obiRateFloat-discount;
+						 
+						String tempRateStr = df1.format(obiRateFloat/100);
+						 
+						eftMsgStr+=prodTitle + " $"+tempRateStr +" per month, ";
+					 }
+				 }
+			 }//for j
+		}
+		 
+		 //bundle
+		if (((thisBundleMap!=null)&& (thisBundleMap.size()>0)) && (premiumServiceResources!=null) )
+		{
+			ArrayList bundlesList =(ArrayList)thisBundleMap.get(instrumentId);
+				
+			if ((bundlesList==null) || (bundlesList.size()<=0))
+			{
+				 for (int j=0; j<bundlesList.size(); j++)
+				 {
+					 TreeMap tempbundleMap=(TreeMap)(bundlesList.get(j));
+				  
+					 if (tempbundleMap!=null)
+					 {
+						 if(tempbundleMap.get("billingFrequency").equals("ONETIMEPAYMENT"))
+							 continue;
+					
+						 String svuProdId=(String)tempbundleMap.get("bundleSvuProdId");
+						
+						 if ((svuProdId==null) || (svuProdId.length()<1))
+							continue;
+									 
+						 String prodTitle =  premiumServiceResources.getProperty(svuProdId, "");						 
+						 
+					     if ((prodTitle!=null) && (prodTitle.length()>0) )
+						 {
+							 int intRate=((Integer)tempbundleMap.get("offerPrice")).intValue();
+							 String tempRateStr = intRate/100.0+"";
+															
+							 eftMsgStr+=prodTitle + " $"+tempRateStr +" per month, ";
+						 }
+					 }
+				 }//for j
+			}
+		}
+		return eftMsgStr;
+	}
+	
+	//jsp needs this info to dispaly different EFT text
+	public static class EftAndAolPlan
+	{
+		private String eftText;
+		private String hasAolPlan="false";
+		
+		public String getHasAolPlan() {
+			return hasAolPlan;
+		}
+
+		public void setHasAolPlan(String hasAolPlan) {
+			this.hasAolPlan = hasAolPlan;
+		}
+
+		public String getEftText() {
+			return eftText;
+		}
+
+		public void setEftText(String eftText) {
+			this.eftText = eftText;
+		}
+
+		EftAndAolPlan(String eftText, String hasAolPlan)
+		{
+			this.eftText=eftText;
+			this.hasAolPlan=hasAolPlan;
+		}
+	}
+}

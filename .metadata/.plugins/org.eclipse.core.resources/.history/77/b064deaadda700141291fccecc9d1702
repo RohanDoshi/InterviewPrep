@@ -1,0 +1,29 @@
+
+public class EightQueensProblem {
+
+	public static void main(String args[]) {
+		
+	}
+}
+
+class EightQueen {
+	
+	Queen[][] chessBoard = null;
+	
+	Queen[] queens = null; 
+	
+	int rows, cols;
+ 	public EightQueen(int size) {
+		chessBoard = new Queen[size][size];
+		queens = new Queen[size];
+		rows = size;
+		cols = size;
+	}
+ 	
+ 	
+}
+
+class Queen {
+	int row;
+	int col;
+}

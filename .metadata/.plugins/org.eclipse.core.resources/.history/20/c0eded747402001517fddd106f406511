@@ -1,0 +1,19 @@
+package careerCup;
+
+public class ProducerConsumerProblem {
+
+}
+
+class Buffer {
+	private char[] buff;
+	private int numOfElements;
+	public Buffer(int size) {
+		buff = new char[size];
+	}
+	
+	public void put(char c) {
+		
+	}
+	
+	
+}

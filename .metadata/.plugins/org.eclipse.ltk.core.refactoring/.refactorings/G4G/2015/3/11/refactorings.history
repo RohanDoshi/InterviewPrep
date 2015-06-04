@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename method &apos;LinkedLists.findLongestPalindrome(...)&apos; to &apos;findLongestPalindromeIncorrect&apos;&#x0A;- Original project: &apos;G4G&apos;&#x0A;- Original element: &apos;LinkedLists.findLongestPalindrome(...)&apos;&#x0A;- Renamed element: &apos;LinkedLists.findLongestPalindromeIncorrect(...)&apos;&#x0A;- Update references to refactored element" delegate="false" deprecate="false" description="Rename method &apos;findLongestPalindrome&apos;" flags="589830" id="org.eclipse.jdt.ui.rename.method" input="/src&lt;{LinkedLists.java[LinkedLists~findLongestPalindrome~QNode\&lt;QT;&gt;;" name="findLongestPalindromeIncorrect" references="true" stamp="1426070540552" version="1.0"/>
+</session>

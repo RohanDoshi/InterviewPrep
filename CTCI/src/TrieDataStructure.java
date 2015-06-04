@@ -1,0 +1,182 @@
+
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
+public class TrieDataStructure {
+
+	public static void main(String[] args) {
+		
+		Trie trie = new Trie();
+		trie.insertRecur("wait");
+		trie.insertRecur("waste");
+		trie.insertRecur("water");
+		trie.insertRecur("wat");
+		trie.insertRecur("while");
+		System.out.println(Arrays.toString(trie.suggestions("w").toArray()));
+		trie.remove("wat");
+		System.out.println(Arrays.toString(trie.suggestions("w").toArray()));
+	}
+
+}
+
+class Trie {
+	
+	TrieNode root; 
+	private class TrieNode {
+		char c;
+		List<TrieNode> children;
+		boolean isEnd;
+		
+		public TrieNode(char c) {
+			this.c = c;
+			children = new LinkedList<TrieNode>();
+		}
+		
+		public TrieNode child(char c) {
+			for(int i=0; i<children.size(); i++) {
+				if(children.get(i).c == c) {
+					return children.get(i);
+				}
+			}
+			
+			return null;
+		}
+	}
+	
+	public Trie() {
+		root = new TrieNode('\0');
+	}
+	
+	public void remove(String word) {
+		char ch[] = word.toCharArray();
+		TrieNode curr = root;
+		TrieNode temp = null;
+		for(char c: ch) {
+			if((temp = curr.child(c)) != null) {
+				curr = temp;
+			} else {
+				System.out.println("word does not exist");
+				return;
+			}
+		}
+		if(curr.isEnd) {
+			// word exists
+			curr.isEnd = false;
+			if(curr.children.size() > 0) {
+				
+			} else {
+				remove(root, word);
+			}
+		}
+	}
+	
+	private void remove(TrieNode node, String word) {
+		char ch[] = word.toCharArray();
+		TrieNode temp = null;
+		for(char c: ch) {
+			if((temp = node.child(c)) != null) {
+				if(temp.children.size() == 1) {
+					node.children.remove(temp);
+					return;
+				} else {
+					node = temp;
+				}
+			} else {
+				return;
+			}
+		}
+	}
+	
+	public List<String> suggestions(String str) {
+		char ch[] = str.toCharArray();
+		TrieNode curr = root;
+		List<String> words = new ArrayList<>();
+		TrieNode temp = null;
+		for(char c:ch) {
+			if((temp = curr.child(c)) != null) {
+				curr = temp;
+			} 
+		}
+		if(temp != null) {
+			StringBuffer buffer = new StringBuffer();
+			buffer.append(str);
+			if(curr.isEnd) {
+				words.add(new String(buffer));
+			}
+			words.addAll(getSuggestions(curr, buffer));
+		}
+		return words;
+	}
+	
+	public boolean isWord(String str) {
+		char ch[] = str.toCharArray();
+		TrieNode curr = root;
+		TrieNode temp = null;
+		for(char c:ch) {
+			if((temp = curr.child(c)) != null) {
+				curr = temp;
+			} 
+		}
+		if(temp != null) 
+			return temp.isEnd;
+		else
+			return false;
+	}
+	
+	private List<String> getSuggestions(TrieNode node, StringBuffer buffer) {
+		List<String> list = new ArrayList<>();
+		if(node != null) {
+			List<TrieNode> nodes = node.children;
+			for(int i=0; i<nodes.size(); i++) {
+				if(nodes.get(i).isEnd) {
+					list.add(buffer.toString()+nodes.get(i).c);
+				}
+				list.addAll(getSuggestions(nodes.get(i), new StringBuffer(buffer.toString()+nodes.get(i).c)));
+			}
+		}
+		return list;
+	}
+	
+	public void insert(String word) {
+		char ch[] = word.toCharArray();
+		TrieNode curr = root;
+		TrieNode temp = null;
+		for(char c : ch) {
+			if((temp = curr.child(c)) != null) {
+				curr = temp;
+			} else { 
+				TrieNode node = new TrieNode(c);
+				curr.children.add(node);
+				curr = node;
+			}
+		}
+		curr.isEnd = true;
+	}
+	
+	public void insertRecur(String word) {
+		insRec(root, word.toCharArray(), 0);
+	}
+	
+	public void insRec(TrieNode node, char[] c, int i) {
+		
+		if(i >= c.length) {
+			node.isEnd = true;
+			return;
+		}
+		
+		TrieNode childNode = null;
+		if((childNode = node.child(c[i])) != null) {
+			insRec(childNode, c, i+1);
+		} else {
+			childNode = new TrieNode(c[i]);
+			node.children.add(childNode);
+			insRec(childNode, c, i+1);
+		}
+		
+		
+		
+	}
+}

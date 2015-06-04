@@ -1,0 +1,112 @@
+package pack;
+
+import java.util.Arrays;
+
+public class StackDS {
+	public static void main(String args[]) {
+		MyStack<Integer> myStack = new MyStack<Integer>();
+		for(int i=0; i<20; i++) {
+			myStack.push(i);
+		}
+		myStack.print();
+		System.out.println(myStack.size());
+		for(int i=0; i<20; i++) {
+			System.out.print(myStack.pop()+" ");
+		}
+		System.out.println();
+		System.out.println(myStack.size());
+	}
+}
+
+class StackInConstantTime {
+	
+	private MyStack<Integer> stack = null;
+	private MyStack<Integer> minStack = null;
+	private MyStack<Integer> maxStack = null;
+	
+	public StackInConstantTime() {
+		stack = new MyStack<Integer>();
+		minStack = new MyStack<Integer>();
+		maxStack = new MyStack<Integer>();
+	}
+	
+	public void push(Integer e) {
+		if(stack.size() == 0) {
+			stack.push(e);
+			minStack.push(e);
+			maxStack.push(e);
+		} else { 
+			stack.push(e);
+			minStack.pee
+		}
+	}
+}
+
+class MyStack<K> { 
+	
+	private Object[] objects = null;
+	private int capacityIncrement = 0;
+	private int elementCount = 0;
+	private int MAX_LEN = Integer.MAX_VALUE >> 8;
+	
+	public MyStack() {
+		this(10,0);
+	}
+	
+	public MyStack(int capacity, int capacityIncrement) {
+		objects = new Object[capacity];
+		this.capacityIncrement = capacityIncrement;
+	}
+	
+	public Object pop() {
+		if(elementCount == 0) {
+			throw new RuntimeException();
+		}
+		Object obj = objects[elementCount-1];
+		objects[elementCount-1] = null;
+		elementCount--;
+		return obj;
+	}
+ 	
+	public void push(Object object) {
+		if(elementCount >= objects.length) {
+			grow(elementCount + 1);
+		}
+		
+		objects[elementCount++] = object;
+	}
+	
+	private void grow(int minCapacity) {
+		int oldCapacity = objects.length;
+		int newCapacity = oldCapacity + ((capacityIncrement == 0) ?  oldCapacity : capacityIncrement);
+		if(newCapacity - minCapacity <0 ) {
+			newCapacity = minCapacity;
+		}
+		if(newCapacity - MAX_LEN > 0) {
+			newCapacity = hugeCapacity(newCapacity);
+		}
+		
+		objects = Arrays.copyOf(objects, newCapacity);
+	}
+	
+	private int hugeCapacity(int minCapacity) {
+		if(minCapacity < 0) {
+			throw new OutOfMemoryError();
+		}
+		return (minCapacity > MAX_LEN) ? Integer.MAX_VALUE : MAX_LEN;
+		
+	}
+	
+	public Object peek() {
+		return objects[elementCount];
+	}
+	
+	public void print() {
+		System.out.println(Arrays.toString(objects));
+	}
+	
+	public int size() {
+		return elementCount;
+	}
+	
+}

@@ -1,0 +1,1278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+  <filter>
+    <filter-name>SPortalRequestDataFilter</filter-name>
+    <filter-class>com.aol.sportal.filter.RequestDataFilter</filter-class>
+    <init-param>
+      <param-name>skipSecurityFor</param-name>
+      <param-value>set_sns.jsp,cs,logout.jsp,contact_us.jsp,live_help.jsp,ProcessLiveHelp,sportal_admin.jsp,statistics.jsp,sitemap.jsp,nstest.jsp,nstest_backend.jsp,505.jsp,sns_header.jsp</param-value>
+    </init-param>
+    <init-param>
+      <param-name>LCABrandList</param-name><param-value>CompuServe,NetscapeConnect,AOLca</param-value>
+    </init-param>
+  </filter>
+  <filter-mapping>
+    <filter-name>SPortalRequestDataFilter</filter-name>
+    <url-pattern>/jsp/*</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+    <dispatcher>FORWARD</dispatcher>
+  </filter-mapping>
+  
+  <filter>
+        <filter-name>UrlRewriteFilter</filter-name>
+        <filter-class>org.tuckey.web.filters.urlrewrite.UrlRewriteFilter</filter-class>
+  </filter>
+  <filter-mapping>
+        <filter-name>UrlRewriteFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+  </filter-mapping>
+
+  <filter>
+    <filter-name>UpdateCareFilter</filter-name>
+    <filter-class>com.aol.sportal.filter.UpdateCareFilter</filter-class>
+    <init-param>
+      <param-name>configFile</param-name><param-value>/WEB-INF/classes/care.properties</param-value>
+    </init-param>
+  </filter>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePayment</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePayment.jsp</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentError.jsp</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentConfirmation.jsp</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentBlank.jsp</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentGoodStanding.jsp</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentEnCa.jsp</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePayment_lca</url-pattern>
+    <dispatcher>FORWARD</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePayment_lca.jsp</url-pattern>
+    <dispatcher>FORWARD</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentError_lca.jsp</url-pattern>
+    <dispatcher>FORWARD</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentConfirmation_lca.jsp</url-pattern>
+    <dispatcher>FORWARD</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentBlank_lca.jsp</url-pattern>
+    <dispatcher>FORWARD</dispatcher>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>UpdateCareFilter</filter-name>
+    <url-pattern>/jsp/updateCarePaymentIneligible.jsp</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+  </filter-mapping>
+
+    <filter>
+        <filter-name>SPortalSecurityFilter</filter-name>
+        <filter-class>com.aol.sportal.filter.SPortalSecurityFilter</filter-class>
+        <init-param>
+        	<param-name>skipSecurityFor</param-name>
+        	<param-value>set_sns.jsp,cs,logout.jsp,contact_us.jsp,live_help.jsp,WithoutSns,onepoint_frame.jsp,onepoint_popup.jsp,sportal_admin.jsp,statistics.jsp,sitemap.jsp,nstest.jsp,nstest_backend.jsp,505.jsp,sns_header.jsp</param-value>
+        </init-param>
+        <init-param>
+        	<param-name>notAllowMorfList</param-name>
+        	<param-value>#account_status.jsp#billing_credit.jsp#billing_current.jsp#billing_previous.jsp#billing_statement_print.jsp#billing_usage.jsp#billing_usage_print.jsp#change_asq.jsp#change_password.jsp#contact_primary_update.jsp#contact_secondary_update.jsp#myaccount.jsp#myaccount_internal_overhead.jsp#myaccount_invoice.jsp#myaccount_non_us.jsp#myaccount_oneplusone.jsp#myaccount_prepaid.jsp#myaccount_sub.jsp#notify_about_notify.jsp#notify_ask.jsp#notify_ask_error.jsp#notify_ask_sent.jsp#notify_chat.jsp#notify_copyright_concern.jsp#notify_copyright_concern_error.jsp#notify_copyright_concern_sent.jsp#notify_copyright_contact.jsp#notify_email_attachment.jsp#notify_error.jsp#notify_error_fdm.jsp#notify_fdm.jsp#notify_fdm_confirm.jsp#notify_functional_error.jsp#notify_header.jsp#notify_instant_message.jsp#notify_message_boards.jsp#notify_screen_name.jsp#notify_screen_name_error.jsp#notify_screen_name_sent.jsp#reminder.jsp#reminder_footer.jsp#reminder_header.jsp#screen_names.jsp#screen_names_add.jsp#screen_names_asq.jsp#screen_names_ava.jsp#screen_names_ava_faq.html#screen_names_category.jsp#screen_names_confirmation.jsp#screen_names_delete.jsp#screen_names_guest.jsp#screen_names_pw.jsp#screen_names_restore.jsp#screen_names_sub.jsp#screen_names_suggest.jsp#PricePlanChangeServlet#AddScreenName#DeleteScreenName#RestoreScreenName#updateAccountInfo#changeAsq#updateCarePayment#updateCarePayment.jsp#updateCarePaymentBlank.jsp#updateCarePaymentConfirmation.jsp#updateCarePaymentGoodStanding.jsp#</param-value>
+    	</init-param>
+    	<init-param>
+        	<param-name>notAllowMfList</param-name>
+        	<param-value>#morfchange_asq.jsp#morfchange_password.jsp#morfchange_contact.jsp#morfmyaccount.jsp#morfChangePassword#morfchangeAsq#morfChangeContact</param-value>
+    	</init-param>
+    	<init-param>
+        	<param-name>notAllowBrandiList</param-name>
+        	<param-value>#account_status.jsp#change_price_plan.jsp#change_price_plan_home.jsp#myaccount.jsp#myaccount_internal_overhead.jsp#myaccount_invoice.jsp#account_activity.jsp#account_activity_print.jsp#screen_names.jsp#screen_names_add.jsp#screen_names_asq.jsp#screen_names_ava.jsp#screen_names_ava_faq.html#screen_names_category.jsp#screen_names_confirmation.jsp#screen_names_delete.jsp#screen_names_guest.jsp#screen_names_pw.jsp#screen_names_restore.jsp#screen_names_sub.jsp#screen_names_suggest.jsp#ScreenNameMain#AddScreenName#DeleteScreenName#RestoreScreenName#</param-value>
+    	</init-param>   
+    	<init-param>
+        	<param-name>notAllowUkList</param-name>
+        	<param-value>#account_status.jsp#change_price_plan.jsp#change_price_plan_home.jsp#myaccount.jsp#myaccount_internal_overhead.jsp#myaccount_invoice.jsp#notify_fdm.jsp#</param-value>
+    	</init-param> 	
+    	<init-param>
+        	<param-name>myaccountSiteURL</param-name>
+        	<param-value>https://myaccount.aol.com</param-value>
+    	</init-param>
+    </filter>
+    <filter-mapping>
+        <filter-name>SPortalSecurityFilter</filter-name>
+        <url-pattern>/jsp/*</url-pattern>
+        <dispatcher>REQUEST</dispatcher>
+        <dispatcher>FORWARD</dispatcher>
+    </filter-mapping>
+    <filter>
+    	<description>
+    	</description>
+    	<display-name>RequestLoggingFilter</display-name>
+    	<filter-name>RequestLoggingFilter</filter-name>
+    	<filter-class>com.aol.sportal.filter.RequestLoggingFilter</filter-class>
+    </filter>
+    <filter-mapping>
+    	<filter-name>RequestLoggingFilter</filter-name>
+    	<url-pattern>/jsp/*</url-pattern>
+    </filter-mapping>
+    
+  <resource-ref>
+      <description>DB Connection</description>
+      <res-ref-name>jdbc/SPDBDataSource</res-ref-name>
+      <res-type>javax.sql.DataSource</res-type>
+      <res-auth>Container</res-auth>
+  </resource-ref>
+    
+      <servlet>
+               <servlet-name>StartupServlet</servlet-name>
+               <servlet-class>com.aol.sportal.servlets.StartupServlet</servlet-class>
+               <load-on-startup>1</load-on-startup>
+    </servlet>
+        
+	<servlet>
+		<servlet-name>sportal</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+	
+	<servlet-mapping>
+		<servlet-name>sportal</servlet-name>
+		<url-pattern>/jsp/sp/*</url-pattern>
+		
+	</servlet-mapping>
+
+	<servlet>
+		<servlet-name>morfChangePayment</servlet-name>
+		<servlet-class>com.aol.sportal.servlets.MorfChangePaymentServlet</servlet-class>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>morfChangePayment</servlet-name>
+		<url-pattern>/jsp/morfChangePayment</url-pattern>
+	</servlet-mapping>
+
+    <servlet>
+		<servlet-name>newPayment</servlet-name>
+		<servlet-class>com.aol.sportal.servlets.PaymentServlet</servlet-class>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>newPayment</servlet-name>
+		<url-pattern>/jsp/payment</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>PaymentMethod</servlet-name>
+		<servlet-class>com.aol.sportal.servlets.PaymentMethodServlet</servlet-class>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>PaymentMethod</servlet-name>
+		<url-pattern>/jsp/paymentmethod</url-pattern>
+	</servlet-mapping>
+
+	<servlet-mapping>
+		<servlet-name>newPayment</servlet-name>
+		<url-pattern>/jsp/payment_lca</url-pattern>
+	</servlet-mapping>
+	
+	<servlet>
+		<servlet-name>newContact</servlet-name>
+		<servlet-class>com.aol.sportal.servlets.ContactServlet</servlet-class>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>newContact</servlet-name>
+		<url-pattern>/jsp/contact</url-pattern>
+	</servlet-mapping> 
+
+	<servlet-mapping>
+		<servlet-name>newContact</servlet-name>
+		<url-pattern>/jsp/contact_lca</url-pattern>
+	</servlet-mapping> 
+        
+     <servlet>
+           <servlet-name>PricePlanChangeServlet</servlet-name>
+           <servlet-class>com.aol.sportal.servlets.PricePlanChangeServlet</servlet-class>
+    </servlet>
+    
+    <servlet>
+           <servlet-name>PremiumServicesServlet</servlet-name>
+           <servlet-class>com.aol.sportal.servlets.PremiumServicesServlet</servlet-class>
+    </servlet>
+    <servlet>
+           <servlet-name>LCAPremiumServicesServlet</servlet-name>
+           <servlet-class>com.aol.sportal.servlets.PremiumServicesServlet</servlet-class>
+    </servlet>
+    <servlet>
+           <servlet-name>MorfPremiumServicesServlet</servlet-name>
+           <servlet-class>com.aol.sportal.servlets.MorfPremiumServicesServlet</servlet-class>
+    </servlet>
+
+    <servlet>
+        <servlet-name>AccountActivity</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.AccountActivity</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AccountActivity</servlet-name>
+        <url-pattern>/jsp/AccountActivity</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AccountActivity</servlet-name>
+        <url-pattern>/jsp/AccountActivity_lca</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>ScreenNameMain</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.ScreenNameMain</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ScreenNameMain</servlet-name>
+        <url-pattern>/jsp/ScreenNameMain</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>ScreenNameMainLCA</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.ScreenNameMainLCA</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ScreenNameMainLCA</servlet-name>
+        <url-pattern>/jsp/ScreenNameMain_lca</url-pattern>
+    </servlet-mapping>
+ 
+    <servlet-mapping>
+                <servlet-name>StartupServlet</servlet-name>
+                <url-pattern>/jsp/StartupServlet</url-pattern>
+       </servlet-mapping>
+    
+        <servlet-mapping>
+            <servlet-name>PricePlanChangeServlet</servlet-name>
+            <url-pattern>/jsp/PricePlanChangeServlet</url-pattern>
+       </servlet-mapping>
+    
+        <servlet-mapping>
+            <servlet-name>PricePlanChangeServlet</servlet-name>
+            <url-pattern>/jsp/PricePlanChangeServlet_lca</url-pattern>
+       </servlet-mapping>
+       
+       <servlet-mapping>
+            <servlet-name>PremiumServicesServlet</servlet-name>
+            <url-pattern>/jsp/PremiumServicesServlet</url-pattern>
+       </servlet-mapping>
+       
+       <servlet-mapping>
+            <servlet-name>LCAPremiumServicesServlet</servlet-name>
+            <url-pattern>/jsp/PremiumServicesServlet_lca</url-pattern>
+       </servlet-mapping>
+       
+      <servlet-mapping>
+            <servlet-name>MorfPremiumServicesServlet</servlet-name>
+            <url-pattern>/jsp/MorfPremiumServicesServlet</url-pattern>
+       </servlet-mapping>
+  
+	<servlet>
+        <servlet-name>AddScreenName</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.AddScreenName</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AddScreenName</servlet-name>
+        <url-pattern>/jsp/AddScreenName</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>AddScreenName</servlet-name>
+        <url-pattern>/jsp/AddScreenName_lca</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>DeleteScreenName</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.DeleteScreenName</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>DeleteScreenName</servlet-name>
+        <url-pattern>/jsp/DeleteScreenName</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>DeleteScreenName</servlet-name>
+        <url-pattern>/jsp/DeleteScreenName_lca</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>RestoreScreenName</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.RestoreScreenName</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>RestoreScreenName</servlet-name>
+        <url-pattern>/jsp/RestoreScreenName</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>RestoreScreenName</servlet-name>
+        <url-pattern>/jsp/RestoreScreenName_lca</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>ChangePassword</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.ChangePassword</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ChangePassword</servlet-name>
+        <url-pattern>/jsp/ChangePassword</url-pattern>
+    </servlet-mapping>   
+    <servlet-mapping>
+        <servlet-name>ChangePassword</servlet-name>
+        <url-pattern>/jsp/ChangePassword_lca</url-pattern>
+    </servlet-mapping>   
+    <servlet>
+        <servlet-name>ChangeDisplayName</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.ChangeDisplayName</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ChangeDisplayName</servlet-name>
+        <url-pattern>/jsp/ChangeDisplayName</url-pattern>
+    </servlet-mapping>      
+    <servlet-mapping>
+        <servlet-name>ChangeDisplayName</servlet-name>
+        <url-pattern>/jsp/ChangeDisplayName_lca</url-pattern>
+    </servlet-mapping>      
+    
+    <servlet>
+        <servlet-name>ProcessLiveHelp</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.ProcessLiveHelp</servlet-class>
+     </servlet>
+     <servlet-mapping>
+        <servlet-name>ProcessLiveHelp</servlet-name>
+        <url-pattern>/jsp/ProcessLiveHelp</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>BillingDisplay</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.BillingDisplay</servlet-class>
+     </servlet>
+     <servlet-mapping>
+        <servlet-name>BillingDisplay</servlet-name>
+        <url-pattern>/jsp/BillingDisplay</url-pattern>
+    </servlet-mapping>
+     <servlet-mapping>
+        <servlet-name>BillingDisplay</servlet-name>
+        <url-pattern>/jsp/BillingDisplay_lca</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>changeAsq</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.ChangeAsqServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>changeAsq</servlet-name>
+        <url-pattern>/jsp/changeAsq</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+      <servlet-name>changeAsq</servlet-name>
+      <url-pattern>/jsp/changeAsq_lca</url-pattern>
+    </servlet-mapping>
+    
+     <servlet>
+        <servlet-name>OprServlet</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.OprServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>OprServlet</servlet-name>
+        <url-pattern>/jsp/OprServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>OprServlet</servlet-name>
+        <url-pattern>/jsp/OprServlet_lca</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+    	<servlet-name>CallbackServlet</servlet-name>
+		<servlet-class>com.aol.sportal.servlets.CallbackServlet</servlet-class>
+  	</servlet>
+   
+    <servlet-mapping>
+    	<servlet-name>CallbackServlet</servlet-name>
+		<url-pattern>/cs</url-pattern>
+  	</servlet-mapping>
+  
+    
+    <servlet>
+        <servlet-name>morfChangePassword</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.MorfChangePassword</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>morfChangePassword</servlet-name>
+        <url-pattern>/jsp/morfChangePassword</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>morfchangeAsq</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.MorfChangeAsqServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>morfchangeAsq</servlet-name>
+        <url-pattern>/jsp/morfchangeAsq</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>morfChangeContact</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.MorfChangeContact</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>morfChangeContact</servlet-name>
+        <url-pattern>/jsp/morfChangeContact</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>marketingPrefServlet</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.MarketingPrefServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>marketingPrefServlet</servlet-name>
+        <url-pattern>/jsp/marketingPrefServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>marketingPrefServlet</servlet-name>
+        <url-pattern>/jsp/marketingPrefServlet_lca</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>updateCarePayment</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.UpdateCarePaymentServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>updateCarePayment</servlet-name>
+        <url-pattern>/jsp/updateCarePayment</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>updateCarePayment</servlet-name>
+        <url-pattern>/jsp/updateCarePayment_lca</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>updateCarePaymentjsp</servlet-name>
+      <jsp-file>/jsp/updateCarePayment.jsp</jsp-file>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>updateCarePaymentjsp</servlet-name>
+      <url-pattern>/jsp/updateCarePayment_lca.jsp</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>updateCarePaymentBlank</servlet-name>
+      <jsp-file>/jsp/updateCarePaymentBlank.jsp</jsp-file>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>updateCarePaymentBlank</servlet-name>
+      <url-pattern>/jsp/updateCarePaymentBlank_lca.jsp</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>updateCarePaymentConfirmation</servlet-name>
+      <jsp-file>/jsp/updateCarePaymentConfirmation.jsp</jsp-file>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>updateCarePaymentConfirmation</servlet-name>
+      <url-pattern>/jsp/updateCarePaymentConfirmation_lca.jsp</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>updateCarePaymentEnCa</servlet-name>
+      <jsp-file>/jsp/updateCarePaymentEnCa.jsp</jsp-file>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>updateCarePaymentEnCa</servlet-name>
+      <url-pattern>/jsp/updateCarePaymentEnCa_lca.jsp</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>updateCarePaymentError</servlet-name>
+      <jsp-file>/jsp/updateCarePaymentError.jsp</jsp-file>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>updateCarePaymentError</servlet-name>
+      <url-pattern>/jsp/updateCarePaymentError_lca.jsp</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>updateCarePaymentGoodStanding</servlet-name>
+      <jsp-file>/jsp/updateCarePaymentGoodStanding.jsp</jsp-file>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>updateCarePaymentGoodStanding</servlet-name>
+      <url-pattern>/jsp/updateCarePaymentGoodStanding_lca.jsp</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>IntlUpdatePayment</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.IntlUpdatePaymentServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>IntlUpdatePayment</servlet-name>
+        <url-pattern>/jsp/IntlUpdatePayment</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>IntlChangeContact</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.IntlChangeContactServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>IntlChangeContact</servlet-name>
+        <url-pattern>/jsp/IntlChangeContact</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>IntlMorfChangePayment</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.IntlMorfChangePaymentServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>IntlMorfChangePayment</servlet-name>
+        <url-pattern>/jsp/IntlMorfChangePayment</url-pattern>
+    </servlet-mapping>
+    
+    <servlet>
+        <servlet-name>HandlePurchaseOffer</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.HandlePurchaseOffer</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>HandlePurchaseOffer</servlet-name>
+        <url-pattern>/jsp/HandlePurchaseOffer</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>HandlePurchaseOffer</servlet-name>
+        <url-pattern>/jsp/HandlePurchaseOffer_lca</url-pattern>
+    </servlet-mapping>
+    
+   <servlet>
+        <servlet-name>WithAsq</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.WithAsq</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>WithAsq</servlet-name>
+        <url-pattern>/jsp/WithAsq</url-pattern>
+    </servlet-mapping>
+    
+     <servlet>
+        <servlet-name>WithoutAsq</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.WithoutAsq</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>WithoutAsq</servlet-name>
+        <url-pattern>/jsp/WithoutAsq</url-pattern>
+    </servlet-mapping>
+    
+     <servlet>
+        <servlet-name>WithoutSns</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.WithoutSns</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>WithoutSns</servlet-name>
+        <url-pattern>/jsp/WithoutSns</url-pattern>
+    </servlet-mapping>
+    
+    <!-- below is for notify aol -->
+    <servlet>
+        <servlet-name>NotifyAolServlet</servlet-name>
+        <servlet-class>com.aol.sportal.servlets.NotifyAolServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>NotifyAolServlet</servlet-name>
+        <url-pattern>/jsp/NotifyAolServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>NotifyAolServlet</servlet-name>
+        <url-pattern>/jsp/NotifyAolServlet_lca</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>premium_subs_lca</servlet-name>
+      <jsp-file>/jsp/premium_subs_lca.jsp</jsp-file>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>premium_subs_lca</servlet-name>
+      <url-pattern>/jsp/premium_list_lca.jsp</url-pattern>
+    </servlet-mapping>
+
+    <!-- Redirect Servlet -->
+    <servlet>
+      <servlet-name>ContactUsServlet</servlet-name>
+      <servlet-class>com.aol.sportal.servlets.RedirectServlet</servlet-class>
+      <init-param>
+        <param-name>destination</param-name>
+        <param-value>https://bill.aol.com/SPortal/jsp/contact_us.jsp?fw=gathr</param-value>
+      </init-param>
+      <init-param>
+        <param-name>copy-query-string</param-name>
+        <param-value>1</param-value>
+      </init-param>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>ContactUsServlet</servlet-name>
+      <url-pattern>/contactus</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>ChangePasswordServlet</servlet-name>
+      <servlet-class>com.aol.sportal.servlets.RedirectServlet</servlet-class>
+      <init-param>
+        <param-name>destination</param-name>
+        <param-value>https://bill.aol.com/SPortal/jsp/ChangePassword?fw=gathr</param-value>
+      </init-param>
+      <init-param>
+        <param-name>copy-query-string</param-name>
+        <param-value>1</param-value>
+      </init-param>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>ChangePasswordServlet</servlet-name>
+      <url-pattern>/changepassword</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+      <servlet-name>GathrMainServlet</servlet-name>
+      <servlet-class>com.aol.sportal.servlets.RedirectServlet</servlet-class>
+      <init-param>
+        <param-name>destination</param-name>
+        <param-value>https://bill.aol.com/SPortal/jsp/main.jsp?fw=gathr</param-value>
+      </init-param>
+      <init-param>
+        <param-name>copy-query-string</param-name>
+        <param-value>1</param-value>
+      </init-param>
+    </servlet>
+    <servlet-mapping>
+      <servlet-name>GathrMainServlet</servlet-name>
+      <url-pattern>/main</url-pattern>
+    </servlet-mapping>
+
+    
+    <context-param>
+    <param-name>notifyaol.from.email</param-name>
+    <param-value>SprtPrtntfy:AOL_INTERNAL</param-value>
+   </context-param> 
+   
+   <context-param>
+        <param-name>notifyaol.offensive.webpage.email</param-name>
+         <param-value>tosweb:AOL_SCREENNAME</param-value>
+   </context-param>
+   <context-param>
+        <param-name>notifyaol.copyright.email</param-name>
+         <param-value>aolcopyright:AOL_SCREENNAME</param-value>
+   </context-param>
+   <context-param>
+        <param-name>notifyaol.offensive.screenname.email</param-name>
+         <param-value>tosnames1:AOL_SCREENNAME</param-value>
+   </context-param>
+   <context-param>
+        <param-name>notifyaol.askaol.email</param-name>
+         <param-value>TOSGeneral:AOL_SCREENNAME</param-value>
+   </context-param>
+   <context-param>
+        <param-name>notifyaol.cancel.email</param-name>
+         <param-value>cancelassistance:AOL_SCREENNAME</param-value>
+   </context-param>
+   <context-param>
+        <param-name>copyright.legal.statement</param-name>
+        <param-value>By submitting this complaint, you represent, under penalty of perjury, that the above information is accurate, that you are the copyright owner or are authorized to act on such person's behalf, and that you have a good faith belief that the disputed use is not authorized by the copyright owner, its agent, or the law.</param-value>
+   </context-param>
+      
+   	<context-param>
+       	<param-name>SVU_FDM_PREPAY</param-name>
+       	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1917,outcome=1:0,reason=3214</param-value>
+  	</context-param>
+  	<context-param>
+	    	<param-name>SVU_FDM_DSL</param-name>
+	    	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1917,outcome=1:0,reason=3215</param-value>
+  	</context-param>
+  	<context-param>
+	    	<param-name>SVU_FDM_LEGACYCABLE</param-name>
+	    	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1917,outcome=1:0,reason=3216</param-value>
+  	</context-param>
+   
+   
+<context-param>
+	<param-name>SVU_FDM_CANCEL</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=22</param-value>
+</context-param>
+<context-param>
+	<param-name>SVU_FDM_CANCEL_MORF</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1873,outcome=1:0,reason=1665</param-value>
+</context-param>
+<context-param>
+	<param-name>SVU_FDM_CANCEL_TECHNICAL</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=1276</param-value>
+</context-param>
+<context-param>
+	<param-name>SVU_FDM_CANCEL_NOT_WORTH_PRICE</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=3061</param-value>
+</context-param>
+<context-param>
+	<param-name>SVU_FDM_CANCEL_SWITCHING_PROVIDERS</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=1271</param-value>
+</context-param>
+
+<context-param>
+	<param-name>SVU_FDM_CANCEL_NO_LONGER_WANTED</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=1371</param-value>
+</context-param>
+
+<context-param>
+	<param-name>SVU_FDM_CANCEL_NO_LONGER_USE</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=3277</param-value>
+</context-param>
+
+<context-param>
+	<param-name>SVU_FDM_CANCEL_TOO_MUCH_SPAM</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=3275</param-value>
+</context-param>
+
+<context-param>
+	<param-name>SVU_FDM_CANCEL_HAVE_ANOTHER_ACCT</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=3276</param-value>
+</context-param>
+
+<context-param>
+	<param-name>SVU_FDM_CANCEL_OTHER</param-name>
+	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=3218</param-value>
+</context-param>
+ <context-param>
+      <param-name>SVU_PREMIUM_CANCEL</param-name>
+      <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=1736</param-value>
+  </context-param>
+
+  	<context-param>
+      	<param-name>SVU_FDM_FREE</param-name>
+      	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1839,outcome=1:0,reason=3052</param-value>
+  	</context-param>
+   
+    <context-param>
+    <param-name>SVU_CANCEL_PW</param-name>
+    <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=190,outcome=1:0,reason=100703</param-value>
+  </context-param>
+  
+    <context-param>
+        <param-name>SVU_CANCEL_PW_SUCCESS</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=190,outcome=1:0,reason=0</param-value>
+    </context-param>
+    <context-param>
+        <param-name>SVU_INVALID_OLD_PASSWORD_3135</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=190,outcome=1:0,reason=3135</param-value>
+    </context-param>
+    <context-param>
+            <param-name>SVU_INVALID_NEW_PASSWORD_3135</param-name>
+            <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=190,outcome=1:0,reason=3135</param-value>
+    </context-param>
+        <context-param>
+        <param-name>SVU_SAME_AS_OLD_PASSWORD_3136</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=190,outcome=1:0,reason=3136</param-value>
+    </context-param>
+        <context-param>
+        <param-name>SVU_INVALID_NEW_PASSWORD_3138</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=190,outcome=1:0,reason=3138</param-value>
+    </context-param>
+  
+  
+  <context-param>
+    <param-name>SVU_CHG_MORF_PASSWORD</param-name>
+    <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=190,outcome=1:0,reason=0</param-value>
+  </context-param>
+  
+  <context-param>
+        <param-name>SVU_CHG_MORF_ADDR</param-name>
+        <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=76,outcome=1:0,reason=1736</param-value>
+      </context-param>
+      <context-param>
+          <param-name>SVU_CHG_MORF_EMAIL</param-name>
+          <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1619,outcome=1:0,reason=0</param-value>
+      </context-param> 
+      <context-param>
+        <param-name>SVU_CHG_MORF_DISPLAY_NAME</param-name>
+        <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1157,outcome=1:0,reason=1736</param-value>
+      </context-param> 
+      <context-param>
+        <param-name>SVU_CHG_MORF_GENDER</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1841,outcome=1:0,reason=0</param-value>
+      </context-param>
+      
+      <context-param>
+        <param-name>SVU_CHG_MF_DISPLAY_NAME</param-name>
+        <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1157,outcome=1:0,reason=3271</param-value>
+      </context-param> 
+      <context-param>
+        <param-name>SVU_DEL_MF_DISPLAY_NAME</param-name>
+        <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1157,outcome=1:0,reason=3272</param-value>
+      </context-param> 
+      <context-param>
+        <param-name>SVU_ADD_MF_DISPLAY_NAME</param-name>
+        <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1157,outcome=1:0,reason=3270</param-value>
+      </context-param> 
+      <context-param>
+         <param-name>SVU_KEEP_CURRENTPLAN</param-name>
+         <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=2039,outcome=1:0,reason=0</param-value>
+       </context-param>
+        <context-param>
+         <param-name>SVU_KEEP_GATHR</param-name>
+         <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=2089,outcome=1:0,reason=0</param-value>
+       </context-param>
+   	   <context-param>
+         <param-name>SVU_TOS</param-name>
+         <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=916,outcome=1:0,reason=1736</param-value>
+       </context-param>
+       <context-param>
+         <param-name>SVU_CHG_ADDR</param-name>
+         <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=76,outcome=1:0,reason=1736</param-value>
+       </context-param>
+       <context-param>
+             <param-name>SVU_CHG_PHONE</param-name>
+             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=78,outcome=1:0,reason=1736</param-value>
+           </context-param>
+           <context-param>
+           	 <param-name>SVU_CHG_MOBILEPHONE</param-name>
+             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=77,outcome=1:0,reason=0</param-value>
+           </context-param>
+           <context-param>
+             <param-name>SVU_CHG_FN</param-name>
+             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1157,outcome=1:0,reason=1736</param-value>
+           </context-param>
+           <context-param>
+             <param-name>SVU_CHG_LN</param-name>
+             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1157,outcome=1:0,reason=1736</param-value>
+           </context-param>
+           <context-param>
+             <param-name>SVU_CHG_SBC</param-name>
+             <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=696,outcome=1:0,reason=1736</param-value>
+           </context-param>
+           <context-param>
+             <param-name>SVU_ADD_SBC</param-name>
+             <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1159,outcome=1:0,reason=1736</param-value>
+           </context-param>
+            <context-param>
+        	 <param-name>SVU_CHG_DOB</param-name>
+             <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1842,outcome=1:0,reason=0</param-value>
+           </context-param>
+           <context-param>
+	       <param-name>SVU_DEL_SBC</param-name>
+	       <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1160,outcome=1:0,reason=1736</param-value>
+  	   </context-param>
+           <context-param>
+             <param-name>SVU_CHG_PM</param-name>
+             <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=651,outcome=1:0,reason=1736</param-value>
+           </context-param>
+           <context-param>
+	     <param-name>SVU_CHG_PM_EFT</param-name>
+	     <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1900,outcome=1:1,reason=0</param-value>
+           </context-param>
+            <context-param>
+	     <param-name>SVU_SWCH_PM_EFT</param-name>
+	     <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1900,outcome=1:1,reason=0</param-value>
+           </context-param>
+           <context-param>
+               <param-name>SVU_CHG_PM_VALIDATE</param-name>
+               <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=651,outcome=1:0,reason=3134</param-value>
+           </context-param>
+       
+       <context-param>
+           <param-name>SVU_CHG_PM_AUTHORIZE</param-name>
+           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=651,outcome=1:0,reason=1586</param-value>
+       </context-param>
+
+		<context-param>
+	       <param-name>SVU_ADD_ALT_EMAIL</param-name>
+	       <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1213,outcome=1:0,reason=3204</param-value>
+        </context-param>
+        <context-param>
+	       <param-name>SVU_UPD_ALT_EMAIL</param-name>
+	       <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1212,outcome=1:0,reason=3204</param-value>
+        </context-param>
+        <context-param>
+	       <param-name>SVU_DEL_ALT_EMAIL</param-name>
+	       <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1214,outcome=1:0,reason=3204</param-value>
+        </context-param>
+
+       <context-param>
+           <param-name>SVU_CHG_PM_DUPLICATE</param-name>
+           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=651,outcome=1:0,reason=1736</param-value>
+       </context-param>
+    
+    	<context-param>
+           <param-name>SVU_SN_CREATE</param-name>
+           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=638,outcome=1:0,reason=0</param-value>
+       </context-param>
+       
+       <context-param>
+           <param-name>SVU_SN_DELETE</param-name>
+           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=639,outcome=1:0,reason=0</param-value>
+       </context-param>
+       
+       <context-param>
+           <param-name>SVU_SN_RESTORE</param-name>
+           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1884,outcome=1:0,reason=0</param-value>
+       </context-param>
+       
+       <context-param>
+           <param-name>SVU_SN_SUGGEST</param-name>
+           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1883,outcome=1:0,reason=0</param-value>
+       </context-param>
+       <context-param>
+           <param-name>SVU_ADD_SN_NOTLETTER</param-name>
+           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1932,outcome=1:0,reason=0</param-value>
+       </context-param>
+
+       <context-param>
+           <param-name>SVU_PROACTIVE_LIVE_HELP_YES</param-name>
+           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1830,outcome=9:9,reason=0</param-value>
+       </context-param>
+       <context-param>
+           <param-name>SVU_PROACTIVE_LIVE_HELP_NO</param-name>
+           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1830,outcome=10:10,reason=0</param-value>
+       </context-param>
+       <context-param>
+           <param-name>SVU_PROACTIVE_LIVE_HELP_DO_NOT_SHOW</param-name>
+           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1830,outcome=17:17,reason=0</param-value>
+       </context-param>
+       <context-param>
+       	 	<param-name>SVU_PROACTIVE_LIVE_HELP_HOLDOUT</param-name>
+        	<param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1830,outcome=4:4,reason=0</param-value>
+  	   </context-param>
+
+	   <context-param>
+           <param-name>SVU_VIEW_BS</param-name>
+           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1235,outcome=1:0,reason=1736</param-value>
+       </context-param>
+       
+       
+	       <context-param>
+	           <param-name>SVU_CHG_ACC_STATUS</param-name>
+	           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=0</param-value>
+	       </context-param>
+	       <context-param>
+	           <param-name>SVU_CHG_ACC_STATUS_HAS_BROADBAND</param-name>
+	           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3070</param-value>
+	       </context-param>
+	       <context-param>
+	           <param-name>SVU_CHG_ACC_STATUS_TECH_ISSUES</param-name>
+	           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=1276</param-value>
+	       </context-param>
+	       <context-param>
+	           <param-name>SVU_CHG_ACC_STATUS_NOT_WORTH_PRICE</param-name>
+	           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3061</param-value>
+	       </context-param>
+	       <context-param>
+	           <param-name>SVU_CHG_ACC_STATUS_SWITCHING_PROVIDERS</param-name>
+	           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=1271</param-value>
+	       </context-param>
+	       <context-param>
+	           <param-name>SVU_CHG_ACC_STATUS_PRODUCT_NO_LONGER_USE</param-name>
+	           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=1371</param-value>
+	       </context-param>
+	       <context-param>
+	           <param-name>SVU_CHG_ACC_STATUS_OTHER</param-name>
+	           <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3218</param-value>
+	       </context-param>
+
+	       <context-param>
+	             <param-name>SVU_CHG_ACC_STATUS_DUPLICATE</param-name>
+	             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3133</param-value>
+	       </context-param>
+	       <context-param>
+	       	             <param-name>SVU_CHG_ACC_STATUS_INVALID_PM</param-name>
+	       	             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3</param-value>
+	       </context-param>
+	       
+	       
+	       <context-param>
+	       		<param-name>SVU_CHG_ACC_STATUS_PI_NOT_ALLOWED_CHANGE_ERROR</param-name>
+	       	       	 <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3216</param-value>
+	      </context-param>
+	       <context-param>
+	       		<param-name>SVU_CHG_ACC_STATUS_PI_LEGACY_DSL_ERROR</param-name>
+	       	       	 <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3215</param-value>
+	      </context-param>
+	       <context-param>
+	       		<param-name>SVU_CHG_ACC_STATUS_PREPAY_CHANGE_NOT_ALLOWED_ERROR</param-name>
+	       	       	 <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3214</param-value>
+	      </context-param>
+
+
+	       <context-param>
+	             <param-name>SVU_CHG_ACC_STATUS_3120</param-name>
+	             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3120</param-value>
+	       </context-param>
+	       <context-param>
+	             <param-name>SVU_CHG_ACC_STATUS_3121</param-name>
+	             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3121</param-value>
+	       </context-param>
+	         <context-param>
+	             <param-name>SVU_CHG_ACC_STATUS_3122</param-name>
+	             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3122</param-value>
+	       </context-param>
+	       <context-param>
+	             <param-name>SVU_CHG_ACC_STATUS_3123</param-name>
+	             <param-value>contact.channel=11,contact.mission=2,contact.function=73,actionId=1727,outcome=1:0,reason=3123</param-value>
+	       </context-param>
+	       
+	      <context-param>
+                <param-name>SVU_MIGRATE_TO_FREE_INFOR</param-name>
+                <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=2103,outcome=1:0,reason=0</param-value>
+           </context-param>
+	       
+	 
+	       <context-param>
+	         <param-name>SVU_CHG_PP</param-name>
+	         <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=1736</param-value>
+	       </context-param>
+	       <context-param>
+	           <param-name>SVU_CHG_PP_DUPLICATE</param-name>
+	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3133</param-value>
+	       </context-param>
+	       <context-param>
+	       	    <param-name>SVU_CHG_PP_PM_INVALID</param-name>
+	            <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3</param-value>
+	       </context-param>
+	       <context-param>
+	       		<param-name>SVU_CAN_PM_REBUTTAL</param-name>
+	       		<param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=895,outcome=1:0,reason=1698</param-value>
+           </context-param>
+	       
+	       <context-param>
+	       	       	    <param-name>SVU_CHG_PP_PI_NOT_ALLOWED_CHANGE_ERROR</param-name>
+	       	            <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3216</param-value>
+	       </context-param>
+	       <context-param>
+	       	       	    <param-name>SVU_CHG_PP_PI_LEGACY_DSL_ERROR</param-name>
+	       	            <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3215</param-value>
+	       </context-param>
+	       <context-param>
+	       	       	    <param-name>SVU_CHG_PP_PREPAY_CHANGE_NOT_ALLOWED_ERROR</param-name>
+	       	            <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3214</param-value>
+	       </context-param>
+	       
+	       <context-param>
+	           <param-name>SVU_CHG_PP_3120</param-name>
+	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3120</param-value>
+	       </context-param>
+	         <context-param>
+	           <param-name>SVU_CHG_PP_3121</param-name>
+	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3121</param-value>
+	       </context-param>
+	         <context-param>
+	           <param-name>SVU_CHG_PP_3122</param-name>
+	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3122</param-value>
+	       </context-param>
+	         <context-param>
+	           <param-name>SVU_CHG_PP_3123</param-name>
+	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3123</param-value>
+	       </context-param>
+	       <context-param>
+	       	   <param-name>SVU_CHG_PP_3171</param-name>
+	       	   <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=1:0,reason=3171</param-value>
+	       </context-param>
+	       
+	       
+	       <context-param>
+	           <param-name>SVU_CHG_PP_WITH_INTENT</param-name>
+	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=1736</param-value>
+	       </context-param>
+	       <context-param>
+	       	           <param-name>SVU_CHG_PP_WITH_INTENT_3172</param-name>
+	       	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3172</param-value>
+	       </context-param>
+	       <context-param>
+	       	           <param-name>SVU_CHG_PP_WITH_INTENT_3173</param-name>
+	       	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3173</param-value>
+	       </context-param>
+	       <context-param>
+	       	           <param-name>SVU_CHG_PP_WITH_INTENT_3174</param-name>
+	       	           <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3174</param-value>
+	       </context-param>
+	       
+	       <context-param>
+	             <param-name>SVU_CHG_PP_CANCEL_INTENT_DUPLICATE</param-name>
+	             <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3133</param-value>
+	       </context-param>
+	       <context-param>
+	             <param-name>SVU_CHG_PP_CANCEL_INTENT_3120</param-name>
+	             <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3120</param-value>
+	       </context-param>
+	         <context-param>
+	             <param-name>SVU_CHG_PP_CANCEL_INTENT_3121</param-name>
+	             <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3121</param-value>
+	       </context-param>
+	         <context-param>
+	             <param-name>SVU_CHG_PP_CANCEL_INTENT_3122</param-name>
+	             <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3122</param-value>
+	       </context-param>
+	       <context-param>
+	               <param-name>SVU_CHG_PP_CANCEL_INTENT_3123</param-name>
+	               <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3123</param-value>
+	       </context-param>
+	       
+	       <context-param>
+	         <param-name>SVU_CHG_PP_EXISTING</param-name>
+	         <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1239,outcome=8:0,reason=1736</param-value>
+	       </context-param>
+
+		<context-param>
+    		<param-name>SVU_CONTACT_NOTF_DISPLAYED</param-name>
+    		<param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1592,outcome=1:0,reason=0</param-value>
+  		</context-param>
+  
+  		<context-param>
+    		<param-name>SVU_PAYMENT_NOTF_DISPLAYED</param-name>
+    		<param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1596,outcome=1:0,reason=0</param-value>
+  		</context-param>
+  		<context-param>
+			<param-name>SVU_FDM_ALTERNATE_EMAIL</param-name>
+			<param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1213,outcome=1:0,reason=3205</param-value>
+	       </context-param>
+	       <context-param>
+	       		<param-name>SVU_CHANGE_PP_ALTERNATE_EMAIL</param-name>
+	       		<param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1213,outcome=1:0,reason=3206</param-value>
+	       </context-param>
+	       
+	     <context-param>
+               <param-name>SVU_CHG_PP_WITH_CHURN_INTENT</param-name>
+               <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=0</param-value>
+         </context-param> 
+	    <context-param>
+	        <param-name>SVU_PREMIUM_CANCEL_TECHNICAL</param-name>
+	        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=1276</param-value>
+	    </context-param>
+	    <context-param>
+	        <param-name>SVU_PREMIUM_CANCEL_PRICE</param-name>
+	        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3061</param-value>
+	    </context-param>
+	    <context-param>
+	        <param-name>SVU_PREMIUM_CANCEL_ANOTHER_SIMILAR</param-name>
+	        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=1271</param-value>
+	    </context-param>
+	    <context-param>
+	        <param-name>SVU_PREMIUM_CANCEL_NO_LONGER_USE</param-name>
+	        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=48</param-value>
+	    </context-param>
+	    <context-param>
+	        <param-name>SVU_PREMIUM_CANCEL_DID_NOT_REALIZE</param-name>
+	        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3279</param-value>
+	    </context-param>
+	    <context-param>
+	        <param-name>SVU_PREMIUM_CANCEL_OTHER</param-name>
+	        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=617,outcome=1:0,reason=3218</param-value>
+	    </context-param>
+    <context-param>
+        <param-name>SVU_MARKETING_PREF</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1916,outcome=1:0,reason=0</param-value>
+    </context-param>
+    
+    <context-param>
+        <param-name>SVU_CHG_ASQ</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1829,outcome=1:0,reason=0</param-value>
+    </context-param>
+    <context-param>
+        <param-name>SVU_CHG_ASQ_NOALPHA</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1829,outcome=1:0,reason=3190</param-value>
+    </context-param>
+    <context-param>
+        <param-name>SVU_CHG_ASQ_LENGTH</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=1829,outcome=1:0,reason=3191</param-value>
+    </context-param>   
+    <context-param>
+        <param-name>SVU_WRITEOFF_AMT</param-name>
+        <param-value>contact.channel=11,contact.mission=3,contact.function=73,actionId=746,outcome=1:0,reason=0</param-value>
+    </context-param>   
+    
+ 
+       
+  <context-param>
+    <param-name>restrict_subAccount</param-name>
+    <param-value>myaccount.jsp,myaccount_internal_overhead.jsp,myaccount_prepaid.jsp</param-value>
+  </context-param>
+  <context-param>
+    <param-name>restrict_internal</param-name>
+    <param-value>myaccount.jsp,myaccount_prepaid.jsp</param-value>
+  </context-param>
+  <context-param>
+    <param-name>restrict_overhead</param-name>
+    <param-value>myaccount.jsp,myaccount_prepaid.jsp</param-value>
+  </context-param>
+  <context-param>
+    <param-name>restrict_invoice</param-name>
+    <param-value></param-value>
+  </context-param>
+  <context-param>
+    <param-name>restrict_onePlusOne</param-name>
+    <param-value></param-value>
+  </context-param>
+  <context-param>
+    <param-name>restrict_prepaid</param-name>
+    <param-value>myaccount.jsp,myaccount_internal_overhead.jsp</param-value>
+  </context-param>
+  
+   
+    <session-config>
+        <session-timeout>
+            30
+        </session-timeout>
+    </session-config>
+    <welcome-file-list>
+	<welcome-file>
+            index.jsp
+        </welcome-file>
+    </welcome-file-list>
+<!--
+	<error-page>
+	    <error-code>500</error-code>
+	    <location>/500.jsp</location>
+	</error-page>
+	<error-page>
+	    <error-code>501</error-code>
+	    <location>/500.jsp</location>
+	</error-page>
+	<error-page>
+	    <error-code>502</error-code>
+	    <location>/500.jsp</location>
+	</error-page>
+	<error-page>
+	    <error-code>503</error-code>
+	    <location>/500.jsp</location>
+	</error-page>
+	<error-page>
+	    <error-code>504</error-code>
+	    <location>/500.jsp</location>
+	</error-page>
+	<error-page>
+	    <error-code>505</error-code>
+	    <location>/500.jsp</location>
+	</error-page>
+-->
+        <!--
+	<error-page>
+	    <error-code>404</error-code>
+	    <location>/404.jsp</location>
+	</error-page>
+-->
+</web-app>

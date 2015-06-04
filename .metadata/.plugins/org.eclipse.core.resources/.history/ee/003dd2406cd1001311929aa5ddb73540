@@ -1,0 +1,2355 @@
+package com.aol.sportal.util;
+
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.ResourceBundle;
+import java.util.StringTokenizer;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.xml.datatype.XMLGregorianCalendar;
+
+import jxl.common.Logger;
+
+import com.aol.cbi.api.CustomerProfile;
+import com.aol.cc.common.subscriptions.ObiModifySubscriptionStatusResponse;
+import com.aol.mm.common.subscription.ListSubscriptionsResp.SubscriptionInfo;
+import com.aol.obi.schema.ArrayOfAttribute;
+import com.aol.obi.schema.Attribute;
+import com.aol.obi.schema.AuthRule;
+import com.aol.obi.schema.BillingFrequency;
+import com.aol.obi.schema.BillingType;
+import com.aol.obi.schema.CustomerSubPaymentInfo;
+import com.aol.obi.schema.Instrument;
+import com.aol.obi.schema.ModStatusType;
+import com.aol.obi.schema.PaymentType;
+import com.aol.obi.schema.SafeTech;
+import com.aol.obi.schema.Status;
+import com.aol.obi.schema.SubSharingView;
+import com.aol.obi.schema.SubSwitch;
+import com.aol.sportal.app.AppSession;
+import com.aol.sportal.app.MorfSession;
+import com.aol.sportal.app.SPortalSession;
+import com.aol.sportal.beans.AolPlanDetailJson;
+import com.aol.sportal.beans.CpAolPlanDetailJson;
+import com.aol.sportal.beans.InstrumentBean;
+import com.aol.sportal.beans.InstrumentJsonBean;
+import com.aol.sportal.beans.PremiumBenefitJsonBean;
+import com.aol.sportal.beans.PremiumOPBenefitJsonBean;
+import com.aol.sportal.beans.PremiumProductBean;
+import com.aol.sportal.beans.PremiumProductDetailJsonBean;
+import com.aol.sportal.beans.PremiumProductJsonBean;
+import com.aol.sportal.model.AccountInformationModel;
+import com.aol.sportal.model.PricePlanChangeModelHelper;
+import com.aol.sportal.service.SubscriptionService;
+import com.aol.sportal.service.SubscriptionService.REEStatus;
+
+public class PremiumAccess {
+	
+	private ArrayList<PremiumProductBean> myBenefitsList;
+	private ArrayList<PremiumProductBean> myObisubsList;
+	private ArrayList<PremiumProductBean> myAccessSubsList;
+	private ArrayList<PremiumProductBean> myLegacyList;
+	private ArrayList<InstrumentBean> myInstrumentsList;
+	private ArrayList<PremiumProductBean> myBundlesList;
+	private AolPlanDetailJson myAolPlanDetailJson = null;
+	private CpAolPlanDetailJson myCpAolPlanDetailJson = null;
+	private boolean needUpdateAolPlanDetail = false;
+	private Boolean piNotification = new Boolean(false);
+	private static final Logger logger = Logger.getLogger(PremiumAccess.class);
+	public Boolean getPiNotification() {
+		return piNotification;
+	}
+	
+	public void setPiNotification(Boolean piNotification) {
+		this.piNotification = piNotification;
+	}
+	
+	public Boolean getPiFlip() {
+		return piFlip;
+	}
+	
+	public void setPiFlip(Boolean piFlip) {
+		this.piFlip = piFlip;
+	}
+	
+	private Boolean piFlip = new Boolean(false);
+	
+	public static PremiumAccess getInstance(HttpServletRequest request, HttpServletResponse response) {
+		long stime = System.currentTimeMillis();
+		Map subscriptionMap = PremiumAccess.getSubscriptionMap(request, response);
+		AccountAccess.updateStats("PremiumAccess_Load PSB", System.currentTimeMillis() - stime);
+		if (subscriptionMap == null)
+			return null;
+		return new PremiumAccess(request, response, subscriptionMap);
+	}
+	
+	private static Map getSubscriptionMap(HttpServletRequest request, HttpServletResponse response) {
+		Map subscriptionMap = null;
+		try {
+			if (AccountAccess.isMorf(request) == false)
+				subscriptionMap = AccountAccess.getSession(request, response).getPsbMap(request, response);
+			else
+				subscriptionMap = AccountAccess.getMorfSession(request, response).getPsbMap(request, response);
+		} catch (Exception e) {
+			logger.error("Failed to load PSB MAP, please see the stack trace");
+			e.printStackTrace();
+		}
+		return subscriptionMap;
+	}
+	
+	public static boolean isObiDown(HttpServletRequest request, HttpServletResponse response) {
+		Map subscriptionMap = PremiumAccess.getSubscriptionMap(request, response);
+		if (subscriptionMap == null || subscriptionMap.size() < 1)
+			return true;
+		else
+			return false;
+	}
+	
+	private PremiumAccess(HttpServletRequest request, HttpServletResponse response, Map subscriptionMap) {
+		long stime = System.currentTimeMillis();
+		myBenefitsList = new ArrayList<PremiumProductBean>();
+		myObisubsList = new ArrayList<PremiumProductBean>();
+		myAccessSubsList = new ArrayList<PremiumProductBean>();
+		myLegacyList = new ArrayList<PremiumProductBean>();
+		myInstrumentsList = new ArrayList<InstrumentBean>();
+		myBundlesList = new ArrayList<PremiumProductBean>();
+		loadAllSubscriptions(request, response, subscriptionMap);
+		AccountAccess.updateStats("PremiumAccess_self", System.currentTimeMillis() - stime);
+		logger.debug(
+		                "~~~~~~~~~~~~~~~~~~~~~~~~~myInstrumentsList size=" + myInstrumentsList.size() + ", myBenefitsList size=" + myBenefitsList.size() + ", myObisubsList size="
+		                                + myObisubsList.size() + ", myAccessSubsList size=" + myAccessSubsList.size() + ", myLegacyList size=" + myLegacyList.size() + ", myBundlesList="
+		                                + myBundlesList.size());
+	}
+	
+	private void loadAllSubscriptions(HttpServletRequest request, HttpServletResponse response, Map subscriptionMap) {
+		String screenName = "";
+		if (subscriptionMap.size() == 0)
+			return;
+		
+		for (Iterator it = subscriptionMap.entrySet().iterator(); it.hasNext();) {
+			Map.Entry entry = (Map.Entry) it.next();
+			Object key = entry.getKey();
+			String subscriptionType = null;
+			
+			String keyFromMap = (String) key;
+			if (keyFromMap != null && keyFromMap.equalsIgnoreCase("piNotification") && entry.getValue() != null)
+				this.piNotification = (Boolean) entry.getValue();
+			if (keyFromMap != null && keyFromMap.equalsIgnoreCase("piFlip") && entry.getValue() != null)
+				this.piFlip = (Boolean) entry.getValue();
+			
+			StringTokenizer tokenizer = new StringTokenizer(keyFromMap, ":");
+			screenName = AccountAccess.compressSN(tokenizer.nextToken());
+			
+			if (tokenizer.hasMoreTokens())
+				subscriptionType = tokenizer.nextToken();
+			else
+				continue;
+			
+			if (subscriptionType == null)
+				continue;
+			
+			String loggedUser = AccountAccess.getLoginItem(request, "Username");
+			// HashMap currentMap=(HashMap)entry.getValue();
+			if (subscriptionType.equalsIgnoreCase("mybenefits")) {
+				logger.debug("mybenefits is Present.........................");
+				if (AccountAccess.compressSN(loggedUser).equalsIgnoreCase(screenName) == false)
+					continue;
+				HashMap currentMap = (HashMap) entry.getValue();
+				this.loadMybenefit(screenName, currentMap, keyFromMap);
+			} else if (subscriptionType.equalsIgnoreCase("obisubs")) {
+				LinkedHashMap currentMap = (LinkedHashMap) entry.getValue();
+				this.loadObiSubs(screenName, currentMap, keyFromMap, request, response);
+			} else if (subscriptionType.equalsIgnoreCase("accessSubs")) {
+				LinkedHashMap currentMap = (LinkedHashMap) entry.getValue();
+				this.loadAccessSubs(screenName, currentMap, keyFromMap, request, response);
+			} else if (subscriptionType.equalsIgnoreCase("legacy")) {
+				HashMap currentMap = (HashMap) entry.getValue();
+				this.loadLegacy(screenName, currentMap, keyFromMap);
+			} else if (subscriptionType.equalsIgnoreCase("instruments")) {
+				LinkedHashMap currentMap = (LinkedHashMap) entry.getValue();
+				this.loadInstrument(screenName, currentMap);
+			} else if (subscriptionType.equalsIgnoreCase("obibundles")) {
+				LinkedHashMap currentMap = (LinkedHashMap) entry.getValue();
+				this.loadObiBundles(screenName, currentMap, keyFromMap, request, response);
+			}
+		}
+		this.loadLegacyPayment();
+		this.orderMyBenefitsList(request, response);
+	}
+	
+	private void loadMybenefit(String screenName, HashMap productIdMap, String keyFromMap) {
+		
+		String productFeaturesIdStr = null;
+		String status = "";
+		
+		if (productIdMap == null || productIdMap.size() < 1)
+			return;
+		
+		for (Iterator it = productIdMap.entrySet().iterator(); it.hasNext();) {
+			// Integer productFeaturesId = (Integer)itProducts.next();
+			Map.Entry entry = (Map.Entry) it.next();
+			productFeaturesIdStr = (String) entry.getKey();
+			if (productFeaturesIdStr == null || productFeaturesIdStr.equalsIgnoreCase("0")) {
+				continue;
+			}
+			
+			PremiumProductBean premiumProductBean = new PremiumProductBean();
+			premiumProductBean.setProductId(productFeaturesIdStr);
+			premiumProductBean.setSn(screenName);
+			premiumProductBean.setTopKey(keyFromMap);
+			
+			HashMap svuDataMap = new HashMap();
+			HashMap featurePropertiesMap = (HashMap) entry.getValue();
+			if (featurePropertiesMap != null && featurePropertiesMap.size() != 0) {
+				status = (String) featurePropertiesMap.get("status");
+				String status2 = "";
+				
+				if (status != null && status.equalsIgnoreCase("Always On") == true) {
+					status2 = status;
+					status = "Active";
+				}
+				if (status == null || (status.equalsIgnoreCase("Active") == false && status.equalsIgnoreCase("Eligible") == false))
+					break;
+				
+				premiumProductBean.setStatus(status.toLowerCase());
+				premiumProductBean.setStatus2(status2.toLowerCase());
+				premiumProductBean.setType("myBenefits");
+				premiumProductBean.setActivatedBySn((String) featurePropertiesMap.get("activatedBySN"));
+				svuDataMap = (HashMap) featurePropertiesMap.get("svu_action_data");
+				if (svuDataMap != null && svuDataMap.size() != 0) {
+					premiumProductBean.setOrderId((String) svuDataMap.get("order_id"));
+					for (Iterator itSvuData = svuDataMap.entrySet().iterator(); itSvuData.hasNext();) {
+						Map.Entry svuDataEntry = (Map.Entry) itSvuData.next();
+						
+						// change this to Hyatt legal registration number
+						if ("membership_number".equals((String) svuDataEntry.getKey())) {
+							// premiumProductBean.setSvuDataName("membership_number");
+							premiumProductBean.setSvuDataValue((String) (svuDataEntry.getValue()));
+						}
+						if ("activation_key".equals((String) svuDataEntry.getKey())) {
+							premiumProductBean.setExternalSubscriptionId((String) svuDataMap.get("activation_key"));
+							logger.debug("KKKKKKKKKKKKKKKKKKKKKKKKKKKKK ExternalSubscriptionId= " + productFeaturesIdStr + (String) svuDataMap.get("activation_key"));
+						}
+					}
+				}
+			}
+			
+			this.myBenefitsList.add(premiumProductBean);
+		}
+		
+		return;
+	}
+	
+	private void loadObiSubs(String screenName, LinkedHashMap obiMap, String keyFromMap, HttpServletRequest request, HttpServletResponse response) {
+		
+		if (obiMap == null || obiMap.size() < 1)
+			return;
+		
+		for (Iterator it = obiMap.entrySet().iterator(); it.hasNext();) {
+			Map.Entry obiEntry = (Map.Entry) it.next();
+			String obiKey = (String) obiEntry.getKey();
+			CustomerSubPaymentInfo obiValue = (CustomerSubPaymentInfo) obiEntry.getValue();
+			
+			if (obiValue == null)
+				continue;
+			
+			PremiumProductBean item = loadOneObiSubs(obiKey, obiValue, screenName, keyFromMap, request, response);
+			this.myObisubsList.add(item);
+		}
+		return;
+	}
+	
+	private void loadAccessSubs(String screenName, LinkedHashMap obiMap, String keyFromMap, HttpServletRequest request, HttpServletResponse response) {
+		
+		if (obiMap == null || obiMap.size() < 1)
+			return;
+		
+		for (Iterator it = obiMap.entrySet().iterator(); it.hasNext();) {
+			Map.Entry obiEntry = (Map.Entry) it.next();
+			String obiKey = (String) obiEntry.getKey();
+			CustomerSubPaymentInfo obiValue = (CustomerSubPaymentInfo) obiEntry.getValue();
+			
+			if (obiValue == null)
+				continue;
+			
+			PremiumProductBean item = loadOneObiSubs(obiKey, obiValue, screenName, keyFromMap, request, response);
+
+			this.myAccessSubsList.add(item);
+		}
+		return;
+	}
+	
+	private PremiumProductBean loadOneObiSubs(String obiKey, CustomerSubPaymentInfo obiValue, String screenName, String keyFromMap, HttpServletRequest request, HttpServletResponse response) {
+		PremiumProductBean premiumProductBean = new PremiumProductBean();
+		premiumProductBean.setReeKey(obiKey);
+		if (obiValue.getOfferSubscriptionId() != null)
+			premiumProductBean.setSubscriptionId(obiValue.getOfferSubscriptionId().getValue());
+		premiumProductBean.setType("obi");
+		premiumProductBean.setProductId(obiValue.getSvuProductId());
+		
+		premiumProductBean.setMerchantId(obiValue.getMerchantId());
+		premiumProductBean.setSn(screenName);
+		premiumProductBean.setTopKey(keyFromMap);
+		premiumProductBean.setNextBillDate(obiValue.getNextBillDate());
+		
+		premiumProductBean.setCancelDate(obiValue.getCancelDate());
+		
+		if (obiValue.getV2EnabledBundle()!=null){
+			premiumProductBean.setV2EnabledBundle(obiValue.getV2EnabledBundle().booleanValue());
+		}
+		
+		if (obiValue.getV2Enabled()!=null) {
+			premiumProductBean.setV2Enabled(obiValue.getV2Enabled().booleanValue());
+		}
+		
+		if (obiValue.getBillingType()!=null) {
+			if (obiValue.getBillingType()==BillingType.ADVANCE) {
+				premiumProductBean.setBillingInAdvance(true);
+			}
+			else {
+				premiumProductBean.setBillingInAdvance(false);
+			}
+		}
+		
+		premiumProductBean.setSubscriptionDate(obiValue.getSubscriptionDate());
+		
+		// these two fields are only for shared product, 2012 dec. release
+		if (obiValue.getSubscriptionDate() != null)
+			premiumProductBean.setTrialStartDate(obiValue.getSubscriptionDate());
+		
+		if (obiValue.getSubscriptionEndDt() != null)
+			premiumProductBean.setTrialEndDate(obiValue.getSubscriptionEndDt());
+		
+		premiumProductBean.setObiProductId(obiValue.getProductId());
+		premiumProductBean.setProductType(obiValue.getProductType());
+		
+		if (obiValue.getShareableFlag() != null)
+			premiumProductBean.setHasShareable(obiValue.getShareableFlag().booleanValue());
+		if (obiValue.getBundleType() != null)
+			premiumProductBean.setBundleType(obiValue.getBundleType().value());
+		premiumProductBean.setProductDisplayType(obiValue.getProductType()); // using
+		                                                                     // product
+		                                                                     // type
+		                                                                     // &
+		                                                                     // not
+		                                                                     // display
+		                                                                     // type
+		                                                                     // to
+		                                                                     // determine
+		                                                                     // coupon.
+		
+		//add real productDisplayType for 13.6, in order to know it is perk or bonus, The above ProductDisplayType() is a bad practice
+		premiumProductBean.setProductDisplayType2(obiValue.getProductDisplayType());
+		
+		premiumProductBean.setExternalSubscriptionId(obiValue.getExternalSubscriptionId());
+		
+		SubSharingView subSharingView = obiValue.getSubSharingView();
+		
+		if (obiValue.getSubscriptionStatus() == Status.ACTIVE || obiValue.getSubscriptionStatus() == Status.PROVISIONED || obiValue.getSubscriptionStatus() == Status.VENDOR_PROVISIONED) {
+			premiumProductBean.setStatus("active");
+			if (obiValue.getInTrial() != null && obiValue.getInTrial().booleanValue()) {
+				premiumProductBean.setStatus("free_trial");
+			}
+			
+			if (subSharingView != null && obiValue.getBundleType() != null && obiValue.getBundleType().value().contains("DIGITAL_PASS")) {
+				ModStatusType sharingModStatus = (ModStatusType) subSharingView.getStatus();
+				String sharingStatusStr = "";
+				if (sharingModStatus != null)
+					sharingStatusStr = sharingModStatus.value();
+
+				if (subSharingView.getLuid().equalsIgnoreCase(screenName) && subSharingView.getStatus() != null && !sharingStatusStr.equalsIgnoreCase("reclaim"))
+					premiumProductBean.setStatus("lent");
+				
+				if (!sharingStatusStr.equalsIgnoreCase("reclaim")) {
+					premiumProductBean.setSharedBy(subSharingView.getLuid());
+					String secondaryLuid = "";
+					if (subSharingView.getSecondaryLuid() != null)
+						secondaryLuid = subSharingView.getSecondaryLuid();
+					else
+						secondaryLuid = subSharingView.getEmailAddress();
+					premiumProductBean.setSharedTo(secondaryLuid);
+					XMLGregorianCalendar xcal = obiValue.getSubSharingView().getCreatedDt();
+					if (xcal != null) {
+						Date createDate = xcal.toGregorianCalendar().getTime();
+						SimpleDateFormat df = new SimpleDateFormat("MM/dd/yyyy");
+						premiumProductBean.setSharedDate(df.format(createDate));
+					}
+					XMLGregorianCalendar xcalExpDate = obiValue.getSubSharingView().getInvitationTokenExpDt();
+					if (xcalExpDate != null) {
+						Date expDate = xcalExpDate.toGregorianCalendar().getTime();
+						SimpleDateFormat df = new SimpleDateFormat("MM/dd/yyyy");
+						premiumProductBean.setSharedExpDate(df.format(expDate));
+					}
+				}
+				
+			}
+			
+		} else if (obiValue.getSubscriptionStatus() == Status.PENDING_SUSPEND) {
+			premiumProductBean.setStatus("pending");
+		} else if (obiValue.getSubscriptionStatus() == Status.CANCELLED || obiValue.getSubscriptionStatus() == Status.TERMINATED || obiValue.getSubscriptionStatus() == Status.SUSPENDED
+		                || obiValue.getSubscriptionStatus() == Status.VENDOR_SUSPENDED || obiValue.getSubscriptionStatus() == Status.SWITCHED || obiValue.getSubscriptionStatus() == Status.EXPIRED
+		                || obiValue.getSubscriptionStatus() == Status.VENDOR_CANCELLED || obiValue.getSubscriptionStatus() == Status.VENDOR_CLEANUP)
+			premiumProductBean.setStatus("cancelled");
+		else if (obiValue.getSubscriptionStatus() == Status.PENDING_PROV) {
+			premiumProductBean.setStatus("active");
+			
+			if (obiValue.getBundleType() != null && obiValue.getBundleType().value().contains("DIGITAL_PASS")) {
+				if (subSharingView != null)
+				
+				{
+					ModStatusType sharingModStatus = (ModStatusType) subSharingView.getStatus();
+					String sharingStatusStr = "";
+					if (sharingModStatus != null)
+						sharingStatusStr = sharingModStatus.value();
+					
+					String loggedUser = AccountAccess.getLoginItem(request, "Username");
+					System.out.println("**************PENDING_PROV --> LUID =" + subSharingView.getLuid() + "screenName=" + screenName);
+					if (subSharingView.getLuid().equalsIgnoreCase(screenName) && subSharingView.getStatus() != null && !sharingStatusStr.equalsIgnoreCase("reclaim"))
+						premiumProductBean.setStatus("lent");
+					else
+						premiumProductBean.setStatus("not_activated");
+					
+					if (!sharingStatusStr.equalsIgnoreCase("reclaim")) {
+						premiumProductBean.setSharedBy(subSharingView.getLuid());
+						String secondaryLuid = "";
+						if (subSharingView.getSecondaryLuid() != null)
+							secondaryLuid = subSharingView.getSecondaryLuid();
+						else
+							secondaryLuid = subSharingView.getEmailAddress();
+						premiumProductBean.setSharedTo(secondaryLuid);
+						XMLGregorianCalendar xcal = obiValue.getSubSharingView().getCreatedDt();
+						if (xcal != null) {
+							Date createDate = xcal.toGregorianCalendar().getTime();
+							SimpleDateFormat df = new SimpleDateFormat("MM/dd/yyyy");
+							premiumProductBean.setSharedDate(df.format(createDate));
+						}
+						XMLGregorianCalendar xcalExpDate = obiValue.getSubSharingView().getInvitationTokenExpDt();
+						if (xcalExpDate != null) {
+							Date expDate = xcalExpDate.toGregorianCalendar().getTime();
+							SimpleDateFormat df = new SimpleDateFormat("MM/dd/yyyy");
+							premiumProductBean.setSharedExpDate(df.format(expDate));
+						}
+					}
+					
+				} else
+					premiumProductBean.setStatus("not_activated");
+			}
+		} else if (obiValue.getSubscriptionStatus() == Status.SHARE_IN_PROGRESS) {
+			premiumProductBean.setStatus("lent_in_progress");
+			// SubSharingView SubSharingView = obiValue.getSubSharingView();
+			if (subSharingView != null && obiValue.getBundleType() != null && obiValue.getBundleType().value().contains("DIGITAL_PASS")) {
+				
+				premiumProductBean.setStatus("lent_in_progress");
+				premiumProductBean.setSharedBy(subSharingView.getLuid());
+				String secondaryLuid = "";
+				if (subSharingView.getSecondaryLuid() != null)
+					secondaryLuid = subSharingView.getSecondaryLuid();
+				else
+					secondaryLuid = subSharingView.getEmailAddress();
+				premiumProductBean.setSharedTo(secondaryLuid);
+				XMLGregorianCalendar xcal = obiValue.getSubSharingView().getCreatedDt();
+				if (xcal != null) {
+					Date createDate = xcal.toGregorianCalendar().getTime();
+					SimpleDateFormat df = new SimpleDateFormat("MM/dd/yyyy");
+					premiumProductBean.setSharedDate(df.format(createDate));
+				}
+				XMLGregorianCalendar xcalExpDate = obiValue.getSubSharingView().getInvitationTokenExpDt();
+				if (xcalExpDate != null) {
+					Date expDate = xcalExpDate.toGregorianCalendar().getTime();
+					SimpleDateFormat df = new SimpleDateFormat("MM/dd/yyyy");
+					premiumProductBean.setSharedExpDate(df.format(expDate));
+				}
+				
+			}
+			
+		} else if (obiValue.getSubscriptionStatus() == Status.INACTIVE)
+			premiumProductBean.setStatus("inactive");
+		
+		premiumProductBean.setStatus2(obiValue.getSubscriptionStatus().value());
+		
+		String offerId="";
+		if (obiValue.getOfferId() != null) {
+			premiumProductBean.setOfferId(obiValue.getOfferId().getValue());
+			offerId=obiValue.getOfferId().getValue();
+		}
+		else
+			premiumProductBean.setOfferId(null);
+			
+		premiumProductBean.setEmailAddress(null);
+		List<ArrayOfAttribute> obiAttr = obiValue.getAttributes();
+		if (obiAttr != null && obiAttr.size() > 0) {
+			Iterator ita = obiAttr.iterator();
+			while (ita.hasNext()) {
+				ArrayOfAttribute arrayOfAttribute = (ArrayOfAttribute) ita.next();
+				if (arrayOfAttribute != null) {
+					List<Attribute> attributeList = arrayOfAttribute.getAttribute();
+					Iterator itl = attributeList.iterator();
+					
+					if (itl != null) {
+						while (itl.hasNext()) {
+							Attribute attr = (Attribute) itl.next();
+							if (attr != null && "EMAIL_ADDRESS".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setEmailAddress(attr.getAttributeValue());
+							else if (attr != null && "AccessUrl".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setAccessUrl(attr.getAttributeValue());
+							else if (attr != null && "AccessKey".equalsIgnoreCase(attr.getAttributeName())) {
+								if (offerId.equals("1004299")) //datamask mobile
+									premiumProductBean.setDataMaskMobileCode(attr.getAttributeValue());
+								else
+									premiumProductBean.setAccessKey(attr.getAttributeValue());
+							}
+							else if (attr != null && "REDIRECT_URL".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setRedirectUrl(attr.getAttributeValue());
+							else if (attr != null && "Password".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setPassword(attr.getAttributeValue());
+							else if (attr != null && "Username".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setUsername(attr.getAttributeValue());
+							else if (attr != null && "AlternateAccountNumber".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setAlternateAccountNumber(attr.getAttributeValue());
+							else if (attr != null && "NICKNAME".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setNickName(attr.getAttributeValue());
+							else if (attr != null && "MEMBERSHIPNUMBER".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setMembershipNumber(attr.getAttributeValue());
+							else if (attr != null && "BILLING_STREET1".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setAddress1(attr.getAttributeValue());
+							else if (attr != null && "BILLING_STREET2".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setAddress2(attr.getAttributeValue());
+							else if (attr != null && "BILLING_CITY".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setCity(attr.getAttributeValue());
+							else if (attr != null && "BILLING_STATE".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setState(attr.getAttributeValue());
+							else if (attr != null && "BILLING_ZIP".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setZipCode(attr.getAttributeValue());
+							else if (attr != null && "FIRST_NAME".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setFirstName(attr.getAttributeValue());
+							else if (attr != null && "LAST_NAME".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setLastName(attr.getAttributeValue());
+							else if (attr != null && "DOB".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setDateBirth(attr.getAttributeValue());
+							else if (attr != null && "PHONE_NUMBER1".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setDayPhone(attr.getAttributeValue());
+							else if (attr != null && "BILLING_COUNTRY".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setCountry(attr.getAttributeValue());
+							else if (attr != null && "LOCALE".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setLocale(attr.getAttributeValue());
+							else if (attr != null && "vendorGuid".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setVendorGuid(attr.getAttributeValue());
+							else if (attr != null && "merchant".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setMerchant(attr.getAttributeValue());
+							else if (attr != null && "UI_MEMBERSHIP_ID".equalsIgnoreCase(attr.getAttributeName()))
+								premiumProductBean.setMembershipNumber(attr.getAttributeValue());
+							else if (attr != null && "UI_MEMBERSHIP_EXP".equalsIgnoreCase(attr.getAttributeName())) {
+								SimpleDateFormat dateFormat = new SimpleDateFormat("MMMMM yyyy");
+								Calendar calendar = Calendar.getInstance();
+								try {
+									calendar.setTime(dateFormat.parse(attr.getAttributeValue()));
+									premiumProductBean.setSubscriptionExpiryDate(calendar);
+								}catch(ParseException e){
+									logger.error("Error parsing date for attribute - Name: " + attr.getAttributeName() + ",Value: " + attr.getAttributeValue());
+								}
+							} else if (attr != null && "UI_MEMBER_SINCE".equalsIgnoreCase(attr.getAttributeName())) {
+								SimpleDateFormat dateFormat = new SimpleDateFormat("MMMMM yyyy");
+								Calendar calendar = Calendar.getInstance();
+								try {
+									calendar.setTime(dateFormat.parse(attr.getAttributeValue()));
+									premiumProductBean.setMemberSinceDate(calendar);
+								}catch(ParseException e){
+									logger.error("Error parsing date for attribute - Name: " + attr.getAttributeName() + ",Value: " + attr.getAttributeValue());
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		if (obiValue.getRate() != null)
+			premiumProductBean.setRate(new Long(obiValue.getRate()).longValue());
+		
+		premiumProductBean.setDiscount(obiValue.getDiscountAmount());
+		if (obiValue.getBillingFrequency() == null)
+			premiumProductBean.setBillingFrequency("");
+		else if (obiValue.getBillingFrequency().equals(BillingFrequency.ONETIMEPAYMENT)) {
+			premiumProductBean.setBillingFrequency("ONETIMEPAYMENT");
+			premiumProductBean.setRate(new Long(obiValue.getSetupFee()).longValue());
+			premiumProductBean.setSetupFee(obiValue.getSetupFee());
+			premiumProductBean.setStatus("Previous Purchase");
+			premiumProductBean.setHasOneTime(true);
+		} else if (obiValue.getBillingFrequency().equals(BillingFrequency.BIMONTHLY))
+			premiumProductBean.setBillingFrequency("BIMONTHLY");
+		else if (obiValue.getBillingFrequency().equals(BillingFrequency.HALFYEARLY))
+			premiumProductBean.setBillingFrequency("HALFYEARLY");
+		else if (obiValue.getBillingFrequency().equals(BillingFrequency.MONTHLY))
+			premiumProductBean.setBillingFrequency("MONTHLY");
+		else if (obiValue.getBillingFrequency().equals(BillingFrequency.NONE))
+			premiumProductBean.setBillingFrequency("");
+		else if (obiValue.getBillingFrequency().equals(BillingFrequency.QUARTERLY))
+			premiumProductBean.setBillingFrequency("QUARTERLY");
+		else if (obiValue.getBillingFrequency().equals(BillingFrequency.YEARLY))
+			premiumProductBean.setBillingFrequency("YEARLY");
+		
+		if (obiValue.getPaymentInsrument() != null)
+			premiumProductBean.setPaymentInstrumentId(obiValue.getPaymentMethodId());
+		else
+			premiumProductBean.setPaymentInstrumentId(null);
+		
+		premiumProductBean.setProductId(obiValue.getSvuProductId());
+		premiumProductBean.setObiProductId(obiValue.getProductId());
+		premiumProductBean.setProductType(obiValue.getProductType());
+		
+		return premiumProductBean;
+	}
+	
+	private void loadLegacy(String screenName, HashMap legacyMap, String keyFromMap) {
+		
+		// ArrayList<PremiumProductBean> legacyList = new
+		// ArrayList<PremiumProductBean>();
+		
+		if (legacyMap == null || legacyMap.size() < 1)
+			return;
+		
+		for (Iterator it = legacyMap.entrySet().iterator(); it.hasNext();) {
+			Map.Entry entry = (Map.Entry) it.next();
+			String legacyID = (String) entry.getKey();
+			SubscriptionInfo legacyValue = (SubscriptionInfo) entry.getValue();
+			
+			if (legacyValue == null)
+				continue;
+			
+			PremiumProductBean premiumProductBean = new PremiumProductBean();
+			premiumProductBean.setReeKey(legacyID);
+			premiumProductBean.setType("legacy");
+			premiumProductBean.setSubscriptionId("AOL");
+			premiumProductBean.setSn(screenName);
+			premiumProductBean.setTopKey(keyFromMap);
+			premiumProductBean.setMerchantId(null);
+			
+			StringTokenizer legacyTokenizer = new StringTokenizer(legacyID, ":");
+			String productId = legacyTokenizer.nextToken();
+			
+			try {
+				DateFormat dtformatter = new SimpleDateFormat("yyyy-MM-dd");
+				if (legacyValue.getEffectiveDate() != null) {
+					Date date = (Date) dtformatter.parse(legacyValue.getEffectiveDate().trim());
+					premiumProductBean.setSubscriptionDate(date);
+				}
+			} catch (Exception ex) {
+				logger.error("Error parsing registration date for Legacy sub" + legacyValue.getEffectiveDate());
+				ex.printStackTrace();
+			}
+			
+			String status = " ";
+			if ("A".equalsIgnoreCase(legacyValue.getStatus()))
+				premiumProductBean.setStatus("active");
+			else if ("P".equalsIgnoreCase(legacyValue.getStatus()))
+				premiumProductBean.setStatus("pending");
+			else if ("C".equalsIgnoreCase(legacyValue.getStatus()))
+				premiumProductBean.setStatus("cancelled");
+			
+			if (legacyValue.getScreenName() != null)
+				premiumProductBean.setSn(legacyValue.getScreenName());
+			
+			premiumProductBean.setRate(legacyValue.getFee());
+			premiumProductBean.setProductId(productId);
+			this.myLegacyList.add(premiumProductBean);
+			
+		}
+		return;
+	}
+	
+	private void loadLegacyPayment() {
+		InstrumentBean cof;
+		Iterator<PremiumProductBean> it = this.myLegacyList.iterator();
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			cof = this.getCofInstrument(item.getSn());
+			if (cof != null && cof.getInstrument().getPaymentInstrument() != null)
+				item.setPaymentInstrumentId(cof.getPaymentKey());
+		}
+	}
+	
+	private void loadInstrument(String screenName, LinkedHashMap instrumentMap) {
+		if (instrumentMap == null || instrumentMap.size() < 1)
+			return;
+		
+		InstrumentBean paymentInstrument;
+		for (Iterator it = instrumentMap.entrySet().iterator(); it.hasNext();) {
+			Map.Entry entry = (Map.Entry) it.next();
+			String paymentKey = (String) entry.getKey();
+			Instrument currIns = (Instrument) entry.getValue();
+			if (currIns != null) {
+				paymentInstrument = new InstrumentBean(currIns);
+				paymentInstrument.setPaymentKey(paymentKey);
+				paymentInstrument.setSn(screenName);
+				this.myInstrumentsList.add(paymentInstrument);
+			}
+		}
+		
+		return;
+	}
+	
+	private void loadObiBundles(String screenName, LinkedHashMap bundleMap, String keyFromMap, HttpServletRequest request, HttpServletResponse response) {
+		
+		if (bundleMap == null || bundleMap.size() < 1)
+			return;
+		
+		PremiumProductBean bundle = null;
+		
+		for (Iterator it = bundleMap.entrySet().iterator(); it.hasNext();) {
+			Map.Entry entry = (Map.Entry) it.next();
+			String obiKey = (String) entry.getKey();
+			
+			String subType = "";
+			StringTokenizer tokenizer = new StringTokenizer(obiKey, ":");
+			String offerSubscriptionID = tokenizer.nextToken();
+			
+			if (tokenizer.hasMoreTokens())
+				subType = tokenizer.nextToken();
+			else
+				continue;
+			
+			if (subType.equalsIgnoreCase("bundle")) {
+				String bundleRate = "0";
+				String bundleSetUpFee = "0";
+				
+				Map<String, Object> bundleHeader = (Map<String, Object>) entry.getValue();
+				
+				if (bundleHeader == null)
+					continue;
+				
+				bundle = new PremiumProductBean();
+				
+				for (Iterator headerIterator = bundleHeader.entrySet().iterator(); headerIterator.hasNext();) {
+					Map.Entry headerEntry = (Map.Entry) headerIterator.next();
+					String headerName = (String) headerEntry.getKey();		
+					
+					String headerValue = "";
+					if (headerEntry.getValue() instanceof String)
+						headerValue = (String) headerEntry.getValue();
+					if (headerName == null)
+						continue;
+					
+					bundle.setHasBundle(true);
+					bundle.setType("obi");
+					bundle.setSn(screenName);
+					bundle.setTopKey(keyFromMap);
+					bundle.setReeKey(obiKey);
+					
+					if (headerName.equalsIgnoreCase("bundleSvuProdId"))
+						bundle.setProductId(headerValue);
+					
+					if (headerName.equalsIgnoreCase("billingFrequency")) {
+						if (headerValue.equals("ONETIMEPAYMENT")) {
+							bundle.setBillingFrequency("");
+							bundle.setStatus("Previous Purchase");
+							bundle.setHasOneTime(true);
+						} else if (headerValue.equals("BIMONTHLY"))
+							bundle.setBillingFrequency("BIMONTHLY");
+						else if (headerValue.equals("HALFYEARLY"))
+							bundle.setBillingFrequency("HALFYEARLY");
+						else if (headerValue.equals("MONTHLY"))
+							bundle.setBillingFrequency("MONTHLY");
+						else if (headerValue.equals("NONE"))
+							bundle.setBillingFrequency("");
+						else if (headerValue.equals("QUARTERLY"))
+							bundle.setBillingFrequency("QUARTERLY");
+						else if (headerValue.equals("YEARLY"))
+							bundle.setBillingFrequency("YEARLY");
+					}
+					
+					if (headerName.equalsIgnoreCase("inTrial")) {
+						Boolean inTrial = (Boolean) headerEntry.getValue();
+						if (inTrial != null && inTrial.booleanValue() == true)
+							bundle.setFreeTrial(true);
+					}
+					
+					if (headerName.equalsIgnoreCase("subscriptionStatus")) {
+						if (headerValue != null && (headerValue.equalsIgnoreCase("ACTIVE") || headerValue.equalsIgnoreCase("PROVISIONED") || headerValue.equalsIgnoreCase("VENDOR_PROVISIONED")))
+							bundle.setStatus("active");
+						else if (headerValue != null && headerValue.equalsIgnoreCase("PENDING_SUSPEND"))
+							bundle.setStatus("pending");
+						else if (headerValue != null
+						                && (headerValue.equalsIgnoreCase("CANCELLED") || headerValue.equalsIgnoreCase("TERMINATED") || headerValue.equalsIgnoreCase("SUSPENDED")
+						                                || headerValue.equalsIgnoreCase("VENDOR_SUSPENDED") || headerValue.equalsIgnoreCase("SWITCHED") || headerValue.equalsIgnoreCase("EXPIRED")
+						                                || headerValue.equalsIgnoreCase("VENDOR_CANCELLED") || headerValue.equalsIgnoreCase("VENDOR_CLEANUP")))
+							bundle.setStatus("cancelled");
+						else if (headerValue != null && (headerValue.equalsIgnoreCase("INACTIVE")))
+							bundle.setStatus("inactive");
+						else if (headerValue != null && (headerValue.equalsIgnoreCase("PENDING_PROV")))
+							bundle.setStatus("not_activated");
+						
+					}
+					if (headerName.equalsIgnoreCase("setupFee")) {
+						bundleSetUpFee = headerValue;
+					}
+					
+					if (headerName.equalsIgnoreCase("contactEmail")) {
+						
+					}
+					if (headerName.equalsIgnoreCase("merchantId"))
+						bundle.setMerchantId(headerValue);
+					
+					if (headerName.equalsIgnoreCase("nextBillDate"))
+						bundle.setNextBillDate((XMLGregorianCalendar) headerEntry.getValue());
+					
+					if (headerName.equalsIgnoreCase("offerId"))
+						bundle.setOfferId(headerValue);
+					
+					/*		if (headerName.equalsIgnoreCase("billingType")) {
+						if (headerValue != null && (headerValue.equalsIgnoreCase("ADVANCE"))) {
+							bundle.setBillingInAdvance(true);
+						}
+					}*/
+		
+					if (headerName.equalsIgnoreCase("subscriptionDate"))
+						bundle.setSubscriptionDate((XMLGregorianCalendar) headerEntry.getValue());
+					
+					if (headerName.equalsIgnoreCase("cancelDate"))
+						bundle.setCancelDate((XMLGregorianCalendar) headerEntry.getValue());
+					
+					if (headerName.equalsIgnoreCase("billedPrice")) {
+						bundleRate = ((Integer) headerEntry.getValue()).toString();
+					}
+					
+					if (headerName.equalsIgnoreCase("productId")) {
+						bundle.setObiProductId(headerValue);
+					}
+					if (headerName.equalsIgnoreCase("productType")) {
+						bundle.setProductType(headerValue);
+					}
+					if (headerName.equalsIgnoreCase("secondaryLuid")) {
+						bundle.setSecondaryLuid(headerValue);
+					}
+					
+					if (headerName.equalsIgnoreCase("bundleType")) {
+						logger.debug("************ bundleType=" + headerEntry.getValue().toString() + "svuID=" + bundle.getProductId());
+						if (headerEntry.getValue().toString() != null
+						                && (headerEntry.getValue().toString().equalsIgnoreCase("DIGITAL_PASS") || headerEntry.getValue().toString().equalsIgnoreCase("DIGITAL_PASS_FREMIUM") || headerEntry
+						                                .getValue().toString().equalsIgnoreCase("DIGITAL_PASS_TRIAL"))) {
+							bundle.setHasGathr(true);
+							bundle.setBundleType(headerEntry.getValue().toString());
+							logger.debug("----------------> BUNDLE TYPE from OBI =" + bundle.getBundleType());
+						}
+						
+					}
+					
+					if (headerName.equalsIgnoreCase("lendee")) {
+						if (headerEntry.getValue().toString() != null && (headerEntry.getValue().toString().equalsIgnoreCase("true")))
+							bundle.setLendeeBundle(true);
+						else
+							bundle.setLendeeBundle(false);
+					}
+					if (headerName.equalsIgnoreCase("offerSubscriptionId"))
+					{
+					    bundle.setSubscriptionId(headerValue);
+					    
+					}
+					if (headerName.equalsIgnoreCase("paymentMethodId"))
+						bundle.setPaymentInstrumentId(headerValue);
+				}
+				
+				if (bundle.getStatus() != null && bundle.getStatus().equalsIgnoreCase("active")) {
+					// show free trial only if the status is active. BLT#581051
+					if (bundle.isFreeTrial() || (bundle.getBundleType() != null && bundle.getBundleType().equalsIgnoreCase("DIGITAL_PASS_FREMIUM"))
+					                || (bundle.getBundleType() != null && bundle.getBundleType().equalsIgnoreCase("DIGITAL_PASS_TRIAL")))
+						bundle.setStatus("free_trial");
+				}
+				
+				if (bundle.isHasOneTime())
+					bundle.setRate(new Long(bundleSetUpFee).longValue());
+				else
+					bundle.setRate(new Long(bundleRate).longValue());
+				
+				logger.debug("************* Bundle =" + bundle);
+				if (bundle.getObiProductId() == null || bundle.getObiProductId().trim().equalsIgnoreCase(""))
+					bundle.setObiProductId(bundle.getOfferId());
+				
+				if(bundle.isHasGathr()){
+				    // for Gathr packages, check to see if there is a pending switch
+					String sn = bundle.getSn();
+					SubscriptionService subsService = null;
+					if (AccountAccess.isMorf(request) == true) {
+					    subsService = MorfSession.getSession(request).getPsbService(request, response);
+					} else {
+					    logger.debug("------------->> SN in WithASQ::getPromo=" + sn);
+					    subsService = SPortalSession.getSession(request).getPsbService(request, response, sn);
+					}
+
+					List<SubSwitch> listSubSwitch = subsService.listSubSwitch(bundle.getSubscriptionId(), sn);
+					if(listSubSwitch!=null && listSubSwitch.size()>0)
+						bundle.setPendingSwicthPackageList(listSubSwitch);
+				    
+				    
+				}
+				
+				logger.debug("Before BUNDLE ADD Logged User=" + AccountAccess.getLoginItem(request, "Username") + " SecondaryLuid=" + bundle.getSecondaryLuid());
+				if (!AccountAccess.getLoginItem(request, "Username").equalsIgnoreCase(bundle.getSecondaryLuid()) && !bundle.getStatus().equalsIgnoreCase("inactive"))
+					this.myBundlesList.add(bundle);
+				else if (AccountAccess.getLoginItem(request, "Username").equalsIgnoreCase(bundle.getSecondaryLuid()) && !bundle.getStatus().equalsIgnoreCase("cancelled")
+				                && !bundle.getStatus().equalsIgnoreCase("inactive"))
+					this.myBundlesList.add(bundle);
+			} else {
+				// bundle subs..
+				ArrayList<CustomerSubPaymentInfo> subsList = (ArrayList<CustomerSubPaymentInfo>) entry.getValue();
+				ArrayList<PremiumProductBean> bundleSubs = new ArrayList<PremiumProductBean>();
+				if (subsList != null) {
+					Iterator bundleSubsItr = subsList.iterator();
+					while (bundleSubsItr.hasNext()) {
+						CustomerSubPaymentInfo customerSubPaymentInfo = (CustomerSubPaymentInfo) bundleSubsItr.next();
+						PremiumProductBean item = loadOneObiSubs(obiKey, customerSubPaymentInfo, screenName, keyFromMap, request, response);
+						if (bundle.isHasGathr())
+							item.setHasGathr(true);
+						//for billing in advance, 13.12
+						if (item.isBillingInAdvance())
+							bundle.setBillingInAdvance(true);
+						
+						logger.debug("************** Bundle SUBS OBIProductID=" + item.getObiProductId());
+						if (customerSubPaymentInfo != null && customerSubPaymentInfo.getGenericFlag() != null && !customerSubPaymentInfo.getGenericFlag()) { 
+							if (!item.getStatus().equalsIgnoreCase("inactive") || !item.getStatus2().equalsIgnoreCase("inactive"))
+								bundleSubs.add(item);
+						} else {
+							// Look for the bundle product with the generic flag
+							// set. If it has a sub end
+							// date, switch active bundle status to "pending".
+							//
+							if (bundle.getStatus() != null && bundle.getStatus().equalsIgnoreCase("active") && customerSubPaymentInfo.getSubscriptionEndDt() != null) {
+								bundle.setStatus("pending");
+							}
+						}
+					}
+				}
+				
+				bundle.setBundleSubsList(bundleSubs);
+			}
+		}
+		
+		return;
+	}
+	
+	private void orderMyBenefitsList(HttpServletRequest request, HttpServletResponse response) {
+		ArrayList<PremiumProductBean> newOrderEligible = new ArrayList<PremiumProductBean>();
+		ArrayList<PremiumProductBean> newOrderActive = new ArrayList<PremiumProductBean>();
+		
+		if (AccountAccess.isMorf(request) == true)
+			return;
+		
+		Iterator<PremiumProductBean> it;
+		PremiumProductBean item;
+		
+		ArrayList<String> allList = AccountAccess.getFeaturesListOrder(request, response, 1);
+		Iterator<String> itStr = allList.iterator();
+		String itStrItem;
+		while (itStr.hasNext()) {
+			itStrItem = itStr.next();
+			it = this.myBenefitsList.iterator();
+			while (it.hasNext()) {
+				item = (PremiumProductBean) it.next();
+				if (item.getStatus().equalsIgnoreCase("eligible") == true && itStrItem.equalsIgnoreCase(item.getProductId()) == true)
+					newOrderEligible.add(item);
+				else if (item.getStatus().equalsIgnoreCase("eligible") == false && itStrItem.equalsIgnoreCase(item.getProductId()) == true)
+					newOrderActive.add(item);
+			}
+		}
+		
+		it = this.myBenefitsList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (item.getStatus().equalsIgnoreCase("eligible")) {
+				if (newOrderEligible.contains(item) == false)
+					newOrderEligible.add(item);
+			} else {
+				if (newOrderActive.contains(item) == false)
+					newOrderActive.add(item);
+			}
+		}
+		
+		newOrderEligible.addAll(newOrderActive);
+		this.myBenefitsList = newOrderEligible;
+	}
+	
+	// this version is used to order benefits for CP.
+	public ArrayList<PremiumProductDetailJsonBean> orderMyBenefitsListForCp(HttpServletRequest request, HttpServletResponse response, ArrayList<PremiumProductDetailJsonBean> benefitsList, String pi) {
+		ArrayList<PremiumProductDetailJsonBean> newOrderBenefits = new ArrayList<PremiumProductDetailJsonBean>();
+		
+		ResourceBundle resources = SPortalSession.getResources(request);
+		String numberOfRowsStr = resources.getString("pricePlan.cpNumberOfBenefitsRows");
+		int numberOfRows = 3;
+		int benefitsCount = 12;
+		
+		if (numberOfRowsStr != null) {
+			try {
+				numberOfRows = new Integer(numberOfRowsStr).intValue();
+				benefitsCount = numberOfRows * 4;
+			} catch (NumberFormatException nfe) {
+				logger.error("Error parsing number of rows to show for cp, check configuration...");
+				// do nothing use default value....
+			}
+			
+		}
+		
+		Iterator<PremiumProductDetailJsonBean> it;
+		PremiumProductDetailJsonBean itemBenefitsList;
+		logger.debug("Calling AccountAccess.getFeaturesListOrderByPi for pi= " + pi);
+		ArrayList<String> listFromFile = AccountAccess.getFeaturesListOrderByPi(request, response, pi);
+		logger.debug("Features list for PI " + pi + " listFromFile size=" + listFromFile.size() + " Benefits list from wbrs size=" + benefitsList.size());
+		Iterator<String> itStrFile = listFromFile.iterator();
+		String itStrItem;
+		int count = 0;
+		while (itStrFile.hasNext()) {
+			itStrItem = itStrFile.next();
+			it = benefitsList.iterator();
+			while (it.hasNext()) {
+				try {
+					itemBenefitsList = (PremiumProductDetailJsonBean) it.next();
+					
+					// if (itemBenefitsList != null)
+					// logger.debug("Product ID from benefits list "
+					// + itemBenefitsList.getProductId() + " File:itStrItem=" +
+					// itStrItem);
+					if (itStrItem.equalsIgnoreCase(itemBenefitsList.getProductId()) == true && count < benefitsCount) {
+						newOrderBenefits.add(itemBenefitsList);
+						count++;
+					}
+				} catch (Exception ex) {
+					// do nothing -- as list issue..
+				}
+			}
+		}
+		logger.debug("newOrderBenefits size=" + newOrderBenefits.size());
+		return newOrderBenefits;
+	}
+	
+	public PremiumProductBean getMyBenefitById(String productId) {
+		PremiumProductBean item;
+		Iterator<PremiumProductBean> it = this.myBenefitsList.iterator();
+		while (it.hasNext()) {
+			item = it.next();
+			if (item.getProductId().equalsIgnoreCase(productId) == true)
+				return item;
+		}
+		return null;
+		
+	}
+	
+	public InstrumentBean getCofInstrument(String selectedScreenName) {
+		if (selectedScreenName == null)
+			return null;
+		
+		InstrumentBean cof = null;
+		Iterator<InstrumentBean> it = this.myInstrumentsList.iterator();
+		while (it.hasNext()) {
+			cof = (InstrumentBean) it.next();
+			if (AccountAccess.compressSN(selectedScreenName).equalsIgnoreCase(cof.getSn())
+			                && (cof.getPaymentKey().equalsIgnoreCase("cof") || (cof.getInstrument().getCardOnFileFlag() != null && cof.getInstrument().getCardOnFileFlag().booleanValue() == true)))
+				return cof;
+		}
+		return null;
+	}
+	
+	private boolean isSameInstrument(InstrumentBean instrument1, InstrumentBean instrument2) {
+		if (instrument1 == null || instrument2 == null)
+			return false;
+		String encodeAcctNum1 = instrument1.getInstrument().getPaymentInstrument().getEncodedAccountNumber();
+		String paymentTypeName1 = instrument1.getInstrument().getPaymentInstrument().getPaymentType().name();
+		String encodeAcctNum2 = instrument2.getInstrument().getPaymentInstrument().getEncodedAccountNumber();
+		String paymentTypeName2 = instrument2.getInstrument().getPaymentInstrument().getPaymentType().name();
+		return encodeAcctNum1 != null && paymentTypeName1 != null && encodeAcctNum2 != null && paymentTypeName2 != null && encodeAcctNum1.equalsIgnoreCase(encodeAcctNum2)
+		                && paymentTypeName1.equalsIgnoreCase(paymentTypeName2);
+	}
+	
+	public InstrumentBean getDmsnObiInstrumentWithCofFlag(HttpServletRequest request, HttpServletResponse response, InstrumentBean existInstrument) {
+		if (existInstrument == null)
+			return null;
+		Iterator<InstrumentBean> it = this.myInstrumentsList.iterator();
+		InstrumentBean item = null;
+		while (it.hasNext()) {
+			item = (InstrumentBean) it.next();
+			if (item.getInstrument().getCardOnFileFlag().booleanValue() == true && item.getPaymentKey().equalsIgnoreCase("cof") == false && this.isSameInstrument(item, existInstrument) == true
+			                && AccountAccess.isDmsn(request, response, item.getSn()) == true)
+				return item;
+		}
+		return null;
+	}
+	
+	public InstrumentBean getInstrumentById(String instrumentId, String sn) {
+		InstrumentBean item = null;
+		if (instrumentId == null || sn == null)
+			return null;
+		
+		Iterator<InstrumentBean> it = this.myInstrumentsList.iterator();
+		while (it.hasNext()) {
+			item = (InstrumentBean) it.next();
+			if (instrumentId.equalsIgnoreCase(item.getPaymentKey()) && AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+				return item;
+		}
+		return null;
+	}
+	
+	public ArrayList<InstrumentBean> getInstruments() {
+		return this.myInstrumentsList;
+	}
+	
+	public ArrayList<InstrumentBean> getInstrumentsBySn(String sn) {
+		ArrayList<InstrumentBean> theList = new ArrayList<InstrumentBean>();
+		
+		if (sn == null || sn.length() < 1)
+			return theList;
+		Iterator<InstrumentBean> it = this.myInstrumentsList.iterator();
+		InstrumentBean item;
+		while (it.hasNext()) {
+			item = (InstrumentBean) it.next();
+			logger.debug("~~~~~~~~~~~~" + sn + " --------- " + item.getSn() + ", id=" + item.getPaymentKey());
+			if (AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+				theList.add(item);
+		}
+		return theList;
+	}
+	
+	// afw
+	public ArrayList<PremiumProductBean> getAllAccessSubsListBySvuId(String svuId, boolean requireActiveOrFreeTrial) {
+		ArrayList<PremiumProductBean> theList = new ArrayList<PremiumProductBean>();
+		if (svuId == null || svuId.length() < 1)
+			return theList;
+		
+		Iterator<PremiumProductBean> it = this.myAccessSubsList.iterator();
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (svuId.equalsIgnoreCase(item.getProductId()) == true && ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial)) {
+				
+				theList.add(item);
+			}
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumProductBean> getAccessSubsListBySvuId(String svuId, boolean requireActiveOrFreeTrial) {
+		ArrayList<PremiumProductBean> theList = new ArrayList<PremiumProductBean>();
+		if ((svuId == null) || svuId.length() < 1)
+			return theList;
+		
+		Iterator<PremiumProductBean> it = this.myAccessSubsList.iterator();
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (svuId.equalsIgnoreCase(item.getProductId()) == true && ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial))
+				theList.add(item);
+		}
+		return theList;
+	}
+	
+	public PremiumProductBean getAccessSubsById(String subsId) {
+		// subscription id is the unique key
+		if (subsId == null || subsId.length() < 1)
+			return null;
+		
+		Iterator<PremiumProductBean> it = this.myAccessSubsList.iterator();
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ((subsId.equalsIgnoreCase(item.getSubscriptionId()) == true))
+				return item;
+		}
+		return null;
+	}
+
+	public PremiumProductBean getGathrBySubIdAndSn(String subsId, String sn) {
+		if (subsId == null || sn == null)
+			return null;
+		
+		Iterator<PremiumProductBean> it = this.myBundlesList.iterator();
+		PremiumProductBean item;
+		
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ( (("active".equalsIgnoreCase(item.getStatus())) || ("free_trial".equalsIgnoreCase(item.getStatus()) ) )
+				&& (subsId.equalsIgnoreCase(item.getSubscriptionId()))
+			    && (AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+			   )
+			return item;
+		}
+		
+		return null;
+	}
+	
+	
+	public ArrayList<PremiumProductBean> getObiSubsByInstrumentId(String instrumentId, String sn, boolean requireActiveOrFreeTrial) {
+		return getSubsByInstrumentId(this.myObisubsList, instrumentId, sn, requireActiveOrFreeTrial);
+	}
+	
+	public ArrayList<PremiumProductBean> getLegacySubsByInstrumentId(String instrumentId, String sn) {
+		// for legacy, already return not just active one,, return every status
+		return getSubsByInstrumentId(this.myLegacyList, instrumentId, sn, false);
+	}
+	
+	public ArrayList<PremiumProductBean> getBundlesByInstrumentId(String instrumentId, String sn, boolean requireActiveOrFreeTrial) {
+		return getSubsByInstrumentId(this.myBundlesList, instrumentId, sn, requireActiveOrFreeTrial);
+	}
+	
+	private ArrayList<PremiumProductBean> getSubsByInstrumentId(ArrayList<PremiumProductBean> subsList, String instrumentId, String sn, boolean requireActiveOrFreeTrial) {
+		ArrayList<PremiumProductBean> theList = new ArrayList<PremiumProductBean>();
+		if (instrumentId == null || sn == null)
+			return theList;
+		Iterator<PremiumProductBean> it = subsList.iterator();
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial)
+			                && AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()) && instrumentId.equalsIgnoreCase(item.getPaymentInstrumentId()))
+				theList.add(item);
+		}
+		return theList;
+	}
+	
+	public PremiumProductBean getSubsById(String subsId, String sn, boolean requireActiveOrFreeTrial) {
+		if (subsId == null || sn == null)
+			return null;
+		
+		Iterator<PremiumProductBean> it = this.myObisubsList.iterator();
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial) && subsId.equalsIgnoreCase(item.getSubscriptionId())
+			                && AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+				return item;
+		}
+		it = this.myBundlesList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial) && subsId.equalsIgnoreCase(item.getSubscriptionId())
+			                && AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+				return item;
+		}
+		it = this.myLegacyList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (subsId.equalsIgnoreCase(item.getSubscriptionId()) && AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+				return item;
+		}
+		return null;
+	}
+	
+	public PremiumProductBean getGathrByIdAndSn(String productId, String sn) {
+		if (productId == null || sn == null)
+			return null;
+		
+		Iterator<PremiumProductBean> it = this.myBundlesList.iterator();
+		PremiumProductBean item;
+		
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ( (("active".equalsIgnoreCase(item.getStatus())) || ("free_trial".equalsIgnoreCase(item.getStatus()) ) )
+				&& (productId.equalsIgnoreCase(item.getProductId()))
+			    && (AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+			   )
+			return item;
+		}
+		
+		return null;
+	}
+	
+	public InstrumentJsonBean getInstrumentsByIdJson(String instrumentId, String sn) {
+		InstrumentBean item = null;
+		if (instrumentId == null || sn == null)
+			return null;
+		
+		Iterator<InstrumentBean> it = this.myInstrumentsList.iterator();
+		while (it.hasNext()) {
+			item = (InstrumentBean) it.next();
+			if (instrumentId.equalsIgnoreCase(item.getPaymentKey()) && AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+				return new InstrumentJsonBean(item);
+		}
+		return null;
+	}
+	
+	public ArrayList<InstrumentJsonBean> getInstrumentsBySnJson(String sn) {
+		ArrayList<InstrumentJsonBean> theList = new ArrayList<InstrumentJsonBean>();
+		
+		if (sn == null)
+			return theList;
+		Iterator<InstrumentBean> it = this.myInstrumentsList.iterator();
+		InstrumentBean item;
+		while (it.hasNext()) {
+			item = (InstrumentBean) it.next();
+			if (AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn()))
+				theList.add(new InstrumentJsonBean(item));
+		}
+		return theList;
+	}
+	
+	public ArrayList<InstrumentJsonBean> getInstrumentsJson() {
+		ArrayList<InstrumentJsonBean> theList = new ArrayList<InstrumentJsonBean>();
+		Iterator<InstrumentBean> it = this.myInstrumentsList.iterator();
+		InstrumentBean item;
+		while (it.hasNext()) {
+			item = (InstrumentBean) it.next();
+			theList.add(new InstrumentJsonBean(item));
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumProductJsonBean> getSubsJson(HttpServletRequest request, boolean requireActiveOrFreeTrial) {
+		ArrayList<PremiumProductJsonBean> theList = new ArrayList<PremiumProductJsonBean>();
+		Iterator<PremiumProductBean> it = this.myObisubsList.iterator();
+		PremiumProductBean item;
+		PremiumProductJsonBean jsonObj;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial) {
+				try {
+					jsonObj = new PremiumProductJsonBean(request, item);
+				} catch (Exception e) {
+					logger.error("Exception - PremiumAccess -getSubsJson(). Ignore this subs. Error: " + e.getMessage());
+					e.printStackTrace();
+					continue;
+				}
+				theList.add(jsonObj);
+			}
+		}
+		it = this.myBundlesList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial) {
+				try {
+					jsonObj = new PremiumProductJsonBean(request, item);
+				} catch (Exception e) {
+					logger.error("Exception - PremiumAccess -getSubsJson(). Ignore this subsBundle. Error: " + e.getMessage());
+					e.printStackTrace();
+					continue;
+				}
+				theList.add(jsonObj);
+			}
+		}
+		it = this.myLegacyList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial) {
+				try {
+					jsonObj = new PremiumProductJsonBean(request, item);
+				} catch (Exception e) {
+					logger.error("Exception - PremiumAccess -getSubsJson(). Ignore this Legacy prod. Error: " + e.getMessage());
+					e.printStackTrace();
+					continue;
+				}
+				theList.add(jsonObj);
+			}
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumProductJsonBean> getSubsBySnJson(HttpServletRequest request, String sn, boolean requireActiveOrFreeTrial) {
+		if (sn == null)
+			return new ArrayList<PremiumProductJsonBean>();
+		
+		ArrayList<PremiumProductJsonBean> theList = this.getSubsJson(request, requireActiveOrFreeTrial);
+		ArrayList<PremiumProductJsonBean> removeList = new ArrayList<PremiumProductJsonBean>();
+		String compressedSn = AccountAccess.compressSN(sn);
+		Iterator<PremiumProductJsonBean> it = theList.iterator();
+		PremiumProductJsonBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductJsonBean) it.next();
+			if (compressedSn.equalsIgnoreCase(item.getSn()) == false)
+				removeList.add(item);
+		}
+		it = removeList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductJsonBean) it.next();
+			theList.remove(item);
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumProductJsonBean> getSubsByInstrumentIdJson(HttpServletRequest request, String instrumentId, String sn, boolean requireActiveOrFreeTrial) {
+		if (instrumentId == null || sn == null)
+			return new ArrayList<PremiumProductJsonBean>();
+		
+		ArrayList<PremiumProductJsonBean> theList = this.getSubsJson(request, requireActiveOrFreeTrial);
+		ArrayList<PremiumProductJsonBean> removeList = new ArrayList<PremiumProductJsonBean>();
+		String compressedSn = AccountAccess.compressSN(sn);
+		Iterator<PremiumProductJsonBean> it = theList.iterator();
+		PremiumProductJsonBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductJsonBean) it.next();
+			if (instrumentId.equalsIgnoreCase(item.getPaymentInstrumentId()) == false || compressedSn.equalsIgnoreCase(item.getSn()) == false)
+				removeList.add(item);
+		}
+		it = removeList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductJsonBean) it.next();
+			theList.remove(item);
+		}
+		return theList;
+	}
+	
+	public AolPlanDetailJson getAolPlanDetailJson(HttpServletRequest request, HttpServletResponse response) {
+		if (this.myAolPlanDetailJson != null && this.needUpdateAolPlanDetail == false)
+			return this.myAolPlanDetailJson;
+		
+		try {
+			this.myAolPlanDetailJson = new AolPlanDetailJson(request, response);
+			this.needUpdateAolPlanDetail = false;
+		} catch (Exception e) {
+			logger.error("failed to getAolPlanDetailJson:EXCEPTION OCCURRRED" + e);
+			e.printStackTrace();
+			return null;
+		}
+		return this.myAolPlanDetailJson;
+	}
+	
+	public ArrayList<PremiumProductDetailJsonBean> getMyBenefitsDetailJson(HttpServletRequest request) {
+		ArrayList<PremiumProductDetailJsonBean> theList = new ArrayList<PremiumProductDetailJsonBean>();
+		
+		Iterator<PremiumProductBean> it = this.myBenefitsList.iterator();
+		PremiumProductDetailJsonBean jsonObj;
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			try {
+				jsonObj = new PremiumProductDetailJsonBean(request, item);
+			} catch (Exception e) {
+				logger.error("Exception - PremiumAccess -getMyBenefitsDetailJson(). Ignore this mybenefit. Error: " + e.getMessage());
+				e.printStackTrace();
+				continue;
+			}
+			theList.add(jsonObj);
+		}
+		return theList;
+	}
+	
+	public CpAolPlanDetailJson getCpAolPlanDetailJson(HttpServletRequest request, HttpServletResponse response, String connectionType) {
+		
+		logger.debug("START of getCpAolPlanDetailJson passed connectionType=" + connectionType);
+		if (this.myCpAolPlanDetailJson != null && this.myCpAolPlanDetailJson.getCurrentConnectionType() != null
+		                && this.myCpAolPlanDetailJson.getCurrentConnectionType().equalsIgnoreCase(connectionType)) {
+			logger.debug("Returning cached myCpAolPlanDetailJson...");
+			return this.myCpAolPlanDetailJson;
+		}
+		
+		if (this.myCpAolPlanDetailJson != null && this.myCpAolPlanDetailJson.getCurrentConnectionType() != null
+		                && !this.myCpAolPlanDetailJson.getCurrentConnectionType().equalsIgnoreCase(connectionType)) {
+			this.needUpdateAolPlanDetail = true;
+		}
+		
+		try {
+			logger.debug("Calling the backend to refresh the Change plan data....");
+			String currentPI = "";
+			if (AccountAccess.getAcctData(request, response) != null && AccountAccess.isMorf(request) == false)
+				currentPI = AccountAccess.getAcctData(request, response).getMAAcctCurrentPiStr(request, response);
+			else if (AccountAccess.isMorf(request) == true) {
+				currentPI = "-9999";
+			} else
+				currentPI = AccountAccess.getLoginItem(request, "mst_price_index");
+			
+			/*
+			 * if (AccountAccess.isMorf(request)) currentPI = "-9999";
+			 */
+			if (this.myCpAolPlanDetailJson != null && this.needUpdateAolPlanDetail == false)
+				return this.myCpAolPlanDetailJson;
+			else {
+				
+				this.myCpAolPlanDetailJson = new CpAolPlanDetailJson(request, response, currentPI, true);
+				this.myCpAolPlanDetailJson.setCurrentConnectionType(connectionType);
+				this.myCpAolPlanDetailJson.setPlansList(getCpOffers(request, response, connectionType));
+				this.needUpdateAolPlanDetail = false;
+			}
+		} catch (Exception e) {
+			logger.error("failed to getCpAolPlanDetailJson:EXCEPTION OCCURRED" + e);
+			e.printStackTrace();
+			return null;
+		}
+		return this.myCpAolPlanDetailJson;
+	}
+	
+	private ArrayList<CpAolPlanDetailJson> getCpOffers(HttpServletRequest request, HttpServletResponse response, String connectionType) throws ServletException, IOException {
+		
+		ArrayList<CpAolPlanDetailJson> planOffers = new ArrayList<CpAolPlanDetailJson>();
+		boolean isTestVersion = false;
+		if (connectionType != null && connectionType.equalsIgnoreCase("dialup"))
+			connectionType = "D";
+		else
+			connectionType = "HS";
+		PricePlanChangeModelHelper pricePlanChangeModelHelper = new PricePlanChangeModelHelper();
+		String currentPI = "";
+		if (AccountAccess.getAcctData(request, response) != null && AccountAccess.isMorf(request) == false)
+			currentPI = AccountAccess.getAcctData(request, response).getMAAcctCurrentPiStr(request, response);
+		else
+			currentPI = AccountAccess.getLoginItem(request, "mst_price_index");
+		boolean isMorf = AccountAccess.isMorf(request);
+		if (isMorf)
+			currentPI = "-9999";
+		
+		String currentPISupported = PricePlanUtil.checkSupportedPricePlan(request, response, currentPI);
+		
+		logger.debug("after check current PI=" + currentPISupported);
+		logger.debug("getCpOffers:: Calling decision table with values connectionType=" + connectionType + " currentPI=" + currentPISupported + " isTestVersion=" + isTestVersion);
+		HashMap pricePlansMap;
+		try {
+			
+			logger.debug(
+			                "Calling getPricePlansToShow with parameters: connectionType=" + connectionType + " currentPiSupported=" + currentPISupported + " isTestVersion=" + isTestVersion);
+			pricePlansMap = pricePlanChangeModelHelper.getPricePlansToShow(connectionType, currentPISupported, isTestVersion);
+			if (pricePlansMap != null)
+				logger.debug("After getting pricePlans to show map size=" + pricePlansMap.size());
+			
+			if (pricePlansMap != null && pricePlansMap.size() > 0) {
+				/*
+				 * Iterator iterator = pricePlansMap.entrySet().iterator();
+				 * while (iterator.hasNext()) { Map.Entry mapEntry = (Map.Entry)
+				 * iterator.next(); String offeredPi = ((Integer)
+				 * mapEntry.getValue()).toString();
+				 * logger.debug(
+				 * "***********************--------------> Offered PI adding to list"
+				 * + offeredPi); planOffers.add(new CpAolPlanDetailJson(request,
+				 * response, offeredPi, false));
+				 */
+				// get the individual elements and add to list to gaurantee
+				// order...
+				
+				if (pricePlansMap.get("weRecommend1") != null)
+					planOffers.add(new CpAolPlanDetailJson(request, response, ((Integer) pricePlansMap.get("weRecommend1")).toString(), false));
+				
+				if (pricePlansMap.get("weRecommend2") != null)
+					planOffers.add(new CpAolPlanDetailJson(request, response, ((Integer) pricePlansMap.get("weRecommend2")).toString(), false));
+				
+				if (pricePlansMap.get("otherPlan1") != null)
+					planOffers.add(new CpAolPlanDetailJson(request, response, ((Integer) pricePlansMap.get("otherPlan1")).toString(), false));
+				
+				if (pricePlansMap.get("otherPlan2") != null)
+					planOffers.add(new CpAolPlanDetailJson(request, response, ((Integer) pricePlansMap.get("otherPlan2")).toString(), false));
+				
+				if (pricePlansMap.get("otherPlan3") != null)
+					planOffers.add(new CpAolPlanDetailJson(request, response, ((Integer) pricePlansMap.get("otherPlan3")).toString(), false));
+				
+			}
+			
+		} catch (Exception e) {
+			logger.error("Exception - getCpOffers Error: " + e.getMessage());
+		}
+		logger.debug("End of getCpOffers offers size=" + planOffers.size());
+		return planOffers;
+		
+	}
+	
+	// flag=0, return all; flag=1, return active one; falg=2, return eligible
+	// one
+	public ArrayList<String> getMyBenefitsProductIdJson(HttpServletRequest request, int flag) {
+		
+		Iterator<PremiumProductBean> it = this.myBenefitsList.iterator();
+		PremiumProductBean item;
+		ArrayList<String> theList = new ArrayList<String>();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ("active".equalsIgnoreCase(item.getStatus()) && flag == 1 && !("Always On".equalsIgnoreCase(item.getStatus2())))
+				theList.add(item.getProductId());
+			if ("eligible".equalsIgnoreCase(item.getStatus()) && flag == 2)
+				theList.add(item.getProductId());
+			if ("Always On".equalsIgnoreCase(item.getStatus2()) && flag == 3)
+				theList.add(item.getProductId());
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumBenefitJsonBean> getMyBenefitsJson(HttpServletRequest request) {
+		ArrayList<PremiumBenefitJsonBean> theList = new ArrayList<PremiumBenefitJsonBean>();
+		
+		Iterator<PremiumProductBean> it = this.myBenefitsList.iterator();
+		PremiumBenefitJsonBean jsonObj;
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			try {
+				jsonObj = new PremiumBenefitJsonBean(request, item);
+			} catch (Exception e) {
+				logger.error("Exception - PremiumAccess -getMyBenefitsDetailJson(). Ignore this mybenefit. Error: " + e.getMessage());
+				e.printStackTrace();
+				continue;
+			}
+			theList.add(jsonObj);
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumOPBenefitJsonBean> getOPBenefitsDetailJson(HttpServletRequest request) {
+		ArrayList<PremiumOPBenefitJsonBean> theList = new ArrayList<PremiumOPBenefitJsonBean>();
+		
+		Iterator<PremiumProductBean> it = this.myBenefitsList.iterator();
+		PremiumOPBenefitJsonBean jsonObj;
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			try {
+				jsonObj = new PremiumOPBenefitJsonBean(request, item);
+			} catch (Exception e) {
+				logger.error("Exception - PremiumAccess -getOPBenefitsDetailJson(). Ignore this mybenefit. Error: " + e.getMessage());
+				continue;
+			}
+			theList.add(jsonObj);
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumBenefitJsonBean> getEligibleSubsJson(HttpServletRequest request) {
+		
+		ArrayList<PremiumBenefitJsonBean> theList = new ArrayList<PremiumBenefitJsonBean>();
+		
+		Iterator<PremiumProductBean> it = this.myBenefitsList.iterator();
+		PremiumBenefitJsonBean jsonObj;
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ("eligible".equalsIgnoreCase(item.getStatus())) {
+				try {
+					jsonObj = new PremiumBenefitJsonBean(request, item);
+				} catch (Exception e) {
+					logger.error("Exception - PremiumAccess -getMyBenefitsDetailJson(). Ignore this mybenefit. Error: " + e.getMessage());
+					continue;
+				}
+				theList.add(jsonObj);
+			}
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumBenefitJsonBean> getBenefitSubsJsonByIDs(HttpServletRequest request, ArrayList availableIDs) {
+		
+		ArrayList<PremiumBenefitJsonBean> theList = new ArrayList<PremiumBenefitJsonBean>();
+		
+		PremiumBenefitJsonBean jsonObj;
+		
+		for (int i = 0; i < availableIDs.size(); i++) {
+			PremiumProductBean item = new PremiumProductBean();
+			String id = (String) (availableIDs.get(i).toString());
+			
+			item.setProductId(id);
+			
+			try {
+				jsonObj = new PremiumBenefitJsonBean(request, item);
+			} catch (Exception e) {
+				logger.error("Exception - PremiumAccess -getMyBenefitsDetailJson(). Ignore this mybenefit. Error: " + e.getMessage());
+				continue;
+			}
+			theList.add(jsonObj);
+			
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumProductJsonBean> getAccessSubsJson(HttpServletRequest request, boolean requireActiveOrFreeTrial) {
+		
+		ArrayList<PremiumProductJsonBean> theList = new ArrayList<PremiumProductJsonBean>();
+		Iterator<PremiumProductBean> it = this.myAccessSubsList.iterator();
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial)
+				theList.add(new PremiumProductJsonBean(request, item));
+		}
+		return theList;
+	}
+	
+	private boolean isAfter90Days(PremiumProductBean item) {
+		Calendar canDate=null;
+		if ((item.getStatus()!=null) && (item.getStatus().equalsIgnoreCase("cancelled")))
+		{
+			canDate=item.getCancelDate();
+			if (canDate != null) {
+				logger.debug(" cancelDate for" +item.getOfferId() +" is " + canDate.getTime());
+			}
+		}
+		
+		if (canDate == null) 
+			return true;
+		
+		//90 days ago
+		Calendar backDate = new GregorianCalendar();
+		backDate.add(Calendar.DATE, -90);
+		backDate.set(Calendar.HOUR_OF_DAY, 0);
+		backDate.set(Calendar.MINUTE, 0);
+		backDate.set(Calendar.SECOND, 0);
+		backDate.set(Calendar.MILLISECOND, 0);
+		
+		return canDate.after(backDate);
+	}
+	
+	
+	public ArrayList<PremiumProductDetailJsonBean> getSubsDetailJson(HttpServletRequest request, boolean requireActiveOrFreeTrial) {
+		ArrayList<PremiumProductDetailJsonBean> theList = new ArrayList<PremiumProductDetailJsonBean>();
+		PremiumProductDetailJsonBean jsonObj;
+		Iterator<PremiumProductBean> it = this.myObisubsList.iterator();
+		PremiumProductBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			
+			if (isAfter90Days(item))
+			{
+				if ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial) {
+					try {
+						// if(item.getBundleType()!=null &&
+						// item.getBundleType().equalsIgnoreCase("DIGITAL_PASS_TRIAL"))
+						// logger.error(" ITEM after loadObiSubs"
+						// + item);
+						jsonObj = new PremiumProductDetailJsonBean(request, item);
+					} catch (Exception e) {
+						logger.error("Exception - PremiumAccess -getSubsDetailJson(). Ignore this subs. Error: " + e.getMessage());
+						e.printStackTrace();
+						continue;
+					}
+					theList.add(jsonObj);
+				}
+			}
+		}
+		it = this.myBundlesList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			
+			if (isAfter90Days(item))
+			{
+				if ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial) {
+					try {
+						jsonObj = new PremiumProductDetailJsonBean(request, item);
+					} catch (Exception e) {
+						logger.error("Exception - PremiumAccess -getSubsDetailJson(). Ignore this subsBundle. Error: " + e.getMessage());
+						e.printStackTrace();
+						continue;
+					}
+					theList.add(jsonObj);
+				}
+			}
+		}
+		it = this.myLegacyList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (isAfter90Days(item)) {
+				if ("active".equalsIgnoreCase(item.getStatus()) || ("free_trial").equalsIgnoreCase(item.getStatus()) || !requireActiveOrFreeTrial) {
+					try {
+						jsonObj = new PremiumProductDetailJsonBean(request, item);
+					} catch (Exception e) {
+						logger.error("Exception - PremiumAccess -getSubsDetailJson(). Ignore this legacy subs. Error: " + e.getMessage());
+						e.printStackTrace();
+						continue;
+					}
+					theList.add(jsonObj);
+				}
+			}
+		}
+		return theList;
+	}
+	
+	public ArrayList<PremiumProductDetailJsonBean> getSubsDetailBySnJson(HttpServletRequest request, String sn, boolean requireActiveOrFreeTrial) {
+		if (sn == null)
+			return new ArrayList<PremiumProductDetailJsonBean>();
+		
+		ArrayList<PremiumProductDetailJsonBean> theList = this.getSubsDetailJson(request, requireActiveOrFreeTrial);
+		ArrayList<PremiumProductDetailJsonBean> removeList = new ArrayList<PremiumProductDetailJsonBean>();
+		String compressedSn = AccountAccess.compressSN(sn);
+		Iterator<PremiumProductDetailJsonBean> it = theList.iterator();
+		PremiumProductDetailJsonBean item;
+		while (it.hasNext()) {
+			item = (PremiumProductDetailJsonBean) it.next();
+			if (compressedSn.equalsIgnoreCase(item.getSn()) == false)
+				removeList.add(item);
+		}
+		it = removeList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductDetailJsonBean) it.next();
+			theList.remove(item);
+		}
+		return theList;
+	}
+	
+	public boolean switchPaymentInstrumentMemory(HttpServletRequest request, HttpServletResponse response, String subsId, String merchantId, String origInstrumentId, String newInstrumentId, String sn) {
+		if (sn == null || newInstrumentId == null || subsId == null)
+			return false;
+		
+		InstrumentBean newInstrumentObj = this.getInstrumentById(newInstrumentId, sn);
+		if (newInstrumentObj == null)
+			return false;
+		
+		boolean processResult = false;
+		Iterator<PremiumProductBean> it;
+		PremiumProductBean item;
+		
+		if (merchantId == null && subsId.equalsIgnoreCase("AOL")) {
+			// first reset all instrument list with cof flag = false
+			// remove all paymentKey=cof instance
+			Iterator<InstrumentBean> itt = this.myInstrumentsList.iterator();
+			ArrayList<InstrumentBean> removeItemList = new ArrayList<InstrumentBean>();
+			InstrumentBean ittItem;
+			while (itt.hasNext()) {
+				ittItem = (InstrumentBean) itt.next();
+				if (ittItem.getPaymentKey().equalsIgnoreCase("cof") == true)
+					removeItemList.add(ittItem);
+				ittItem.getInstrument().setCardOnFileFlag(new Boolean(false));
+			}
+			itt = removeItemList.iterator();
+			while (itt.hasNext()) {
+				ittItem = (InstrumentBean) itt.next();
+				this.myInstrumentsList.remove(ittItem);
+			}
+			
+			// 2nd, set PMSN instrument cof flag
+			newInstrumentObj.getInstrument().setCardOnFileFlag(new Boolean(true));
+			
+			// 3rd, process DMSN instrument cof/flag
+			ArrayList<String> snList = AccountAccess.getAllScreenNames(request, response);
+			Iterator<String> snIt = snList.iterator();
+			String theSn;
+			while (snIt.hasNext()) {
+				theSn = AccountAccess.compressSN((String) snIt.next());
+				if (AccountAccess.isDmsn(request, response, theSn) == false)
+					continue;
+				InstrumentBean findInst = this.getInstrumentById(newInstrumentId, theSn);
+				String legacyInstrumentId;
+				if (findInst == null) {
+					InstrumentBean newInst = new InstrumentBean(newInstrumentObj.getInstrument());
+					newInst.setPaymentKey("COF");
+					newInst.setSn(theSn);
+					this.myInstrumentsList.add(newInst);
+					legacyInstrumentId = "COF";
+				} else {
+					findInst.getInstrument().setCardOnFileFlag(new Boolean(true));
+					legacyInstrumentId = newInstrumentId;
+				}
+				// process dmsn legacy product
+				it = this.myLegacyList.iterator();
+				while (it.hasNext()) {
+					item = (PremiumProductBean) it.next();
+					if (item.getSn().equalsIgnoreCase(theSn)) {
+						item.setPaymentInstrumentId(legacyInstrumentId);
+					}
+				}
+			}
+			
+			// process primary SN legacy product....
+			it = this.myLegacyList.iterator();
+			while (it.hasNext()) {
+				item = (PremiumProductBean) it.next();
+				if (item.getSn().equalsIgnoreCase(AccountAccess.compressSN(sn))) {
+					item.setPaymentInstrumentId(newInstrumentId);
+				}
+			}
+			
+			// need to clear the AolPlanDetail cache
+			this.needUpdateAolPlanDetail = true;
+			
+			// 4th, reload accountObj, becasue the MF payment info updated...
+			try {
+				AccountAccess.getSession(request, response).reloadAcctObj(request);
+			} catch (Exception e) {
+				logger.error("PremiuimAccess: switchPaymentInstrumentMemory(): failed to reload accountObj .... EXCEPTION occurred");
+				e.printStackTrace();
+				return false;
+			}
+			return true;
+		}
+		
+		if (merchantId == null || origInstrumentId == null || subsId.equalsIgnoreCase("AOL"))
+			return false;
+		
+		// reach here, means, it is a switch payment for subs
+		
+		// if the newInstrument is COF, we need to be careful
+		// more complicated than we originally thought.
+		if (newInstrumentId.equalsIgnoreCase("cof") == true) {
+			String pmsn = AccountAccess.compressSN(AccountAccess.getPrimarySn(request, response));
+			InstrumentBean primaryCof = this.getCofInstrument(pmsn);
+			if (pmsn.equalsIgnoreCase(sn) == true || primaryCof == null || primaryCof.getPaymentKey().equalsIgnoreCase("cof") == true) {
+				try {
+					AccountAccess.reloadPaymentSubs(request, response);
+				} catch (Exception e) {
+					logger.error("PremiuimAccess: switchPaymentInstrumentMemory():something wrong, need immediate attention, we even can not clear the cache....");
+				}
+				return false;
+			} else {
+				newInstrumentObj.setPaymentKey(primaryCof.getPaymentKey());
+				newInstrumentObj.getInstrument().setCardOnFileFlag(new Boolean(true));
+			}
+		}
+		
+		it = this.myObisubsList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (subsId.equalsIgnoreCase(item.getSubscriptionId()) && merchantId.equalsIgnoreCase(item.getMerchantId()) && origInstrumentId.equalsIgnoreCase(item.getPaymentInstrumentId())
+			                && AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn())) {
+				processResult = true;
+				item.setPaymentInstrumentId(newInstrumentObj.getPaymentKey());
+			}
+		}
+		if (processResult == true)
+			return true;
+		
+		it = this.myBundlesList.iterator();
+		while (it.hasNext()) {
+			item = (PremiumProductBean) it.next();
+			if (subsId.equalsIgnoreCase(item.getSubscriptionId()) && merchantId.equalsIgnoreCase(item.getMerchantId()) && origInstrumentId.equalsIgnoreCase(item.getPaymentInstrumentId())
+			                && AccountAccess.compressSN(sn).equalsIgnoreCase(item.getSn())) {
+				processResult = true;
+				item.setPaymentInstrumentId(newInstrumentObj.getPaymentKey());
+			}
+		}
+		return processResult;
+	}
+	
+	public boolean allowDeleteInstrument(String instrumentId, String sn) {
+		ArrayList<PremiumProductBean> theList;
+		if (instrumentId == null || sn == null)
+			return false;
+		
+		// if(instrumentId.equalsIgnoreCase("cof"))
+		// return false;
+		theList = this.getObiSubsByInstrumentId(instrumentId, sn, true);
+		if (theList.size() > 0)
+			return false;
+		theList = this.getBundlesByInstrumentId(instrumentId, sn, true);
+		if (theList.size() > 0)
+			return false;
+		theList = this.getLegacySubsByInstrumentId(instrumentId, sn);
+		if (theList.size() > 0)
+			return false;
+		return true;
+	}
+	
+	public int switchPaymentInstrumentSubmit(HttpServletRequest request, HttpServletResponse response, String subsId, String newInstrumentId, String sn, String iagree, String cvv2, String kapSessionId) {
+		
+		logger.debug(
+		                "switch payment: Entering (switchPaymentInstrumentSubmit).... newInstrumentId=" + newInstrumentId + ", iAgree = " + iagree + ", cvv2=" + cvv2 + ", subsId=" + subsId + ", sn="
+		                                + sn);
+		
+		PremiumProductBean subsObj = this.getSubsById(subsId, sn, true);
+		if (subsObj == null && subsId.equalsIgnoreCase("aol") == false) {
+			logger.error("switch payment: failed to get subsObj object...premiumAccess.getSubsById(subsId, sn) call failed.... subsId=" + subsId + ", sn=" + sn);
+			return -1;
+		}
+		
+		String partnerId;
+		InstrumentBean currInstrument;
+		int acctType = AccountAccess.getAccountType(request, response);
+		if (subsId.equalsIgnoreCase("aol") == true) {
+			if (acctType == 2 || acctType == 3) {
+				logger.error("switch payment: not allowed to switch aol plan payment, the account type is:" + acctType);
+				return -1;
+			} else if (acctType == 1)
+				currInstrument = null;
+			else
+				// currInstrument = this.getInstrumentById("cof", sn);
+				currInstrument = this.getCofInstrument(sn);
+			partnerId = null;
+		} else {
+			currInstrument = this.getInstrumentById(subsObj.getPaymentInstrumentId(), sn);
+			partnerId = subsObj.getMerchantId();
+		}
+		InstrumentBean newInstrument = this.getInstrumentById(newInstrumentId, sn);
+		if ((acctType != 1 && currInstrument == null) || newInstrument == null) {
+			logger.error(
+			                "switch payment: failed to get newInstrument/currInstrument object...premiumAccess.getInstrumentById(...) call failed.... can not either get currentInstrument or new one");
+			return -1;
+		}
+		
+		if (newInstrument.getInstrument().getPmtIndex() == null) {
+			if (newInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.AMERICAN_EXPRESS)
+				newInstrument.getInstrument().setPmtIndex("3");
+			else if (newInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.DISCOVER)
+				newInstrument.getInstrument().setPmtIndex("6");
+			else if (newInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.CHECKING)
+				newInstrument.getInstrument().setPmtIndex("2");
+			else if (newInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.MASTER_CARD)
+				newInstrument.getInstrument().setPmtIndex("5");
+			else if (newInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.MASTER_CARD_DEBIT)
+				newInstrument.getInstrument().setPmtIndex("11");
+			else if (newInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.VISA)
+				newInstrument.getInstrument().setPmtIndex("4");
+			else if (newInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.VISA_DEBIT)
+				newInstrument.getInstrument().setPmtIndex("10");
+		}
+		
+		AuthRule authRule = new AuthRule();
+		
+		if (newInstrument.getInstrument().getPaymentInstrument().getPaymentType() != PaymentType.CHECKING) {
+			boolean isCvv2Valid = AccountAccess.isValidCvv2(cvv2);
+			isCvv2Valid = true;
+			if (isCvv2Valid == false) {
+				logger.error("switch payment: failed to pass cvv2 check: cvv2 passed in: " + cvv2);
+				return -1;
+			} else {
+				newInstrument.getInstrument().getPaymentInstrument().setCreditVerificationValue(cvv2);
+				authRule.setCvvRequired(new Boolean(true));
+				newInstrument.getInstrument().setAuthRule(authRule);
+				authRule.setAvsRequired(true);
+				authRule.setStrictAddressValidation(true);
+			}
+		}
+		if (kapSessionId != null && kapSessionId.length() > 0) {
+			SafeTech sftk = new SafeTech();
+			sftk.setKaptchaSessionId(kapSessionId);
+			sftk.setSafetechMerchantId("300130");
+			sftk.setWebsiteId("magathr");
+			newInstrument.getInstrument().setSafeTech(sftk);
+			authRule.setSafeTechRequired(new Boolean(true));
+			newInstrument.getInstrument().setAuthRule(authRule);
+		}
+		
+		boolean isMorf = AccountAccess.isMorf(request);
+		String savedAccountNumber = "xxx";
+		if (isMorf == false && newInstrument.getInstrument().getCardOnFileFlag() != null && newInstrument.getInstrument().getCardOnFileFlag().booleanValue() == true) {
+			savedAccountNumber = newInstrument.getInstrument().getPaymentInstrument().getAccountNumber();
+			try {
+				AccountInformationModel acctObj = AccountAccess.getAcctObj(request, response);
+				newInstrument.getInstrument().getPaymentInstrument().setAccountNumber(acctObj.getAccount().getBillingInfo().getBillAccountNumber());
+				// for checking
+				// newInstrumentObj.getPaymentInstrument().setRoutingNumber(acctObj.getAccount().getBillingInfo().getBillTransitNumber());
+			} catch (Exception e) {
+				newInstrument.getInstrument().getPaymentInstrument().setCreditVerificationValue("");
+				newInstrument.getInstrument().setAuthRule(null);
+				e.printStackTrace();
+				logger.error("switch payment(switchPaymentInstrumentSubmit): error: can not get account object and payment info");
+				return -1;
+			}
+		}
+		
+		CustomerProfile profile = null;
+		String isMorfStr = "Y";
+		int contactNumber;
+		short value2 = 0;
+		String lang = AppSession.getLang(request); // "en"
+		String locale = AppSession.getLocale(request).getCountry(); // "us"
+		SubscriptionService subsService;
+		if (isMorf == true) {
+			contactNumber = MorfSession.getSession(request).getContactNum(request, response);
+			subsService = MorfSession.getSession(request).getPsbService(request, response);
+		} else {
+			profile = SPortalSession.getSession(request).getProfile();
+			isMorfStr = "N";
+			contactNumber = SPortalSession.getSession(request).getContactNum(request, response, Long.parseLong(AccountAccess.getLoginItem(request, "mst_acct_number")));
+			subsService = SPortalSession.getSession(request).getPsbService(request, response, sn);
+		}
+		
+		REEStatus status = null;
+		
+		try {
+			if (currInstrument != null) {
+				logger.debug(
+				                "switch payment(switchPaymentInstrumentSubmit): Begin to send request to backend: isMorfStr=" + isMorfStr + ", contactNumber=" + contactNumber + ", lang=" + lang
+				                                + ", locale=" + locale + ", currentInstrumentId=" + currInstrument.getPaymentKey() + ", newInstrumentId=" + newInstrumentId + ", subsOfferId=" + subsId
+				                                + ", partnerId=" + partnerId);
+				status = subsService.managePayment(subsId, "S", partnerId, isMorfStr, contactNumber, value2, lang, locale, newInstrument.getInstrument(), currInstrument.getInstrument(), profile);
+			} else {
+				logger.debug(
+				                "switch payment(switchPaymentInstrumentSubmit): Begin to send request to backend: isMorfStr=" + isMorfStr + ", contactNumber=" + contactNumber + ", lang=" + lang
+				                                + ", locale=" + locale + ", currentInstrument is phone bill, newInstrumentId=" + newInstrumentId + ", subsOfferId=aol, partnerId=null");
+				status = subsService.managePayment(subsId, "S", partnerId, isMorfStr, contactNumber, value2, lang, locale, newInstrument.getInstrument(), null, profile);
+			}
+		} catch (Exception e) {
+			newInstrument.getInstrument().getPaymentInstrument().setCreditVerificationValue("");
+			newInstrument.getInstrument().setAuthRule(null);
+			// make sure to clear the account number field
+			if (isMorf == false && newInstrument.getInstrument().getCardOnFileFlag() != null && newInstrument.getInstrument().getCardOnFileFlag().booleanValue() == true)
+				newInstrument.getInstrument().getPaymentInstrument().setAccountNumber(savedAccountNumber);
+			logger.error("switch payment(switchPaymentInstrumentSubmit):EXCEPTION OCCURRRED" + e);
+			e.printStackTrace();
+			return -1;
+		}
+		
+		// make sure to clear the account number field
+		newInstrument.getInstrument().getPaymentInstrument().setCreditVerificationValue("");
+		newInstrument.getInstrument().setAuthRule(null);
+		if (isMorf == false && newInstrument.getInstrument().getCardOnFileFlag() != null && newInstrument.getInstrument().getCardOnFileFlag().booleanValue() == true)
+			newInstrument.getInstrument().getPaymentInstrument().setAccountNumber(savedAccountNumber);
+		
+		if (status != null && status.getCode() == 0) {
+			logger.debug("switch payment(switchPaymentInstrumentSubmit): we got good response from backend");
+			if (currInstrument != null)
+				this.switchPaymentInstrumentMemory(request, response, subsId, partnerId, currInstrument.getPaymentKey(), newInstrumentId, sn);
+			else
+				this.switchPaymentInstrumentMemory(request, response, subsId, partnerId, null, newInstrumentId, sn);
+			if (iagree == null || iagree.equalsIgnoreCase("true") == false)
+				return 0;
+			
+			HashMap<String, String> blob = new HashMap<String, String>();
+			blob.put("obiInstrumentId", newInstrumentId);
+			blob.put("cardOnFileFlag", String.valueOf(newInstrument.getInstrument().getCardOnFileFlag().booleanValue()).toUpperCase());
+			if (isMorf == true)
+				MorfSession.getActionWriter(request).writeMorfSvuActionWithBlob(request, response, "SVU_SWCH_PM_EFT", true, 0, 0, blob);
+			else
+				SPortalSession.getActionWriter(request).writeSvuActionWithBlob(request, response, "SVU_SWCH_PM_EFT", true, 0, 0, 0, blob);
+			
+			return 0;
+		} else if (status != null) {
+			String errorMsgStr = status.getMessage();
+			logger.error("switch payment(switchPaymentInstrumentSubmit): error:" + errorMsgStr);
+			if (errorMsgStr.contains("-325") || errorMsgStr.contains("-321"))
+				return -2;
+			else if (errorMsgStr.contains("-316") || errorMsgStr.contains("-1567"))
+				return -3;
+			else
+				return -1;
+		} else {
+			logger.error("switch payment(switchPaymentInstrumentSubmit): error: status==null");
+			return -1;
+		}
+	}
+	
+	public int deletePaymentInstrumentSubmit(HttpServletRequest request, HttpServletResponse response, String instrumentId, String sn) {
+		
+		logger.debug("delete payment: Entering (deletePaymentInstrumentSubmit).... instrumentId=" + instrumentId + ", sn=" + sn);
+		
+		if (this.allowDeleteInstrument(instrumentId, sn) == false) {
+			logger.error("deletePaymentInstrumentSubmit - not allowed to delete  payment instrument... associate with subs.");
+			return -1;
+		}
+		
+		boolean isMorf = AccountAccess.isMorf(request);
+		String savedAccountNumber = "xxxxx";
+		InstrumentBean currInstrument = this.getInstrumentById(instrumentId, sn);
+		if (currInstrument == null) {
+			logger.error("deletePaymentInstrumentSubmit - This error should never happen,,,, please check code ....");
+			return -1;
+		}
+		if (isMorf == false && currInstrument.getInstrument().getCardOnFileFlag() != null && currInstrument.getInstrument().getCardOnFileFlag().booleanValue() == true) {
+			
+			savedAccountNumber = currInstrument.getInstrument().getPaymentInstrument().getAccountNumber();
+			try {
+				AccountInformationModel acctObj = AccountAccess.getAcctObj(request, response);
+				currInstrument.getInstrument().getPaymentInstrument().setAccountNumber(acctObj.getAccount().getBillingInfo().getBillAccountNumber());
+				// for checking
+				// newInstrumentObj.getPaymentInstrument().setRoutingNumber(acctObj.getAccount().getBillingInfo().getBillTransitNumber());
+			} catch (Exception e) {
+				e.printStackTrace();
+				logger.error("delete payment(deletePaymentInstrumentSubmit): error: can not get account object and payment info");
+				return -1;
+			}
+		}
+		
+		if (currInstrument.getInstrument().getPmtIndex() == null) {
+			if (currInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.AMERICAN_EXPRESS)
+				currInstrument.getInstrument().setPmtIndex("3");
+			else if (currInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.DISCOVER)
+				currInstrument.getInstrument().setPmtIndex("6");
+			else if (currInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.CHECKING)
+				currInstrument.getInstrument().setPmtIndex("2");
+			else if (currInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.MASTER_CARD)
+				currInstrument.getInstrument().setPmtIndex("5");
+			else if (currInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.MASTER_CARD_DEBIT)
+				currInstrument.getInstrument().setPmtIndex("11");
+			else if (currInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.VISA)
+				currInstrument.getInstrument().setPmtIndex("4");
+			else if (currInstrument.getInstrument().getPaymentInstrument().getPaymentType() == PaymentType.VISA_DEBIT)
+				currInstrument.getInstrument().setPmtIndex("10");
+		}
+		
+		REEStatus status = this.paymentInstrumentSubmit("D", request, response, currInstrument.getInstrument(), sn);
+		
+		// make sure to clear the account number field
+		if (isMorf == false && currInstrument.getInstrument().getCardOnFileFlag() != null && currInstrument.getInstrument().getCardOnFileFlag().booleanValue() == true)
+			currInstrument.getInstrument().getPaymentInstrument().setAccountNumber(savedAccountNumber);
+		
+		if (status != null && status.getCode() == 0) {
+			logger.debug("delete payment(deletePaymentInstrumentSubmit): we got good response from backend");
+			
+			InstrumentBean item = this.getInstrumentById(instrumentId, sn);
+			if (item != null)
+				this.myInstrumentsList.remove(item);
+			return 0;
+		} else if ((status != null) && (status.getMessage().contains("-1602"))){  //collected penalty, sp-1770
+			logger.error("delete payment(deletePaymentInstrumentSubmit): error:" + status.getMessage());
+			return -2;
+		} else if (status != null) {
+			logger.error("delete payment(deletePaymentInstrumentSubmit): error:" + status.getMessage());
+			return -1;
+		}else {
+			logger.error("delete payment(deletePaymentInstrumentSubmit): error: status==null");
+			return -1;
+		}
+	}
+	
+	public REEStatus addPaymentInstrumentSubmit(HttpServletRequest request, HttpServletResponse response, Instrument newInstrument, String sn) {
+		
+		logger.debug("add payment: Entering (addPaymentInstrumentSubmit).... sn=" + sn);
+		
+		REEStatus status = this.paymentInstrumentSubmit("A", request, response, newInstrument, sn);
+		
+		if (status != null && status.getCode() == 0) {
+			if (status.getData() instanceof Instrument) {
+				Instrument instrumentFromBackend = (Instrument) status.getData();
+				
+				// fix bug for obi or ree...?
+				String acctNum = instrumentFromBackend.getPaymentInstrument().getAccountNumber();
+				if (acctNum != null && acctNum.length() >= 4) {
+					acctNum = acctNum.substring(acctNum.length() - 4);
+					try {
+						instrumentFromBackend.getPaymentInstrument().setLastFourDigits(new Integer(acctNum));
+						instrumentFromBackend.getPaymentInstrument().setExpiryDate(newInstrument.getPaymentInstrument().getExpiryDate());
+						instrumentFromBackend.setCardOnFileFlag(new Boolean(false));
+					} catch (Exception e) {
+					}
+				}
+				
+				instrumentFromBackend.setEligForPurchase(new Boolean(true));
+				InstrumentBean instrumentBean = new InstrumentBean(instrumentFromBackend);
+				instrumentBean.setPaymentKey(instrumentFromBackend.getId());
+				instrumentBean.setSn(AccountAccess.compressSN(sn));
+				//09/27/13, SP-1438
+				InstrumentBean currAvail = this.getInstrumentById(instrumentBean.getPaymentKey(), instrumentBean.getSn());
+				if(currAvail!=null) {
+					this.myInstrumentsList.remove(currAvail);
+				}
+				//
+				this.myInstrumentsList.add(instrumentBean);
+			}
+		}
+		return status;
+	}
+	
+	public REEStatus editPaymentInstrumentSubmit(HttpServletRequest request, HttpServletResponse response, Instrument editInstrument, String sn) {
+		
+		logger.debug("edit payment: Entering (editPaymentInstrumentSubmit).... sn=" + sn);
+		
+		REEStatus status = this.paymentInstrumentSubmit("U", request, response, editInstrument, sn);
+		
+		if (status != null && status.getCode() == 0) {
+			InstrumentBean theInstrument = this.getInstrumentById(editInstrument.getId(), sn);
+			if (theInstrument == null) {
+				logger.error("edit payment(editPaymentInstrumentSubmit): Should never happen this error..... Please check, something wrong....");
+				return status;
+			}
+			
+			Iterator<InstrumentBean> it = this.myInstrumentsList.iterator();
+			InstrumentBean item = null;
+			while (it.hasNext()) {
+				item = (InstrumentBean) it.next();
+				if (this.isSameInstrument(item, theInstrument) == true) {
+					item.getInstrument().getPaymentInstrument().setExpiryDate(editInstrument.getPaymentInstrument().getExpiryDate());
+					if (item.getPaymentKey().equalsIgnoreCase("cof") == true)
+						item.getInstrument().setUserInformation(editInstrument.getUserInformation());
+				}
+				if ((item.getPaymentKey().equalsIgnoreCase("cof") || item.getInstrument().getCardOnFileFlag().booleanValue() == true)
+				                && AccountAccess.isPrimary(request, response, item.getSn()) == true)
+					this.needUpdateAolPlanDetail = true;
+			}
+			theInstrument.getInstrument().setUserInformation(editInstrument.getUserInformation());
+		}
+		return status;
+	}
+	
+	private REEStatus paymentInstrumentSubmit(String doWhat, HttpServletRequest request, HttpServletResponse response, Instrument theInstrument, String sn) {
+		
+		REEStatus status = null;
+		logger.debug("Entering (paymentInstrumentSubmit).... doWhat=" + doWhat + ", ..... sn=" + sn);
+		
+		CustomerProfile profile = null;
+		boolean isMorf = AccountAccess.isMorf(request);
+		String isMorfStr = "Y";
+		int contactNumber;
+		short value2 = 0;
+		String lang = AppSession.getLang(request); // "en"
+		String locale = AppSession.getLocale(request).getCountry(); // "us"
+		SubscriptionService subsService;
+		if (isMorf == true) {
+			contactNumber = MorfSession.getSession(request).getContactNum(request, response);
+			subsService = MorfSession.getSession(request).getPsbService(request, response);
+		} else {
+			profile = SPortalSession.getSession(request).getProfile();
+			isMorfStr = "N";
+			contactNumber = SPortalSession.getSession(request).getContactNum(request, response, Long.parseLong(AccountAccess.getLoginItem(request, "mst_acct_number")));
+			subsService = SPortalSession.getSession(request).getPsbService(request, response, sn);
+		}
+		
+		try {
+			status = subsService.managePayment(null, doWhat, null, isMorfStr, contactNumber, value2, lang, locale, theInstrument, null, profile);
+		} catch (Exception e) {
+			logger.error("paymentInstrumentSubmit - doWhat = " + doWhat + ", send request to backend:EXCEPTION OCCURRRED" + e);
+			e.printStackTrace();
+			return null;
+		}
+		return status;
+	}
+	
+	// for mvp2
+	public int updateNickName(HttpServletRequest request, HttpServletResponse response, String subscriptionId, String newNickName) {
+		
+		PremiumProductBean item = this.getAccessSubsById(subscriptionId);
+		if (item == null) {
+			logger.error("PremiumAccess:updateNickName(): can not get subs by id, id=" + subscriptionId);
+			return -1;
+		}
+		
+		SubscriptionService subsService;
+		ObiModifySubscriptionStatusResponse rspn;
+		String loginSn = AccountAccess.getLoginItem(request, "Username");
+		
+		try {
+			if (AccountAccess.isMorf(request))
+				subsService = AccountAccess.getMorfSession(request, response).getPsbService(request, response);
+			else
+				subsService = AccountAccess.getSession(request, response).getPsbService(request, response, loginSn);
+			
+			rspn = subsService.modifyNickName(item.getSn(), item.getReeKey(), newNickName);
+			if (rspn.getStatus() != 0) {
+				logger.error("PremiumAccess:updateNickName(): failed to update nickName, subsId=" + subscriptionId);
+				return -1;
+			}
+		} catch (Exception e) {
+			logger.error("PremiumAccess:updateNickName():EXCEPTION, please stack trace");
+			e.printStackTrace();
+			return -1;
+		}
+		
+		// reach here, means everything is okay...
+		item.setNickName(newNickName);
+		return 0;
+	}
+	
+	public int deactivateMvp2Subs(HttpServletRequest request, HttpServletResponse response, String subscriptionId) {
+		PremiumProductBean item = this.getAccessSubsById(subscriptionId);
+		if (item == null)
+			return -1;
+		
+		SubscriptionService subsService;
+		ObiModifySubscriptionStatusResponse rspn;
+		String loginSn = AccountAccess.getLoginItem(request, "Username");
+		
+		try {
+			if (AccountAccess.isMorf(request))
+				subsService = AccountAccess.getMorfSession(request, response).getPsbService(request, response);
+			else
+				subsService = AccountAccess.getSession(request, response).getPsbService(request, response, loginSn);
+			rspn = subsService.cancelSubscription(item.getSn(), item.getReeKey());
+			if (rspn.getStatus() != 0) {
+				logger.error("PremiumAccess:deactivateMvp2Subs(): failed to deactivate, subsId=" + subscriptionId);
+				return -1;
+			}
+		} catch (Exception e) {
+			logger.error("PremiumAccess:deactivateMvp2Subs():EXCEPTION, please stack trace");
+			e.printStackTrace();
+			return -1;
+		}
+		
+		// reach here, means everything is okay...
+		String prodId = item.getProductId();
+		boolean results = this.myAccessSubsList.remove(item);
+		
+		ArrayList<PremiumProductBean> leftList = this.getAccessSubsListBySvuId(prodId, true);
+		if (leftList.size() < 1) {
+			PremiumProductBean productItem = this.getMyBenefitById(prodId);
+			if (productItem != null) {
+				productItem.setStatus("eligible");
+				orderMyBenefitsList(request, response);
+			}
+		}
+		return 0;
+	}
+	
+}

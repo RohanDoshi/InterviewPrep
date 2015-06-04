@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;root&apos; in &apos;FamilyTree.addChild(...)&apos; to &apos;tree&apos;&#x0A;- Original project: &apos;Amp&apos;&#x0A;- Original element: &apos;FamilyTree.addChild(FamilyTree, String, String).root&apos;&#x0A;- Renamed element: &apos;root&apos;&#x0A;- Update references to refactored element" description="Rename local variable &apos;root&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/src&lt;{Test.java[FamilyTree~addChild~QFamilyTree;~QString;~QString;@root!1341!1355!1352!1355!QFamilyTree;!0!true" name="tree" references="true" stamp="1429813345463" version="1.0"/>
+</session>

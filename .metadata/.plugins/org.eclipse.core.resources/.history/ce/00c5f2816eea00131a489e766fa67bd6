@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE log4j:configuration SYSTEM "log4j.dtd">
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+    <appender name="console" class="org.apache.log4j.ConsoleAppender">
+	<param name="Target" value="System.out"/>
+	<layout class="org.apache.log4j.PatternLayout">
+	<param name="ConversionPattern" value="%d{ISO8601} %5p %t %c{1}:%L - %m%n"/>
+	</layout>
+	</appender>    
+    <appender name="SP" class="org.apache.log4j.FileAppender" >       
+        <param name="File" value="/oap/logs/SPortal.log" />
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d{ISO8601} %5p %t %c{1}:%L - %m%n" />
+        </layout>
+    </appender>
+	<appender name="RRB" class="org.apache.log4j.FileAppender" >
+        <param name="File" value="/oap/logs/rrb.log" />
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d{ISO8601} %5p %t %c{1}:%L - %m%n" />
+        </layout>
+    </appender>
+	<appender name="SPApp" class="org.apache.log4j.FileAppender" >
+        <param name="File" value="/oap/logs/SPApp.log" />
+        <layout class="org.apache.log4j.PatternLayout">
+            <param name="ConversionPattern" value="%d{ISO8601} %5p %t %c{1}:%L - %m%n" />
+        </layout>
+    </appender>
+    <!-- 
+    <appender name="SPsyslog"
+	class="org.apache.log4j.net.SyslogAppender">
+	<param name="facility" value="local6"/>
+	<param name="facilityPrinting" value="true"/>
+	<param name="threshold" value="info"/>
+	<param name="syslogHost" value="logs.opssec.aol.com"/>
+	<layout class="org.apache.log4j.PatternLayout">
+	<param name="ConversionPattern" value="SP: %d{MMM dd yyyy HH:mm:ss} %5p %m%n"/>
+	</layout>
+	</appender>
+	-->
+    
+    <logger name="rrb.RRBFactoryImpl">
+        <level value="info"/>
+		<appender-ref ref="RRB"/>
+    </logger>   
+	<logger name="com.aol.sportal.servlets">
+        <level value="info"/>	
+		<appender-ref ref="SPApp"/>		
+    </logger>
+    <logger name="com.aol.sportal.beans">
+        <level value="info"/>	
+		<appender-ref ref="SPApp"/>		
+    </logger>
+	<logger name="com.aol.sportal.model">
+        <level value="debug"/>	
+		<appender-ref ref="SP"/>		
+    </logger>
+    <root>
+        <priority value="error"/>
+        <appender-ref ref="console"/>
+    </root>
+</log4j:configuration>

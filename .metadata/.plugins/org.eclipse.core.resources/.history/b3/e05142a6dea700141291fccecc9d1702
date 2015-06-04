@@ -1,0 +1,87 @@
+
+public class EightQueensProblem {
+
+	public static void main(String args[]) {
+		
+	}
+}
+
+class EightQueen {
+	
+	Queen[][] chessBoard = null;
+	
+	Queen[] queens = null; 
+
+ 	public EightQueen(int size) {
+		chessBoard = new Queen[size][size];
+		queens = new Queen[size];
+	}
+ 	
+ 	public void solve() {
+ 		
+ 		int currRow = 0;
+ 		int currCol = 0;
+ 		int currQueen = 0;
+ 		
+ 	}
+ 	
+ 	private void solve1(int currRow, int currCol, int currQueen) {
+ 		
+ 		int n = chessBoard.length;
+ 		for(int i=currRow; i < n; i++) {
+ 			for(int j=currCol; j<n; j++) {
+ 				if(queens[0] == null) {
+ 					Queen q = new Queen();
+ 					q.row = currRow;
+ 					q.col = currCol;
+ 					queens[currQueen] = q;
+ 					chessBoard[currRow][currCol] = q;
+ 				} else { 
+ 					
+ 				}
+ 			}
+ 		}
+ 	}
+ 	
+ 	private boolean checkIsOk(int currRow, int currCol, int currQueen) {
+ 		
+ 		for(int k=0; k<currQueen; k++) {
+			if(currRow == queens[k].row || currCol == queens[k].col || !checkDiagUpIsOk(currRow, currCol, queens[k].row, queens[k].col) || 
+					!checkDiagDownIsOk(currRow, currCol, queens[k].row, queens[k].col) ) {
+				return false;
+			}
+		}
+ 		
+ 		return true;
+ 	}
+ 	
+ 	private boolean checkDiagUpIsOk(int currRow, int currCol, int qRow, int qCol) {
+ 		int n = chessBoard.length;
+ 		int r = qRow;
+ 		for(int i = qCol; i<n; i++) {
+ 			if(currRow == r++ && currCol == i) {
+ 				return false;
+ 			}
+ 		}
+ 		return true;
+ 	}
+ 	
+ 	
+ 	private boolean checkDiagDownIsOk(int currRow, int currCol, int qRow, int qCol) {
+ 		int n = chessBoard.length;
+ 		int r = qRow;
+ 		for(int i = qCol; i<n; i++) {
+ 			if(currRow == r-- && currCol == i) {
+ 				return false;
+ 			}
+ 		}
+ 		return true;
+ 	}
+ 	
+ 	
+}
+
+class Queen {
+	int row;
+	int col;
+}

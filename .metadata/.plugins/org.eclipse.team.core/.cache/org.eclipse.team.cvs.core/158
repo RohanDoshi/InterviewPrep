@@ -1,0 +1,221 @@
+<%@page import="java.util.*" %>
+<%@page import="com.aol.sportal.util.*" %>
+<%@page import="com.aol.sportal.beans.*" %>
+
+<%
+try {
+	//String hostnameStr = request.getHeader("Host");
+	//String userBidStr = AccountAccess.getLoginItem(request, "bid");
+	//if (userBidStr==null)
+		//userBidStr="unavailable";
+		
+	//String userCreateDateStr = AccountAccess.getLoginItem(request, "mst_create_date");
+	//if (userCreateDateStr==null)
+	//	userCreateDateStr = "unavailable";
+		
+	//String mstAcctNumStr = AccountAccess.getLoginItem(request, "mst_acct_number");
+	//if (mstAcctNumStr==null)
+		//mstAcctNumStr = "unavailable";
+	//else
+		//mstAcctNumStr = AccountAccess.encodeMD5HashBase64(mstAcctNumStr);
+	
+	//String userAcctNumStr = AccountAccess.getLoginItem(request, "sub_acct_number");
+	//if (userAcctNumStr==null)
+		//userAcctNumStr = "unavailable";
+	//else
+		//userAcctNumStr = AccountAccess.encodeMD5HashBase64(userAcctNumStr);
+	
+	//String userBBConnStr = AccountAccess.getLoginItem(request, "BBConDev");
+	//if (userBBConnStr==null)
+		//userBBConnStr = "unavailable";
+	
+	//String versionStr = AccountAccess.getLoginItem(request, "version");
+	//String userMajorVersionStr = "unavailable";
+	//if (versionStr!=null)
+		//userMajorVersionStr = AccountAccess.getMajorVersion(versionStr);
+	//String eVar10Str = request.getParameter("evar10");
+	//if(eVar10Str!=null && eVar10Str.trim().length()!=0)
+	//{
+	
+		//userMajorVersionStr=eVar10Str;
+	
+	//}
+	
+	String prop17Str = "Unknown";  //unknown value will never reach, keep it there for later use...
+	boolean isMorf = AccountAccess.isMorf(request);	
+	short acctType = AccountAccess.getAccountType(request);
+	if(AccountAccess.isMorf(request) == true)
+		prop17Str = "MORF";
+	else if(acctType ==1)
+		prop17Str = "internal";
+	else if(acctType ==2)
+		prop17Str = "overhead";
+	else
+		prop17Str = "MF";
+	
+	String userServiceStrTemp = request.getParameter("prop20");
+	if(AccountAccess.isBrandi82(request)==true)
+		userServiceStrTemp = "BRANDI82";
+	String userServiceStr = AccountAccess.getLoginItem(request, "Service");
+	if(userServiceStrTemp!=null && userServiceStrTemp.length()>0)
+		userServiceStr = userServiceStrTemp;
+	try {
+		if(AccountAccess.getUserSessionObj(request, response).getFromAutorep()==1) {
+			userServiceStr = "Autorep";
+			if (userServiceStrTemp!=null && userServiceStrTemp.length()>0)
+				userServiceStr = "Autorep | "+userServiceStrTemp;
+		}
+		else if(AccountAccess.getUserSessionObj(request, response).getFromCaAutorep()==1) {
+			userServiceStr = "AOL Canada Autorep";
+			if (userServiceStrTemp!=null && userServiceStrTemp.length()>0)
+				userServiceStr = "AOL Canada Autorep | "+userServiceStrTemp;
+		}
+	} catch (Exception e) {
+		userServiceStr = "unavailable";
+		if (userServiceStrTemp!=null)
+			userServiceStr = userServiceStrTemp;
+	}
+	if (userServiceStr==null)
+		userServiceStr = "unavailable";
+		
+	//String userPriceIndexStr = AccountAccess.getLoginItem(request, "mst_price_index");
+	//if(userPriceIndexStr == null)
+		//userPriceIndexStr = "unavailable";
+
+	//String userGrpIDStr = AccountAccess.getLoginItem(request, "GrpID");
+	//if(userGrpIDStr == null)
+		  //userGrpIDStr = "unavailable";	 
+		  
+	String pageTitleStr = request.getParameter("pageTitle");
+	//String eVar8Str = request.getParameter("evar8");
+	//if (eVar8Str==null)
+		//eVar8Str="";
+	//String eventsStr = request.getParameter("events");
+	//if(eventsStr==null)
+		//eventsStr="";
+	//String productsStr = request.getParameter("products");
+	//if (productsStr==null)
+		//productsStr="";
+
+	String prop2Str = request.getParameter("prop2");
+	if (prop2Str==null)
+		prop2Str=""; 
+		
+	String eVar6Str = request.getParameter("evar6");
+	if (eVar6Str==null)
+		eVar6Str="";
+	
+	String eVar5Str = request.getParameter("evar5");
+	if (eVar5Str==null)
+		eVar5Str="";
+		
+	String prop1Str = request.getParameter("prop1");
+	if (prop1Str==null) 
+		prop1Str="My Account";
+	
+	String prop21Str = request.getParameter("prop21");
+	if (prop21Str==null) 
+		prop21Str="";
+	
+	//String eVar9Str = request.getParameter("evar9");
+	//if (eVar9Str==null)
+		//eVar9Str="";
+	
+	//String formListStr = request.getParameter("formlist");
+	//if (formListStr==null) 
+		//formListStr="";
+	
+	//String varUsedStr = request.getParameter("varused");
+	//if (varUsedStr==null) 
+		//varUsedStr="";
+	
+	//String eventListStr = request.getParameter("eventlist");
+	//if (eventListStr==null) 
+		//eventListStr="";
+	
+	String prop2PrefixStr = prop1Str;
+	String pageNamePreifx = prop1Str + " | ";
+	
+	boolean ukClient=false,ukNonClient=false;
+	if(AccountAccess.isEnGb(request)) {
+		pageNamePreifx = prop1Str + " en-gb | ";
+		if(AccountAccess.isInClient(request))
+			ukClient = true;
+		else
+			ukNonClient = true;
+	}
+		
+	//String eVar12Str = request.getParameter("evar12");
+	//if (eVar12Str!=null)
+		//eVar12Str="cmp: " + prop1Str + " | " + eVar12Str;
+	//else
+		//eVar12Str="";
+	
+	String myPrefix = AccountAccess.getFromWherePrefix(request, response);
+	boolean isFwGathr = false; 
+	if(myPrefix!=null && myPrefix.equalsIgnoreCase("gathr__"))
+		isFwGathr=true;
+	
+%>
+	<div style="display:none;">			
+		<script type="text/javascript">
+			function runOmni()
+			{
+				s_265.pfxID="cmp";
+				s_265.pageName="<%=pageNamePreifx%><%=pageTitleStr%>" ;
+				s_265.channel="us.support";
+				s_265.linkInternalFilters="javascript:,aol.com";
+				s_265.prop1="<%=prop1Str%>";
+				s_265.prop2= "<%=prop2PrefixStr%> | <%=prop2Str%>";
+				s_265.prop12=document.URL.split('?')[0]; 
+				s_265.prop17="<%=prop17Str%>";
+				s_265.prop20="<%=userServiceStr%>"; /* Legacy Autorep traffic */
+				s_265.prop21="";  /* Article ID/Answer Wizard ID*/ 
+				s_265.eVar6="<%=eVar6Str%>"; /* CARE alert texts */
+				s_265.mmxgo=true;
+			<% if(ukClient || ukNonClient) {%> 
+				s_265.channel="uk.support"; 
+				s_265.prop17 = "aoluk";			
+			<%}%>
+			<% if(isFwGathr) {%> 
+				s_265.channel="us.gathr";
+				s_265.pfxID="gtr";
+				s_265.prop1="my account";
+				s_265.prop2="service options";
+				s_265.prop21="<%=prop21Str%>";
+			<%} else {%>
+				s_265.eVar5="<%=eVar5Str%>";
+			<%}%>
+				var s_code=s_265.t();
+			}
+
+			<% if(ukClient) {%> 
+				s_account = "aolukjunglobal,aolukjunclient"; /* Use "aolukqa1,aolukqa2,devaolsvc"; for DEV */
+			<%} else if(ukNonClient) {%> 
+				s_account =  "aolukjunglobal,aolukjunportal"; /* Use "aolukqa1,aolukqa3,devaolsvc"; for DEV */
+			<%} else if(isFwGathr) {%>
+				s_account ="aolgathr,aolsvc"; /* Use "aolgathrdev,devaolsvc"; for dev */ 
+			<%} else {%>
+				s_account ="aolcmp,aolsvc";  /* Use "aolcmpdev,devaolsvc"; for DEV */
+			<%}%>
+			
+			(function(){
+			    var d = document, s = d.createElement('script');
+			    s.type = 'text/javascript';
+			    <% if(ukClient || ukNonClient) {%> 
+			    	s.src = (location.protocol == 'https:' ? 'https://s' : 'http://o') + '.aolcdn.com/omniunih_int.js';
+			    <%} else {%>
+			    	s.src = (location.protocol == 'https:' ? 'https://s' : 'http://o') + '.aolcdn.com/omniunih.js';
+			    <%}%>
+			    d.getElementsByTagName('head')[0].appendChild(s);
+			})();
+		</script>
+	</div>
+
+<%
+}
+catch(Exception ex)
+{
+    ex.printStackTrace();
+}
+%>

@@ -1,0 +1,1180 @@
+package pack;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Stack;
+
+public class BTStanford {
+
+	public static void main(String args[]) throws CloneNotSupportedException {
+//		int parent[] = {2,12,-4,3,9,21,19,25};
+//		BinaryTree binaryTree = new BinaryTree(5);
+//		for(int i=0; i<parent.length; i++) {
+//			binaryTree.insert(parent[i]);
+//		}
+////		binaryTree.inOrderIteration();
+////		System.out.println();
+////		binaryTree.preOrderIteration();
+////		System.out.println();
+////		binaryTree.postOrderIteration();
+////		binaryTree.lowestCommonAncestor(19, 25);
+//		System.out.println(binaryTree.diameter());
+//		BinaryTree binaryTree = new BinaryTree();
+////		System.out.println(binaryTree.isSubtree());
+////		binaryTree.constructTreePreIn();
+////		binaryTree.constructTreePrePost();
+//		binaryTree.printBordersBT();
+		
+//		System.out.println(binaryTree.isMirror());
+		BinaryTree binaryTree2 = new BinaryTree();
+		//binaryTree2.fillSibs();
+		
+		LinkedNode linkedNode = new LinkedNode(1);
+		linkedNode.next = new LinkedNode(2);
+		linkedNode.next.next = new LinkedNode(3);
+		linkedNode.next.next.next = new LinkedNode(4);
+		linkedNode.next.next.next.next = new LinkedNode(5);
+		linkedNode.next.next.next.next.next = new LinkedNode(6);
+		
+		//binaryTree2.constructTreeFromListEfficient(linkedNode);
+		
+		//binaryTree2.addAllGreaterValuesToNode();
+		//binaryTree2.printAllNodesAtDist(3);
+		System.out.println(binaryTree2.isSub());
+		
+	}
+}
+
+class LinkedNode { 
+	int data;
+	LinkedNode next;
+	public LinkedNode(int data) {
+		this.data = data;
+	}
+	
+}
+
+class BinaryTree implements Cloneable{
+	private Node root;
+	private Node n1 = null;
+	private Node n2 = null;
+	private Node n3 = null;
+	private LinkedNode list = null;
+	private char[] pre = {'A', 'B', 'D', 'E', 'C', 'F'};
+	private char[] in = {'D', 'B' ,'E' ,'A' ,'F', 'C'} ;
+	
+	private int preNum[] = {1, 2, 4, 8, 9, 5, 3, 6, 7};
+	private int postNum[] = {8, 9, 4, 5, 2, 6, 7, 3, 1};
+	
+	private Map<Integer, LinkedNode> map ;
+	
+	Node addGreaterVal = null;
+	Node printAll = null;
+	
+	// if n2 is subtree of n1
+//	public boolean isSubtree(Node n1, Node n2) {
+//		
+//	}
+	
+	public void deleteNode(int val) {
+		root = delete2(root,val);
+		inOrder(root);
+	}
+	
+	public Node delete2(Node node, int val) {
+		if(node == null) 
+			return null;
+		
+		if(node.data == val) {
+			if(node.left == null && node.right == null) {
+				node = null;
+			} else {
+				Node maxNode = maxNode(node.left);
+				if(maxNode != null) {
+					node.data = maxNode.data; 
+					node.left = delete(maxNode, node.data);
+				} else {
+					Node minNode = minNode2(node.right);
+					node.data = minNode.data;
+					node.right = delete(minNode, node.data);
+				}
+			}
+		}
+		
+		return node;
+	}
+	
+	public Node minNode2(Node node) {
+		while(node != null && node.left != null)
+			node = node.left;
+		return node;
+	}
+	public Node maxNode(Node node) {
+		while(node != null && node.right != null)
+			node = node.right;
+		
+		return node;
+	}
+	
+	public boolean isSub() {
+		return isSub(n1, n2, false);
+	}
+	public boolean isSub(Node n1, Node n2, boolean found) {
+		if(n1 == null && n2 == null) 
+			return true;
+		
+		if(n2 == null)
+			return true;
+		
+		if(n1 == null) 
+			return false;
+
+		if(n1.data == n2.data) {
+			return isSub(n1.left, n2.left, true) && isSub(n1.right, n2.right, true);
+		} else { 
+			
+			if(found) {
+				return false;
+			} else {
+				return isSub(n1.left, n2, false) || isSub(n1.right, n2, false);
+			}
+		}
+	}
+	
+	
+	
+	
+	public void printAllNodesAtDist(int k) {
+		printAll(n1, n1.left.right.right, k) ;
+	}
+	
+	boolean found = false;
+	int count = 0;
+	public void printAll(Node root, Node node, int k) {
+		
+		printDown(node,k);
+		printUp(root, node, k);
+		
+	}
+	private boolean findAnc = false;
+	private void printUp(Node root, Node node, int k) {
+//		if(root == null)
+//			return 0;
+//		
+//		int ld = printUp(root.left, node, k);
+//		ld = ld + 1;
+//		if
+//		int rd = printUp(root.right, node, k);
+//		rd = rd + 1;
+//		
+//		if(root.left == node) { 
+//			printDown(root.right, k-2);
+//		}
+//		
+//		if(root.right == node) {
+//			printDown(root.left, k-2);
+//		}
+//		
+//		if(root == node) {
+//			// print ancestors
+//			findAnc = true;
+//		}
+	}
+	
+	private void printDown(Node node, int k) {
+		if(node == null)
+			return;
+		
+		if(k == 0) {
+			System.out.print(node.data+" ");
+		}
+		
+		printDown(node.left, k-1);
+		printDown(node.right, k-1);
+	}
+	
+	
+	public void addAllGreaterValuesToNode() {
+		addGreaterVal = new Node(50);
+		addGreaterVal.left = new Node(30);
+		addGreaterVal.right = new Node(70);
+		addGreaterVal.left.left = new Node(20);
+		addGreaterVal.left.right = new Node(40);
+		addGreaterVal.right.left = new Node(60);
+		addGreaterVal.right.right = new Node(80);
+		
+		addAllGreaterValuesToNode(addGreaterVal, true);
+		inOrder(addGreaterVal);
+	}
+	
+	private int sumGreaterVal = 0;
+	public void addAllGreaterValuesToNode(Node node, boolean right) {
+		if(node == null) {
+			return;
+		}
+		
+		addAllGreaterValuesToNode(node.right, true);
+		if(right) {
+			sumGreaterVal = sumGreaterVal + node.data;
+			node.data = sumGreaterVal;
+		}
+		addAllGreaterValuesToNode(node.left, true);
+		
+	}
+	
+	class DLLNode {
+		DLLNode next;
+		DLLNode prev;
+		int data;
+		public DLLNode(int data) {
+			this.data = data;
+		}
+	}
+	private DLLNode head = null;
+	private DLLNode tail = null;
+	
+	
+	public void convertBTtoDLL() {
+		convertBTtoDLL(n1);
+		inOrder(n1);
+		System.out.println("traverse DLL");
+		while(head != null) {
+			System.out.print(head.data+ " ");
+			head = head.next;
+		}
+	}
+	public void convertBTtoDLL(Node node) {
+		
+		if(node == null)
+			return;
+		
+		convertBTtoDLL(node.left);
+		if(head == null) {
+			head = new DLLNode(node.data);
+			tail = head;
+			
+		} else { 
+			DLLNode dll = new DLLNode(node.data);
+			tail.next = dll;
+			dll.prev = tail; 
+			tail = dll;
+		}
+		convertBTtoDLL(node.right);
+		
+	}
+	
+	
+	
+	
+	
+	public void constructTreeFromList(LinkedNode list) {
+		
+		map = new HashMap<Integer, LinkedNode>();
+		int count = 0;
+		while(list != null) {
+			map.put(count++, list);
+			list = list.next;
+		}
+		
+		Node node =  constructTree(map, 0, count-1);
+		inOrder(node);
+		
+	}
+	
+	// O(n)
+	public void constructTreeFromListEfficient(LinkedNode list) {
+		this.list = list;
+		Node node = constructTreeFromListEfficient(len(list));
+		inOrder(node);
+		
+	}
+	
+	public Node constructTreeFromListEfficient(int n) {
+		
+		if(n <= 0) {
+			return null;
+		}
+		
+		Node left = constructTreeFromListEfficient(n/2);
+		Node node = new Node(list.data);
+		list = list.next;
+		node.left = left;
+		
+		Node right = constructTreeFromListEfficient(n-n/2-1) ;
+		node.right = right;
+		
+		return node;
+		
+	}
+	
+	
+	public int len(LinkedNode list) { 
+		int count = 0; 
+		
+		while(list != null) {
+			list = list.next;
+			count++;
+		}
+		
+		return count;
+		
+	}
+	
+	
+	public Node constructTree(Map<Integer, LinkedNode> map, int a, int b) {
+		if(a == b) {
+			return new Node(map.get(a).data);
+		}
+		if(a < b) {
+			int mid = (a+b)/2;
+			Node  node = new Node(map.get(mid).data);
+			node.left = constructTree(map, a, mid-1);
+			node.right = constructTree(map, mid+1, b);
+			return node;
+		}
+		return null;
+	}
+	
+	
+	public void fillSibs() {
+		n3 = fillSiblingsUsingPreOrder(n3);
+		inOrderPrintSiblingsToo(n3);
+	}
+	
+	public void inOrderPrintSiblingsToo(Node root) {
+		if(root != null) {
+			inOrderPrintSiblingsToo(root.left);
+			System.out.println(root.c+" ->>> "+ (root.sibling != null ? root.sibling.c : "null"));
+			inOrderPrintSiblingsToo(root.right);
+		}
+	}
+	Node prev = null;
+	public Node fillSiblingsUsingPreOrder(Node node) {
+		if(node == null) {
+			return node;
+		}
+		
+		Node right = node.right; 
+		Node left = node.left;
+		
+		if(left != null)
+			left.sibling = right;
+		
+		
+		if(right != null)
+			right.sibling = (node.sibling != null ? node.sibling.left : null);
+		
+		node.left = fillSiblingsUsingPreOrder(node.left);
+		node.right = fillSiblingsUsingPreOrder(node.right);
+		return node;
+		
+	}
+	
+	public Node fillSiblings(Node node) {
+		Queue<Node> queue = new LinkedList<>();
+		node.distanceFromRoot = 0;
+		queue.add(node);
+		Node prev = null;
+		while(queue.size() != 0) {
+			Node temp = queue.poll();
+			
+			Node left = temp.left;
+			Node right = temp.right;
+			
+			if(left != null && right != null) {
+				left.sibling = right;
+			}
+			
+			if(left != null) {
+				left.distanceFromRoot = temp.distanceFromRoot + 1;
+				queue.add(left);
+			}
+			
+			if(right != null) {
+				right.distanceFromRoot = temp.distanceFromRoot + 1;
+				queue.add(right);
+			}
+			
+			if(prev != null) {
+				if(temp.distanceFromRoot == prev.distanceFromRoot) {
+					prev.sibling = temp;
+				}
+			}
+			prev = temp;
+		}
+		
+		return node;
+	}
+	
+	
+	public boolean isMirror() {
+		return isMirror(this.root, mirror(clone(root)));
+	}
+	
+	public boolean isHeightBalanced(Node node) {
+		if(node == null) {
+			return true;
+		}
+		
+		int l = heightCheck(node.left);
+		int r = heightCheck(node.right); 
+		
+		if(Math.abs(l-r) <= 1 && isHeightBalanced(node.left) && isHeightBalanced(node.right)) {
+			return true;
+		} else 
+			return false;
+	}
+	private int l = 0, r = 0, height = 0;
+	public boolean isHeightBalancedEff(Node node) {
+		if(node == null) {
+			l = 0;
+			r = 0;
+			return true;
+		}
+		
+		boolean bl = isHeightBalancedEff(node.left);
+		boolean br = isHeightBalancedEff(node.right);
+		
+		height = l > r ? l : r + 1;
+		
+		if(Math.abs(l-r) <= 1 && bl && br) {
+			return true;
+		} else 
+			return false;
+	}
+	
+	
+	
+	public int heightCheck(Node node) {
+		if(node == null) {
+			return 0;
+		}
+		
+		return Math.max(heightCheck(node.left), heightCheck(node.right)) + 1;
+	}
+	
+	public Node clone(Node node) {
+		if(node == null) {
+			return node;
+		}
+		
+		Node newNode = new Node(node.data);
+		newNode.left = clone(node.left);
+		newNode.right = clone(node.right);
+		return newNode;
+	}
+	
+	public boolean isMirror(Node node1, Node node2) {
+		if(node1 == null && node2 == null) {
+			return true;
+		}
+		
+		if(node1 == null || node2 == null) {
+			return false;
+		}
+		
+		if(node1.data == node2.data) {
+			return isMirror(node1.left, node2.right) && isMirror(node1.right, node2.left);
+		} else {
+			return false;
+		}
+	}
+	
+	
+	public void printBordersBT() {
+		printBorders(n3);
+	}
+	
+	private void printBorders(Node node) {
+		
+		System.out.print(node.c+" ");
+		printLeft(node.left);
+		
+		printLeaves(node.left);
+		printLeaves(node.right);
+		
+		printRight(node.right);
+		
+	}
+	
+	private void printLeft(Node node) {
+		if(node == null) {
+			return;
+		} 
+		if(!(node.left == null && node.right == null))
+			System.out.print(node.c+" ");
+		printLeft(node.left);
+	}
+	
+	private void printRight(Node node) {
+		if(node == null) {
+			return;
+		} 
+		
+		printRight(node.right);
+		if(!(node.left == null && node.right == null))
+		System.out.print(node.c+" ");
+	}
+	
+	private void printLeaves(Node node) {
+		if(node == null) {
+			return;
+		}
+		
+		if(node.left == null && node.right == null) {
+			System.out.print(node.c+" ");
+			return;
+		}
+		
+		printLeaves(node.left);
+		printLeaves(node.right);
+	}
+	
+	public Node constructTreePrePost() {
+		Node node = constructTreePrePost(preNum, postNum, 0, postNum.length-1);
+		inOrder(node);
+		return node;
+	}
+	private int preNumIndex = 0;
+	public Node constructTreePrePost(int pre[], int post[], int postFrom, int postTo) {
+		
+		if(preNumIndex >= pre.length || postFrom > postTo) {
+			return null;
+		}
+		
+		Node node = new Node(pre[preNumIndex]);
+		preNumIndex++;
+		if(postFrom == postTo) {
+			return node;
+		}
+		int indexInPost = findIndex(post, node.data, postFrom, postTo);
+		int nextInPost = -1;
+		if(preNumIndex <= pre.length-1) {
+			nextInPost = findIndex(post, pre[preNumIndex], postFrom, postTo);
+			node.left = constructTreePrePost(pre, post, postFrom, nextInPost);
+			node.right = constructTreePrePost(pre, post, nextInPost + 1, indexInPost-1);
+			return node;
+		} 
+		
+		return null;
+	}
+	
+	private int findIndex(int [] ar, int data, int a, int b) {
+		for(int i=a; i<=b; i++) {
+			if(ar[i] == data) {
+				return i;
+			}
+		}
+		return -1;
+	}
+	
+	public Node constructTreePreIn() {
+		Node node = constructTreePreIn(pre,in, 0, in.length-1);
+		return node;
+	}
+	
+	private int preIndex = 0;
+	public Node constructTreePreIn(char[] pre, char[] in, int inFrom, int inTo) {
+		if(inTo < inFrom) {
+			return null;
+		}
+		
+		int index = findIndex(in, pre[preIndex++]);
+		
+		Node node = new Node(in[index]);
+		node.left = constructTreePreIn(pre, in, inFrom, index-1);
+		node.right = constructTreePreIn(pre, in, index+1, inTo);
+		return node;
+		
+		
+	}
+	
+	private int findIndex(char[] arr, char c) {
+		int index = -1;
+		for(int i=0; i< arr.length; i++) {
+			if(arr[i] == c) {
+				return i;
+			}
+		}
+		
+		return index;
+	}
+	enum Color {
+		WHITE,
+		GRAY,
+		BLACK;
+	}
+	 class Node {
+		Node left; 
+		Node right;
+		Node sibling; // for a problem
+		int distanceFromRoot = 0;
+		Color color = Color.WHITE;
+		int data;
+		char c;
+		public Node(int data) {
+			this.data = data;
+		}
+		
+		public Node(char c) {
+			this.c = c;
+		}
+		
+		@Override
+		public String toString() {
+			return Integer.toString(data);
+		}
+	}
+	 
+	 public BinaryTree() {
+		n2 = new Node(10);
+		n2.left = new Node(4);
+		n2.right = new Node(6);
+		n2.left.right = new Node(30);
+		
+		n1 = new Node(26);
+		n1.left = new Node(10);
+		n1.right = new Node(3);
+		n1.left.left = new Node(4);
+		n1.left.right = new Node(6);
+		n1.left.left.right= new Node(30);
+		n1.right.right = new Node(3);
+		
+		n3 = new Node('a');
+		n3.left = new Node('b');
+		n3.right = new Node('c');
+		n3.left.left = new Node('d');
+		n3.left.right = new Node('e');
+		n3.left.left.left = new Node('h');
+		n3.left.left.right = new Node('i');
+		n3.left.left.right.left = new Node('l');
+		n3.left.left.right.right = new Node('m');
+		n3.right.right = new Node('g');
+		n3.right.left = new Node('f');
+		
+	}
+	 
+	public boolean isSubtree() {
+		return isSubtree(n1, n2, false) ;
+	}
+	
+	public boolean isSubtree(Node node1, Node node2, boolean matchFound) {
+		if(node1 == null && node2 == null) {
+			return true;
+		}
+		if(node2 == null) {
+			return true;
+		}
+		
+		if(node1 == null) {
+			return false;
+		}
+		
+		if(node1.data == node2.data) {
+			boolean left = isSubtree(node1.left, node2.left, true) ;
+			boolean right = isSubtree(node1.right, node2.right, true);
+			return left && right;
+		} else { 
+			if(matchFound == true) {
+				return false;
+			}
+			boolean left = isSubtree(node1.left, node2, false);
+			boolean right = isSubtree(node1.right, node2, false);
+			return left || right;
+		}
+		
+		
+	}
+	 
+	public int diameter() { 
+		return diameter(root);
+	}
+	
+	public int diameter(Node node) { 
+		if(node == null) {
+			return 0;
+		}
+		
+		int diaViaRoot = 1 + height(node.left) + height(node.right);
+		int diaInLeft = diameter(node.left);
+		int diaInRight = diameter(node.right);
+		
+		return Math.max(diaViaRoot, Math.max(diaInLeft, diaInRight));
+		
+	}
+	
+	public int height(Node node) {
+		if(node == null) {
+			return 0;
+		}
+		
+		return 1 + Math.max(height(node.left), height(node.right));
+	}
+	 
+	public boolean isBST2() {
+		return isBST2(root, Integer.MIN_VALUE, Integer.MAX_VALUE);
+	}
+	 
+	public boolean isBST2(Node node, int min, int max) {
+		if(node == null)
+			return true;
+		
+		boolean left = isBST2(node.left, min, node.data);
+		boolean right = isBST2(node.right, node.data, max);
+		if(node.data < min || node.data > max) {
+			return false;
+		} else
+			return left && right;
+	}
+	public boolean isBST() {
+		return isBST(root);
+	}
+	
+	public boolean isBST(Node node) {
+		if(node == null) {
+			return true;
+		}
+		
+		boolean left = isBST(node.left);
+		boolean right = isBST(node.right);
+		
+		if(node.left != null && node.data < maxValue(node.left)) {
+			return false;
+		} else if(node.right != null && node.data > minValue(node.right)) {
+			return false;
+		} else {
+			return left && right;
+		}
+	}
+	 
+	public int maxValue(Node node) {
+		if(node == null) {
+				throw new NullPointerException(); 
+		}
+		
+		if(node.right == null) {
+			return node.data;
+		} else {
+			return maxValue(node.right);
+		}
+		
+	}
+	
+	 
+	public int countPossibleBST(int numNodes) {
+	
+		if(numNodes <= 1) {
+			return 1;
+		}
+		
+		int count = 0;
+		for(int i=1; i<=numNodes; i++) {
+			count += countPossibleBST(i-1) * countPossibleBST(numNodes-i);
+		}
+		
+		return count;
+	}
+	
+	@Override
+	protected Object clone() throws CloneNotSupportedException {
+		return super.clone();
+	}
+	
+	public Node getRoot() {
+		return this.root;
+	}
+	
+	public boolean isSameTree(BinaryTree binaryTree) { 
+		return isSameTree(this.root, binaryTree.getRoot());
+	}
+	
+	private boolean isSameTree(Node node1, Node node2) {
+		if(node1 == null && node2 == null) {
+			return true;
+		}
+		if(node1 == null || node2 == null) {
+			return false;
+		}
+		if(node1.data == node2.data) {
+			boolean left = isSameTree(node1.left, node2.left);
+			boolean right = false;
+			if(left) {
+				right = isSameTree(node1.right, node2.right);
+			}
+			return left && right;
+		} else
+			return false;
+	}
+	
+	
+	public void doubleTree() { 
+		root = doubleTree(root);
+	}
+	
+	public Node doubleTree(Node node) {
+		if(node == null) {
+			return node; 
+		}
+		
+		Node newNode = new Node(node.data);
+		Node left = node.left;
+		node.left = newNode;
+		newNode.left = doubleTree(left);
+		node.right = doubleTree(node.right);
+		return node;
+		
+	}
+	
+	public void mirror() { 
+		root = mirror(root);
+	}
+	
+	public Node mirror(Node node) {
+		if(node == null) {
+			return node;
+		}
+		
+		node.left = mirror(node.left);
+		node.right = mirror(node.right);
+		
+		Node temp = node.left; 
+		node.left = node.right;
+		node.right = temp;
+		return node;
+	}
+	
+	public void printPaths() {
+		//printPaths(root, new ArrayList<Node>());1
+		printPaths2(root, new Node[1000], 0);
+	}
+	
+	public void printPaths2(Node node, Node[] list, int len) {
+		if(node == null) {
+			return;
+		}
+		list[len++] = node;
+		if(node.left == null && node.right == null) {
+			System.out.println(Arrays.toString(list));
+			list[--len] = null;
+			return;
+		}
+		
+		printPaths2(node.left, list, len);
+		printPaths2(node.right, list, len);
+	}
+	
+	public void printPaths(Node node, List<Node> list) {
+		if(node == null) {
+			return;
+		}
+		list.add(node);
+		if(node.left == null && node.right == null) {
+			System.out.println(Arrays.toString(list.toArray()));
+			list.remove(node);
+			return;
+		} 
+		
+		printPaths(node.left, list);
+		printPaths(node.right, list);
+		list.remove(node);
+	}
+	
+	public boolean hasPathSum(int sum) {
+		return hasPathSum(root, 0, sum);
+	}
+	
+	private boolean hasPathSum(Node node, int currSum, int sum) {
+		if(node == null) {
+			if(sum == currSum) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+		
+		boolean left = hasPathSum(node.left, currSum + node.data, sum);
+		boolean right = hasPathSum(node.right, currSum + node.data, sum);
+		return left || right;
+	}
+	
+	public void postOrder() {
+		postOrder(root);
+		System.out.println();
+	}
+	public void postOrder(Node node) {
+		if(node != null) {
+			postOrder(node.left);
+			postOrder(node.right);
+			System.out.print(node.data+ " ");
+		}
+	}
+	
+	public void preOrder() {
+		preOrder(root);
+		System.out.println();
+	}
+	public void preOrder(Node node) {
+		if(node != null) {
+			System.out.print(node.data+" ");
+			preOrder(node.left);
+			preOrder(node.right);
+		}
+	}
+	
+	public int maxDepth() {
+		return maxDepth(root);
+	}
+	public int maxDepth(Node node) {
+		if(node == null) {
+			return 0;
+		} else {
+			return 1 + Math.max(maxDepth(node.left), maxDepth(node.right));
+		}
+	}
+	public int size() {
+		return size(root);
+	}
+	public BinaryTree(int rootData){
+		root = new Node(rootData);
+	}
+	
+	public int size(Node node) {
+		if(node == null) {
+			return 0;
+		} else {
+			return 1 + size(node.left) + size(node.right);
+		}
+	}
+	
+	public void insert(int data) {
+		insert(root,data);
+	}
+	
+	public Node insert(Node node, int data) {
+		if(node == null) {
+			node = new Node(data);
+		} else if(data <= node.data) {
+			node.left = insert(node.left, data);
+		} else {
+			node.right = insert(node.right, data) ;
+		}
+		return node;
+	}
+	
+	public Node delete(int data) {
+		root =  delete(root, data);
+		return root;
+	}
+	
+	public Node delete(Node node, int data) {
+		if(node == null) {
+			return node;
+		}
+		if(data == node.data) {
+			if(node.left == null && node.right == null) {
+				node = null;
+			} else if(node.left == null) {
+				node = node.right;
+			} else if(node.right == null) {
+				node = node.left;
+			} else { 
+				int minVal = minValue(node.right);
+				node.right = delete(node.right, minVal);
+				node.data = minVal;
+			}
+		} else if(data < node.data) {
+			node.left = delete(node.left, data);
+		} else {
+			node.right = delete(node.right, data);
+		}
+		return node; 
+	}
+	
+	public int minValue(Node node) {
+		if(node == null) {
+			throw new NullPointerException();
+		} else if(node.left == null) {
+			return node.data;
+		} else {
+			return minValue(node.left);
+		}
+	}
+	
+	public Node minNode(Node node) {
+		if(node == null || node.left == null) {
+			return node;
+		} else {
+			return minNode(node.left);
+		}
+	}
+	
+	public Node lookup(int data) {
+		return lookup(root, data);
+	}
+	
+	public Node lookup(Node node, int data) {
+		if(node == null) {
+			return node;
+		}
+		if(data == node.data) {
+			return node; 
+		} else if(data < root.data) {
+			return lookup(root.left, data);
+		} else {
+			return lookup(root.right, data);
+		}
+	}
+	
+	public void inOrder() {
+		inOrder(root);
+		System.out.println();
+	}
+	
+	public void inOrderIteration() {
+		
+		Stack<Node> stack = new Stack<>();
+		Node currNode = root;
+		boolean done = false;
+		while(!done) {
+			if(currNode != null) {
+				stack.push(currNode);
+				currNode = currNode.left;
+			} else {
+				currNode = stack.pop();
+				System.out.print(currNode.data+" ");
+				currNode = currNode.right;
+			}
+			if(stack.size() == 0 && currNode == null)
+				done = true;
+		}
+	}
+	
+	public void preOrderIteration() {
+		Stack<Node> stack = new Stack<>();
+		Node currNode = root;
+		stack.push(currNode);
+		while(stack.size() > 0) {
+			currNode = stack.pop();
+			System.out.print(currNode.data+" ");
+			if(currNode.right != null) {
+				stack.push(currNode.right);
+			}  
+			if(currNode.left != null) {
+				stack.push(currNode.left);
+			}
+			
+		}
+	}
+	
+	public void postOrderIteration() {
+		Stack<Node> stack = new Stack<>();
+		Node currNode = root, prevNode = null;
+		stack.push(currNode);
+		while(stack.size() >0 ) {
+			currNode = stack.peek();
+			if(prevNode == null || (currNode.left != prevNode && currNode.right != prevNode)) {
+				if(currNode.right != null) {
+					stack.push(currNode.right);
+					if(currNode.left != null) {
+						stack.push(currNode.left);
+					}
+				}
+				else if(currNode.left != null) {
+					stack.push(currNode.left);
+				} else { 
+					currNode = stack.pop();
+					System.out.print(currNode.data+" ");
+					prevNode = currNode;
+				}
+			} else {
+				currNode = stack.pop();
+				System.out.print(currNode.data+" ");
+				prevNode = currNode;
+			}
+ 		}
+	}
+	
+	public void inOrder(Node root) {
+		if(root != null) {
+			inOrder(root.left);
+			System.out.print(root.data+" ");
+			inOrder(root.right);
+		}
+	}
+	
+	public void deleteTry(int data) {
+		deleteTry(root, data);
+	}
+	
+	public Node deleteTry(Node node, int data) {
+		if(node == null) {
+			return node;
+		}
+		if(node.data == data) {
+			if(node.left == null && node.right == null) {
+				return null;
+			} else if(node.left == null) {
+				node = node.right;
+			} else if(node.right == null) {
+				node = node.left;
+			} else {
+				Node minNode = minNode(node.right);
+				node.data = minNode.data;
+				node.right = deleteTry(node.right, minNode.data);
+			}
+			
+		} else if(data < node.data){ 
+			node.left = deleteTry(node.left, data);
+		} else { 
+			node.right = deleteTry(node.right, data);
+		}
+		return node;
+	}
+	
+	public void lowestCommonAncestor(int a, int b) {
+		Node node = lca(root, a, b);
+		System.out.println(node.data);
+	}
+	
+	public Node lca(Node node, int a, int b) {
+		if(node == null) {
+			return null;
+		}
+	
+		Node left = lca(node.left, a, b);
+		Node right = lca(node.right, a, b);
+		if(left != null && right != null) {
+			return node;
+		} else if((node.data == a || node.data == b) && (left!=null || right!=null)) {
+			return node;
+		} else if(node.data == a || node.data == b) {
+			return node;
+		} else {
+			return (left != null) ? left : right;
+		}
+	}
+	
+	public boolean isNodeExists(int a) {
+		return isNodeExists(root, a);
+	}
+	
+	public boolean isNodeExists(Node node, int a) {
+		if(node == null) {
+			return false;
+		}
+		
+		if(node.data == a) {
+			return true;
+		} else {
+			boolean left = false, right = false;
+			 left = isNodeExists(node.left, a);
+			 if(!left)
+			 right = isNodeExists(node.right, a);
+			 return left || right;
+		}
+	}
+}

@@ -1,0 +1,32 @@
+
+public class Deadlock {
+	
+	Thread t1 = new Thread(new Runnable() {
+		
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			
+		}
+	});
+	
+	public static void main(String[] args) {
+		
+		Deadlock d = new Deadlock();
+		
+	}
+
+}
+
+class A {
+	
+	public synchronized void A_Method(B b) {
+		b.B_Method(this);
+	}
+}
+
+class B { 
+	public synchronized void B_Method(A a) {
+		a.A_Method(this);
+	}
+}

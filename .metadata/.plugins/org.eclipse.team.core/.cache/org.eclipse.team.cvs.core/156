@@ -1,0 +1,113 @@
+<%@page import="java.util.*" %>
+<%@page import="com.aol.sportal.util.*" %>
+<%@page import="com.aol.sportal.beans.*" %>
+
+<%
+try {
+	
+    String prop17Str = "Unknown";  //unknown value will never reach, keep it there for later use...
+    boolean isMorf = AccountAccess.isMorf(request);	
+    short acctType = AccountAccess.getAccountType(request);
+    if (AccountAccess.isMorf(request))
+        prop17Str = "MORF";
+    else if (acctType == 1)
+        prop17Str = "internal";
+    else if(acctType == 2)
+        prop17Str = "overhead";
+    else
+        prop17Str = "MF";
+	
+    String userServiceStrTemp = request.getParameter("prop20");
+    if (AccountAccess.isBrandi82(request))
+        userServiceStrTemp = "BRANDI82";
+    String userServiceStr = AccountAccess.getLoginItem(request, "Service");
+    if (userServiceStrTemp != null && userServiceStrTemp.length() > 0)
+        userServiceStr = userServiceStrTemp;
+    try {
+        if (AccountAccess.getUserSessionObj(request, response).getFromAutorep() == 1) {
+            userServiceStr = "Autorep";
+            if (userServiceStrTemp != null && userServiceStrTemp.length() > 0)
+                userServiceStr = "Autorep | "+userServiceStrTemp;
+        }
+        else if(AccountAccess.getUserSessionObj(request, response).getFromCaAutorep() == 1) {
+            userServiceStr = "AOL Canada Autorep";
+            if (userServiceStrTemp != null && userServiceStrTemp.length() > 0)
+                userServiceStr = "AOL Canada Autorep | " + userServiceStrTemp;
+        }
+    } catch (Exception e) {
+        userServiceStr = "unavailable";
+        if (userServiceStrTemp != null)
+            userServiceStr = userServiceStrTemp;
+    }
+    if (userServiceStr == null)
+        userServiceStr = "unavailable";
+		  
+    String pageTitleStr = request.getParameter("pageTitle");
+
+		
+    String eVar6Str = request.getParameter("evar6");
+    if (eVar6Str == null)
+        eVar6Str = "";
+		
+    String prop1Str = request.getParameter("prop1");
+    if (prop1Str == null) 
+        prop1Str = "My Account";
+	
+    String prop2PrefixStr = prop1Str;
+    String pageNamePreifx = prop1Str + " | ";
+	
+    boolean ukClient=false,ukNonClient=false;
+
+    String brand = (String) request.getAttribute("brand");
+    String omnitureFilename = "AOLca".equals(brand) ? "omniunih_int.js" : "omniunih.js";
+    request.setAttribute("omnitureFilename", omnitureFilename);
+
+    String omniturePage = "";
+    String uri = request.getRequestURI();
+    if (! uri.endsWith("/")) {
+        int slashIndex = 0;
+        int newIndex = 0;
+        while((newIndex = uri.indexOf("/", slashIndex+1)) > 0) {
+            slashIndex = newIndex;
+        }
+        omniturePage = uri.substring(slashIndex + 1);
+    }
+    request.setAttribute("omniturePage", omniturePage);
+
+%>
+<div style="display:none;">			
+  <script type="text/javascript">
+    //<![CDATA[
+    function runOmni() {
+	s_265.pfxID="${omniturePfxID}";
+	s_265.pageName="${omniturePfxID} : " + document.title;
+	s_265.channel="${omnitureChannel}";
+	s_265.linkInternalFilters="javascript:,aol.com,compuserve.com,netscape.com,wmconnect.com";
+	s_265.prop1="bill";
+	s_265.prop2= "${omniturePage}";
+	s_265.prop16= "${brand}" == "CompuServe" ? "compuserve" : ""; 
+	s_265.prop17="";
+        s_265.prop18="${brand}" == "AOLca" ? "" : "unavailable";
+	s_265.mmxgo=true;
+	var s_code=s_265.t();
+    }
+
+    s_account ="${omnitureAccount}";  /* Use "aolcmpdev,devaolsvc"; for DEV */
+
+    (function(){
+	var d = document, s = d.createElement('script');
+	s.type = 'text/javascript';
+	s.src = (location.protocol == 'https:' ? 'https://s' : 'http://o') + '.aolcdn.com/${omnitureFilename}';
+	d.getElementsByTagName('head')[0].appendChild(s);
+    })();
+//]]>
+  </script>
+</div>
+
+<%
+}
+catch(Exception ex)
+{
+    ex.printStackTrace();
+}
+%>

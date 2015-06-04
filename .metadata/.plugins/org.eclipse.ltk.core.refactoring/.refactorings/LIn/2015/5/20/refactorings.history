@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;cycleGraph&apos; in &apos;TreesAndGraphs.main(...)&apos; to &apos;graph&apos;&#x0A;- Original project: &apos;LIn&apos;&#x0A;- Original element: &apos;TreesAndGraphs.main(String[]).cycleGraph&apos;&#x0A;- Renamed element: &apos;cycleGraph&apos;&#x0A;- Update references to refactored element" description="Rename local variable &apos;cycleGraph&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/src&lt;{TreesAndGraphs.java[TreesAndGraphs~main~\[QString;@cycleGraph!691!743!708!717!QGraph\&lt;QCharacter;&gt;;!0!false" name="graph" references="true" stamp="1431792966505" version="1.0"/>
+</session>

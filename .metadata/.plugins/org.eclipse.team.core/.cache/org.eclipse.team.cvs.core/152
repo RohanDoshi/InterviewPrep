@@ -1,0 +1,356 @@
+<%@page errorPage="error.jsp"%>
+<%@page contentType="text/html"%>
+<%@page pageEncoding="UTF-8"%>
+<%@page import="java.util.*"%>
+<%@page import="java.net.URLEncoder" %>
+<%@page import="java.lang.*"%>
+<%@page import="com.aol.sportal.util.*" %>
+<%@page import="com.aol.sportal.beans.*" %>
+
+<% if (AccountAccess.isMasterAccount(request)==false) {%>
+		<jsp:forward page="screen_names_sub.jsp" />  
+<%	} 
+	if (AccountAccess.isGuestUser(request)==true) {%>
+		<jsp:forward page="screen_names_guest.jsp" />  
+<%	} %>
+
+<%
+	response.setHeader("Cache-Control","no-cache"); //HTTP 1.1
+	response.setHeader("Pragma","no-cache"); //HTTP 1.0
+	response.setDateHeader ("Expires", 0); //prevents caching at the proxy server
+	
+	String cdnURL_screen_names = AccountAccess.getCdnUrl(request);
+	String snNumLimitString = AccountAccess.getScreenNameNumLimit(request);
+	String reachlimit = (String)request.getAttribute("reachlimit");
+	String snListLine = (String)request.getAttribute("snliststring"); 
+	boolean isPrimaryMaster = ((Boolean)request.getAttribute("ismasteronly")).booleanValue();
+	String primarySN = (String)request.getAttribute("primarysn");
+	String formattedPrimarySN = AccountAccess.processScreenNameLength(primarySN, 30);
+	String displayName = AccountAccess.getAcctData(request, response).getDisplayName(request, response, primarySN);
+	String formattedDisplayName = AccountAccess.processScreenNameLength(displayName, 20);
+	if(displayName==null || displayName.length()<1) {
+		formattedDisplayName = "<a href=ChangeDisplayName?sn="+URLEncoder.encode(primarySN, "UTF-8")+">Add Display Name</a>";
+		displayName = "";
+	} else
+		formattedDisplayName = formattedDisplayName+" <a href=ChangeDisplayName?sn="+URLEncoder.encode(primarySN, "UTF-8")+">(Change)</a>";
+	
+	String primaryDisplayLinkLine="";
+	String storePasswordLine=" style='text-align:center;' ";
+	String additionalSection="";
+	
+	if(isPrimaryMaster==false) {
+		displayName = "";
+		formattedDisplayName = "";
+		primaryDisplayLinkLine=" style='display:none' ";
+		storePasswordLine=" style='display:none' ";
+	}
+	if(AccountAccess.isInClient(request)==false)
+		storePasswordLine=" style='display:none' ";
+	 
+	if(snListLine==null||snListLine.length()<1)
+		additionalSection=" style='display:none;' ";
+		
+	String restoreBoxMsg = "There are currently no screen names to restore for this account.";
+	//reachlimit="yes";
+	String limitAddSnLine=" style='display:none' ";
+	String limitAddSnLineId="";
+	String notlimitAddSnLine="";
+	String notlimitAddSnLineId=" id='add_sn_box' ";
+	String limitRestoreSnLine=" style='display:none' ";
+	String limitRestoreSnLineId="";
+	String notlimitRestoreSnLine="";
+	String notlimitRestoreSnLineId=" id='res_sn_box' ";
+	String noAddLine=""; 
+	
+	if(reachlimit!=null&&reachlimit.equals("yes")) {
+		noAddLine=" no_add";
+		limitAddSnLine="";
+		limitAddSnLineId=" id='add_sn_box' ";
+		notlimitAddSnLine=" style='display:none' ";
+		notlimitAddSnLineId="";
+		limitRestoreSnLine="";
+		limitRestoreSnLineId=" id='res_sn_box' ";
+		notlimitRestoreSnLine=" style='display:none' ";
+		notlimitRestoreSnLineId="";
+		restoreBoxMsg="You have reached the limit of 7 active aol.com screen names.  Please delete a screen name before restoring one.";
+	}
+	
+	String allowrestore = (String)request.getAttribute("allowrestore");
+	if(allowrestore!=null && allowrestore.equals("no")) {
+		limitRestoreSnLine="";
+		limitRestoreSnLineId=" id='res_sn_box' ";
+		notlimitRestoreSnLine=" style='display:none' ";
+		notlimitRestoreSnLineId="";
+	}
+	
+	String storedPasswordSection = "";
+	boolean storePasswordSub = ((Boolean)request.getAttribute("displaystoredpassword")).booleanValue();
+	if(storePasswordSub==true)
+		storedPasswordSection = "<th id=snac3 class=''>Stored Password</th>";
+		
+	//for omniture	
+	String omniturePageTitleString = "Names:Main";
+	String omnitureEventsString = "event1";
+	String omnitureProductsString = ";Add Screen Name,;Restore Screen Name,;Delete Screen Name";
+	String omnitureEvar12="Names Main";
+	String omnitureEvar8="Names Main";
+	
+	if(reachlimit!=null&&reachlimit.equals("yes")) {
+		omniturePageTitleString = "Names:Main Add Suppressed";
+		omnitureEvar8="Names Main Add Suppressed";
+		omnitureEventsString = "event1";
+		omnitureProductsString = ";Delete Screen Name";  ////???delete?
+		omnitureEvar12="Names Main Add Suppressed";
+		
+	} else if(allowrestore!=null && allowrestore.equals("no")) {
+		omniturePageTitleString="Names:Main No Restore Screen Name";
+		omnitureEvar8="My Account | Names Restore No Screen Name Error";
+	}
+	
+	String omniturevalue = (String)request.getAttribute("omniture");
+	if(omniturevalue!=null&&omniturevalue.equals("delete")==true) {
+		omniturePageTitleString="Names:Delete Screen Name Error";
+		omnitureEvar8="";
+		omnitureEventsString="";
+	} else if(omniturevalue!=null&&omniturevalue.equals("deletedevice")==true) {
+		omniturePageTitleString="Names:Delete Device Bound Error";
+		omnitureEvar8="";
+		omnitureEventsString="";
+	} else if(omniturevalue!=null&&omniturevalue.equals("deletesuccess")==true) {
+		omniturePageTitleString="Names:Successful Delete Completion";
+		omnitureEvar8="";
+		omnitureEventsString="";
+		omnitureEventsString = "purchase";
+		omnitureProductsString = ";Delete Screen Name;1;0";  
+				
+	} else if (omniturevalue!=null&&omniturevalue.equals("restore")==true) {
+		omniturePageTitleString="Names:Restore Screen Name Error";
+		omnitureEvar8="";
+		omnitureEventsString="";
+	} else if (omniturevalue!=null&&omniturevalue.equals("restoresuccess")==true) {
+		omniturePageTitleString="Names:Successful Restore Completion";
+		omnitureEvar8="My Account | Names Successful Restore Completion";
+		omnitureEventsString="purchase";
+		omnitureProductsString=";Restore Screen Name;1;0";
+	} else if (omniturevalue!=null&&omniturevalue.equals("systemerror")==true) {
+		omniturePageTitleString="Names:Add Screen Name System Error";
+		omnitureEvar8="";
+		omnitureEventsString="";
+	}
+	
+	String  helpLinkStr = "http://help.channels.aol.com/topic.adp?topicId=SG_Screen_Names___Passwords";
+	if(AccountAccess.isEnGb(request)==true) {
+		helpLinkStr = "http://help.channels.aol.com/topic.adp?topicId=SG_Screen_Names___Passwords_UK";
+	}
+%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+    <head>
+        <%@ include file="header.jsp" %>
+		<link rel="stylesheet" type="text/css" href="<%=cdnURL_header %>/new/styles/screen_old.css" />
+		<style>
+			.additional th[id="Parental Controls"]{display:none}
+			.additional #Password{display:none}
+			table.additional td.pw{display:none}
+			.additional td[headers="Change Account Security Question"]{display:none}
+		</style>
+		<script src="<%=cdnURL_header %>/new/js/billApp.js"></script>
+    </head>
+    <%@ include file="bodytag.jsp" %>
+<%
+	if(AccountAccess.isEnGb(request)) {
+%>
+	  <div id="pageWrap">
+        <%@ include file="hat.jsp" %>
+        <a name="content"></a>
+        <!-- start the included page -->
+        <div class="contentarea">
+            <div id="bread" class="breadcrumbs"><a href="main.jsp">My Account</a> &gt; Manage Screen Names</div>
+           
+<% 
+	} else { 
+%>
+    	<div id="page_wrap">
+		<%@ include file="hat.jsp"%>
+		<jsp:include page="three_pillars.jsp">
+ 		<jsp:param name="active" value="1" /> 		
+		</jsp:include>
+  
+		<div id="main">
+			<script language="Javascript">
+				WriteBreadcrumbs("My Account","main.jsp","Manage Screen Names",null);
+			</script>
+		</div> <BR>
+    <div id="pageWrap"> 
+        <a name="content"></a>
+        <!-- start the included page -->
+        <div class="contentarea">
+<%
+   } 
+%>   
+ 
+            <div class="wide_col">
+            	<%@ include file="confirmation_msg.jsp" %>
+                <div id="main_body">
+                    <div class="head">
+                        <h2>Manage Screen Names</h2>
+                        <div class="topl"></div>
+                        <div class="topr"></div>
+                    </div>
+                    <div class="content screen_names">
+                        <form name="screen_names" id="screen_names" method="post">
+                            <div class="content_min"></div>
+                            <div class="content_inner<%=noAddLine%>">
+                                <div class="help"><a href="<%=helpLinkStr %>" target=_blank>Help<b class="hidden"> managing screen names</b></a></div>
+                                
+				<h3>You get up to <%=snNumLimitString%> screen names (email addresses) with your account.</h3>
+				<p>
+					<ul style="margin-left:20px;margin-right:30px;">
+					  <li>Add screen names for different members of your household</li>
+					  <li>Give family or friends living elsewhere (grandparents, kids in college) their own screen names to help them stay in touch</li>
+					  <li>Customize Parental Controls settings for each screen name</li>
+					  <li>Use additional screen names for groups, associations or businesses</li>
+					  <li>Using the AOL software, go to the "Sign Off" menu item and choose "Switch screen names" to easily check mail for each one</li>
+					</ul>
+				</p>
+
+                                <h3>Primary Master Screen Name:</h3>
+                                <p>This is the screen name created when this account was established. This screen name cannot be deleted.</p>
+                                <table cellspacing="0" class="master" summary="This table contains the primary screen name information.">
+                                    <thead></thead>
+                                    <tfoot></tfoot>
+                                    <tbody>
+                                        <tr>
+                                            <td headers='Screen Name' class="sn" title="<%=primarySN %>"><%=formattedPrimarySN%></td>
+                                            <td style="text-align:center" headers='Display Name' class="sn" title="<%=displayName %>"><%=formattedDisplayName%></td>
+                                            <td style="text-align:center" headers='Change Password' class="pw"><span<%=primaryDisplayLinkLine%>><a href="ChangePassword">Change Password<b class="hidden"> for primary screen name</b></a></span></td>
+                                            <td style="text-align:center"  headers='Change Account Security Question' class="as"><span<%=primaryDisplayLinkLine%>><a href="change_asq.jsp?sn=<%=primarySN%>">Change Account Security Question<b class="hidden"> for primary screen name</b></a></span></td>
+                                            <td <%=storePasswordLine %> headers='Stored Password Options' class="as"><span><a href="aol://1722:StoredPassword/">Stored Password Options<b class="hidden"> for primary screen name</b></a></span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>                                
+                                <div<%=additionalSection%>>                                
+                                <h3>Additional Screen Names:</h3>
+                                <table cellspacing="0" class="additional" summary="This table contains all sub-screen names and linked screen names.">
+                                    <thead>
+                                        <tr>
+                                            <th id='Screen Name' class="sn">Screen Name</th>
+                                            <th id='displayname' class="sn">Display Name</th>
+                                            <th id='Password' class="pw">Password</th>
+                                            <%=storedPasswordSection%>
+                                            <th id='Delete' class="de">Delete</th>
+                                            <th id='Parental Controls' class="sn">Account Security Question</th>
+                                            <th id='status' class="pc">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tfoot></tfoot>
+                                    <tbody>
+                                    	<%=snListLine%>                                                                                
+                                    </tbody>
+                                </table>
+                                <p class="note"><strong>Important Note to Parents:</strong>  To update a parentally controlled account settings please visit <a href="http://parentalcontrols.aol.com">parental controls</a>. And to update a parentally controlled account that is not an aol.com email address, please visit <a href="https://my.screenname.aol.com/_cqr/logout/mcLogout.psp?sitedomain=myaccount.aol.com">myaccount.aol.com</a> and login with the username of the account you would like to change.</p>
+                                </div>
+                                 <div<%=notlimitAddSnLine%> class="add_sn">
+                                    <h3>Add a Screen Name:</h3>
+                                    <div class="blue_rc" <%=notlimitAddSnLineId%>>
+                                        <fieldset style="_padding:5px 0 0px;">
+                                        	<label><span class="ind_req">New Screen Name:</span></label>
+                                            <input type="text" name="newsn" maxlength="16" />
+                                            <div style="padding-left:120px;font-size:11px;"><a href="http://help.channels.aol.com/topic.adp?topicId=ScreenNameTips" target="_blank">Tips for creating Screen Names</a></div>
+                                            <span class="brctl"></span><span class="brctr"></span><span class="brcbl"></span><span class="brcbr"></span>
+                                        </fieldset>
+                                    </div>
+                                    <fieldset>
+                                    	<label for="addnewsn" class="hiddenlabel">Add a new screen name:</label>
+                                        <input id=addnewsn type="submit" value="Add" class="btn" onclick="add_screen_name()" />
+                                    </fieldset>
+                                </div>
+                                 
+                                 <div<%=limitAddSnLine%> class="add_sn">
+                                    <h3>Add a Screen Name:</h3>
+                                    <div class="blue_rc" <%=limitAddSnLineId%>>
+                                        <fieldset style="_padding:5px 0 0px;">
+                                            <p>You have reached the limit of 7 aol.com screen names. Please delete a screen name before adding a new one.</p>
+                                            <label class="disabled">New Screen Name:</label>
+                                            <input type="text" disabled="disabled" class="disabled" />
+                                            <div style="padding-left:106px"><a href="http://help.channels.aol.com/topic.adp?topicId=ScreenNameTips" target="_blank">Tips for creating Screen Names</a></div>
+                                            <span class="brctl"></span><span class="brctr"></span><span class="brcbl"></span><span class="brcbr"></span>
+                                        </fieldset>
+                                    </div>
+                                </div>
+                                
+                                <div<%=notlimitRestoreSnLine%> class="restore_sn">
+                                    <h3>Restore a Screen Name:</h3>
+                                    <div class="blue_rc" <%=notlimitRestoreSnLineId%>>You may have up to 7 aol.com screen names active in a single account at a time.  Click start to restore a screen name.<span class="brctl"></span><span class="brctr"></span><span class="brcbl"></span><span class="brcbr"></span></div>
+                                    <fieldset>
+                                    	<label for="restoresn" class="hiddenlabel">Start to restore screen name:</label>
+                                        <input id=restoresn type="submit" value="Start" class="btn" onclick="restore_screen_name()" />
+                                    </fieldset>
+                                </div>
+                                
+                                <div<%=limitRestoreSnLine%> class="restore_sn">
+                                <h3>Restore a Screen Name:</h3>
+                                    <div class="blue_rc" <%=limitRestoreSnLineId%>><%=restoreBoxMsg%> <span class="brctl"></span><span class="brctr"></span><span class="brcbl"></span><span class="brcbr"></span></div>
+                                </div>
+                                
+                                <div class="ind_req">Indicates required information</div>
+                            </div>
+                            <div class="foot"><span class="btml"></span><span class="btmr"></span></div>
+                        </form>
+                    </div>
+                </div>
+                <%@ include file="recent_activity.jsp" %>
+            </div> 
+            <%@ include file="narrow_col.jsp" %>
+        </div>
+<%
+	if(AccountAccess.isEnGb(request)==false) {
+%>        
+        </div><BR>&nbsp;
+<% } %> 
+        <!-- end the included page -->
+        
+        <script>
+									var addSnBox = document.getElementById("add_sn_box");
+									var resSnBox = document.getElementById("res_sn_box");
+									
+									var addSnBoxHeight = addSnBox.offsetHeight;
+									var resSnBoxHeight = resSnBox.offsetHeight;
+									
+									var snPaddingOffset = 38;
+									
+									if (addSnBoxHeight > resSnBoxHeight) resSnBox.style.height = (addSnBoxHeight - snPaddingOffset) + "px";
+									else addSnBox.style.height = (resSnBoxHeight - snPaddingOffset) + "px";
+								</script>
+        
+        
+        
+        <script>
+        	function add_screen_name() { 
+				var form = document.getElementById('screen_names');
+		     	form.action = "AddScreenName?dowhat=addsn";
+				form.submit();
+				event.returnValue = false;
+				return false;
+			}
+			function restore_screen_name() { 
+				var form = document.getElementById('screen_names');
+		     	form.action = "RestoreScreenName";
+				form.submit();
+				event.returnValue = false;
+				return false;
+			}
+        
+        </script>
+       
+        <jsp:include page="omniture.jsp" flush="true">
+			<jsp:param name="pageTitle" value="<%=omniturePageTitleString%>" />
+			<jsp:param name="prop2" value="Names" />
+			<jsp:param name="evar8" value="<%=omnitureEvar8%>" />
+			<jsp:param name="evar12" value="<%=omnitureEvar12%>" />
+			<jsp:param name="events" value="<%=omnitureEventsString%>" />
+			<jsp:param name="products" value="<%=omnitureProductsString%>" />
+		</jsp:include>
+		<%@ include file="footer.jsp" %> 		
+	</div></body>
+</html>

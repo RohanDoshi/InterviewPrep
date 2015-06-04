@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<syncparticipants>
+<participant displayName="CVS (supportportal/src/main/webapp/jsp)" id="org.eclipse.team.cvs.ui.workspace-participant" secondary_id="1401389775814">
+<data consultChangeSets="false" root="false">
+<org.eclipse.team.ui.MODEL_PARTICIPANT_SETTINGS org.eclipse.team.ui.MODEL_PARTICIPANT_DESCRIPTION="supportportal/src/main/webapp/jsp" startupAction="none">
+<org.eclipse.team.ui.MODEL_PARTICIPANT_REFRESH_SCHEDULE org.eclipse.team.ui.CTX_REFRESHSCHEDULE_ENABLED="false" org.eclipse.team.ui.CTX_REFRESHSCHEDULE_INTERVAL="3600" org.eclipse.team.ui.CTX_REFRESHSCHEDULE_RUNONCE="false"/>
+<org.eclipse.team.ui.MODEL_PARTICIPANT_MAPPINGS modelProviderId="org.eclipse.core.resources.modelProvider">
+<mappings>
+<resources resourcePath="/supportportal/src/main/webapp/jsp" resourceType="2"/>
+</mappings>
+</org.eclipse.team.ui.MODEL_PARTICIPANT_MAPPINGS>
+</org.eclipse.team.ui.MODEL_PARTICIPANT_SETTINGS>
+</data>
+</participant>
+<participant displayName="CVS Merge &apos;start to HEAD&apos; (supportportal/src/main/java/com/aol/sportal/app/MorfSession.java)" id="org.eclipse.team.cvs.ui.modelMergeParticipant" secondary_id="CVSmerge-1401206588467">
+<data root="false">
+<org.eclipse.team.ui.MODEL_PARTICIPANT_SETTINGS startupAction="none">&#x0A;<org.eclipse.team.ui.MODEL_PARTICIPANT_REFRESH_SCHEDULE org.eclipse.team.ui.CTX_REFRESHSCHEDULE_ENABLED="false" org.eclipse.team.ui.CTX_REFRESHSCHEDULE_INTERVAL="3600" org.eclipse.team.ui.CTX_REFRESHSCHEDULE_RUNONCE="false"/>
+<org.eclipse.team.ui.MODEL_PARTICIPANT_MAPPINGS modelProviderId="org.eclipse.core.resources.modelProvider">&#x0A;<mappings>&#x0A;<resources resourcePath="/supportportal/src/main/java/com/aol/sportal/app/MorfSession.java" resourceType="1"/>
+</mappings>
+</org.eclipse.team.ui.MODEL_PARTICIPANT_MAPPINGS>
+</org.eclipse.team.ui.MODEL_PARTICIPANT_SETTINGS>
+<mergeSubscriber end_tag="HEAD" end_tag_type="0" start_tag="start" start_tag_type="2">&#x0A;<root root_resource="/supportportal"/>
+</mergeSubscriber>
+</data>
+</participant>
+</syncparticipants>

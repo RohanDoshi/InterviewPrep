@@ -1,0 +1,1563 @@
+package com.aol.sportal.servlets;
+
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.xml.datatype.XMLGregorianCalendar;
+
+import org.apache.log4j.Logger;
+
+//import java.util.UUID;
+import com.aol.cbi.api.PaymentMethodUpdateResponse;
+import com.aol.cc.common.account.AccountUpdateResponse;
+import com.aol.cc.common.account.UpdateRequest;
+import com.aol.cc.common.biz.CCBizAccount;
+import com.aol.cc.common.biz.CCBizBillPaymentInfo;
+import com.aol.obi.schema.Address;
+import com.aol.obi.schema.AuthRule;
+import com.aol.obi.schema.EmailAddress;
+import com.aol.obi.schema.Instrument;
+import com.aol.obi.schema.PaymentInstrument;
+import com.aol.obi.schema.PaymentType;
+import com.aol.obi.schema.UserInformation;
+import com.aol.obi.schema.UserName;
+import com.aol.sportal.app.AppSession;
+import com.aol.sportal.app.MorfSession;
+import com.aol.sportal.app.SPortalSession;
+import com.aol.sportal.beans.InstrumentBean;
+import com.aol.sportal.beans.PaymentBean;
+import com.aol.sportal.model.AccountInformationModel;
+import com.aol.sportal.model.ModelManager;
+import com.aol.sportal.service.SubscriptionService.REEStatus;
+import com.aol.sportal.util.AccountAccess;
+import com.aol.sportal.util.PremiumAccess;
+import com.sun.org.apache.xerces.internal.jaxp.datatype.XMLGregorianCalendarImpl;
+
+public class PaymentMethodServlet extends HttpServlet {
+
+	private static final Logger logger = Logger.getLogger(PaymentMethodServlet.class);
+	public void doGet(HttpServletRequest req, HttpServletResponse rspn)
+			throws ServletException, IOException {
+		doPost(req, rspn);
+	}
+
+	public void doPost(HttpServletRequest req, HttpServletResponse rspn)
+    throws ServletException, IOException 
+    {
+		req.setCharacterEncoding("UTF-8");
+		
+		//security check
+		if(AccountAccess.isGoodKeyStringForUpdating(req, rspn, req.getParameter("updateKey"))==false) 
+		{
+			rspn.sendRedirect("main.jsp");
+			return;
+		}
+		
+		//kick out UK and LCA
+		if (AccountAccess.isUSAOL(req) == false)
+		{
+			logger.debug("this is not a us aol account - redirecting to main.jsp" );
+			rspn.sendRedirect("main.jsp");
+			return;
+		}
+		
+		//from query string, see request is from credit, debit or checking, this is from jsp page's hidden fields
+		String cardType= (String) req.getParameter("cardtype");
+		if ((cardType!=null) && (cardType.toLowerCase().contains("checking")==false) && (cardType.toLowerCase().contains("credit")==false)&& (cardType.toLowerCase().contains("debit")==false) )
+		{
+			rspn.sendRedirect("main.jsp");
+			return;
+		}
+		
+		String action=(String)req.getParameter("action");
+		if ((action!=null) && (action.equalsIgnoreCase("add")==false) && (action.equalsIgnoreCase("edit")==false) )
+		{
+			rspn.sendRedirect("main.jsp");
+			return;
+		}
+		
+		String instrumentID=(String)req.getParameter("instrumentid");
+		String sn=(String)req.getParameter("sn");
+		
+		if ((sn==null) || (sn.length()<0))
+		{
+			rspn.sendRedirect("main.jsp");
+			return;
+		}
+		
+		boolean isMaster=false;
+		boolean is18=false;
+		
+		short typeSn=0;
+		
+		if (AccountAccess.isMorf(req)==false)
+		{
+			typeSn= AccountAccess.getSnLevel(req,rspn,sn);
+			
+			if (AccountAccess.isMasterAccount(req)==true) 
+			{
+				isMaster=true;
+				
+				//hacker, logined as master, but query string is 18+
+				if ((typeSn!=0) && (typeSn !=1))
+				{
+					rspn.sendRedirect("main.jsp");
+					return;
+				}
+			}
+			else if (AccountAccess.isOver_18only_sn(sn, req, rspn)==true)
+			{
+				is18=true;
+				
+				//18+ can not have checking
+				if ((cardType!=null) && (cardType.toLowerCase().contains("checking")==true))
+				{
+					rspn.sendRedirect("main.jsp");
+					return;
+				}
+			}
+			else //18-, or logined 18+, but tried to manage master (is Master=false, is_18 is false)
+			{
+				rspn.sendRedirect("main.jsp");
+				return;
+			}
+		}
+		
+		//logined as morf or 18+, only allowed logined sn
+		if ((AccountAccess.isMorf(req)==true) || (is18==true)  ) 
+		{	
+			String loginedSn=AccountAccess.getLoginItem(req, "Username");
+			loginedSn=AccountAccess.compressSN(loginedSn);
+			
+			if (AccountAccess.compressSN(sn).equalsIgnoreCase(loginedSn)==false)
+			{
+				rspn.sendRedirect("main.jsp");
+				return;
+			}
+		}
+		//end security check
+				
+		action=AccountAccess.validateInput(action);
+		req.setAttribute("action", action);
+		cardType=AccountAccess.validateInput(cardType);
+		req.setAttribute("cardType", cardType);
+		
+		AppSession spSession = null;
+		boolean isMorf=AccountAccess.isMorf(req);
+		
+		if (isMorf==false)
+		{
+			spSession=(SPortalSession)AccountAccess.getSession(req, rspn);
+		}
+		else
+		{
+			spSession=(MorfSession)AccountAccess.getMorfSession(req, rspn);
+		}
+		
+		//cof and update will set different error for card number
+		boolean isEdit=false;
+		String jspPage = "payment_list.jsp?sn="+URLEncoder.encode(sn,"UTF-8");
+
+		if (action.equalsIgnoreCase("edit")) 
+		{
+			isEdit=true;
+			jspPage = "payment_list.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID;
+		}
+	
+		//ons type 3, 6, 7 and kids account can not add payment method
+		if (action.equalsIgnoreCase("add")==true)
+		{
+			boolean canAddPM=true;
+			
+			//should be 5, but if sub account has COF, it should be 6
+			PremiumAccess premiumAccess = AccountAccess.getPremiumAccess(req, rspn);
+			
+			if(premiumAccess!=null) 
+			{
+				ArrayList InstrumentList=premiumAccess.getInstrumentsBySn(sn);
+				if ((InstrumentList!=null) && (InstrumentList.size()>=6))
+					canAddPM=false;
+			}
+			else
+			{
+				if (AccountAccess.isMorf(req)==false)
+				{
+					if (typeSn<0) //18-
+					{
+						canAddPM=false;
+					}
+				}
+				else //morf
+				{
+					String morfOnsType = AccountAccess.getLoginItem(req, "morf_ons_type");
+					if (morfOnsType != null && ((morfOnsType.equals("3")||morfOnsType.equals("6")||morfOnsType.equals("7"))) ) 
+					{	
+						canAddPM=false;
+					}
+				}
+			}
+			
+			if (canAddPM==false) 
+			{
+				rspn.sendRedirect("main.jsp");
+				return;
+			}
+		}
+				
+		REEStatus managePayMethodResponse=null;
+		InstrumentBean editInstrument=null;
+		
+		//this method will creat a new Bean, get all inputed data from UI, and check if there are invalid data been inputed
+		PaymentBean inputData =PaymentBean.getInputedData(req, rspn,cardType);
+		 
+		boolean cardOnFile=false;
+		
+		if (inputData.isValid())
+		{
+			String cvv2Str = inputData.get("cvv2");
+			if (action.equalsIgnoreCase("add"))
+			{
+				managePayMethodResponse=addPaymentMethodOnly(req, rspn, inputData,cardType,sn);
+			}
+			else if ((action.equalsIgnoreCase("edit")) && (instrumentID!=null) )
+			{
+				PremiumAccess premiumAccess = AccountAccess.getPremiumAccess(req, rspn);
+				
+				if(premiumAccess!=null) 
+				{
+					editInstrument=premiumAccess.getInstrumentById(instrumentID, sn);
+				}
+				else if ((premiumAccess==null) || (editInstrument==null))
+				{
+					logger.error("Update payment, either action is not right or instrumentId is null");
+					req.setAttribute("omniturepagename", " Manage My Account Details Manage Payment Options Save backend error ");
+					req.setAttribute("errorMsgName", "error.backendsave");					
+					RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+					dispatcher.forward(req, rspn);	
+					return;
+				}
+					
+				cardOnFile=editInstrument.getInstrument().getCardOnFileFlag().booleanValue();
+				managePayMethodResponse=editPaymentMethodOnly(req, rspn, inputData,cardType,editInstrument,sn);
+			}
+			else
+			{
+				logger.error("SPortal-521, Add or Update payment, either action is not right or instrumentId is null");
+				req.setAttribute("omniturepagename", " Manage My Account Details Manage Payment Options Save backend error ");
+				req.setAttribute("errorMsgName", "error.backendsave");					
+				RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+				dispatcher.forward(req, rspn);	
+				return;
+			}
+			    	
+			if (managePayMethodResponse ==null)
+			{
+				req.setAttribute("errorMsgName", "error.backendsave");					
+				RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+				dispatcher.forward(req, rspn);	
+				return;
+			}
+			
+			if (managePayMethodResponse.getCode()==0)
+			{
+				req.setAttribute("omniturepagename", getSuccessOmniturePageNameString(cardType, action));
+				
+				if (action.equalsIgnoreCase("add"))
+				{
+					//sp-1438
+					AccountAccess.reloadPremiumAccess(req, rspn);
+					//
+					Instrument instrumentFromObi =null;
+					
+					if(managePayMethodResponse.getData() instanceof Instrument)
+					{
+						instrumentFromObi = (Instrument)managePayMethodResponse.getData();
+						
+						if (instrumentFromObi!=null)
+						{
+							String newAddedId=instrumentFromObi.getId();
+							
+							if (cardType.toLowerCase().contains("checking")==true)
+							{
+								jspPage = "payment_list.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+newAddedId+"&cvv2="+cvv2Str+"&showpopup=yes&action=add&p=k";
+							}
+							else if( cardType.toLowerCase().contains("debit")==true ) {
+								jspPage = "payment_list.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+newAddedId+"&cvv2="+cvv2Str+"&showpopup=yes&action=add&p=d";
+							}
+							else
+							{
+								jspPage = "payment_list.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+newAddedId+"&cvv2="+cvv2Str+"&showpopup=yes&action=add";
+							}
+						}
+						//else will not set instrumentid and showpopup
+					}
+				}
+				else if (action.equalsIgnoreCase("edit"))
+				{
+					Instrument instrumentFromObiEdit=null;
+					if ((instrumentID!=null)&&(instrumentID.equalsIgnoreCase("cof")))
+					{
+						Map subscriptionMap=null;
+						if (isMorf == true) //should not be a case, b/c morf has no COF
+						{
+							subscriptionMap = ((MorfSession) MorfSession.getSession(req)).getPsbMap(req, rspn);
+						}
+						else 
+						{
+							subscriptionMap = ((SPortalSession) SPortalSession.getSession(req)).getPsbMap(req, rspn);
+						}
+					}
+					
+					if (cardType.toLowerCase().contains("checking")==true)
+					{
+						jspPage = "payment_list.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&cvv2="+cvv2Str+"&showpopup=yes&action=edit&p=k";
+					}
+					else if (cardType.toLowerCase().contains("debit")==true)
+					{
+						jspPage = "payment_list.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&cvv2="+cvv2Str+"&showpopup=yes&action=edit&p=d";
+					}
+					else
+					{
+						jspPage = "payment_list.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&cvv2="+cvv2Str+"&showpopup=yes&action=edit";
+					}
+				}
+				
+				//re-call instruments and this will reload bottom-side html
+				req.setAttribute("PaymentBean", null);
+				
+				cardType=cardType.toLowerCase();
+				if (((cardType.contains("debit")) || (cardType.contains("checking"))) && (action.equalsIgnoreCase("edit")))
+				{
+					String hasEftStr= (String) req.getParameter("strhaseft");
+					if ((hasEftStr!=null) && (hasEftStr.equalsIgnoreCase("true")))
+					{
+						HashMap blob = new HashMap();
+						
+						blob.put("obiInstrumentId", instrumentID);
+						blob.put("cardOnFileFlag", String.valueOf(cardOnFile).toUpperCase());
+						
+						if (isMorf==true) 
+						{
+								MorfSession.getActionWriter(req).writeMorfSvuActionWithBlob(req, rspn, "SVU_CHG_PM_EFT", true, 0, 0, blob);
+						} 
+						else 
+						{
+								SPortalSession.getActionWriter(req).writeSvuActionWithBlob(req, rspn, "SVU_CHG_PM_EFT", true, 0, 0, 0, blob);
+						}
+					}
+				}
+				
+				//only update master account's contact
+				if ((isMaster==true) &&(inputData.get("update")!=null) && (inputData.get("update").length()>0))
+				{
+					int errAioCode=0;
+					String errAioTxt="";
+					int statusAioRet=-1;
+					AccountUpdateResponse acctRsp=null;
+					
+					String primarySN = AccountAccess.getPrimarySn(req, rspn);
+					
+					long acctNum=AccountAccess.getAcctData(req, rspn).getMAAccountNumber(req, rspn);
+ 					ModelManager mgr=new ModelManager();	
+					acctRsp=updatePMContact(mgr,req, rspn,inputData, acctNum);
+					
+					if (acctRsp != null)
+					{
+						statusAioRet=acctRsp.getStatus();
+						errAioCode=acctRsp.getErrorCode();
+						errAioTxt=acctRsp.getErrorMsg();
+					}
+					else
+					{
+						logger.error("SPortal-521, Update payment, AccountUpdateResponse is null.");
+						req.setAttribute("omniturepagename", " Manage My Account Details Manage Payment Options Save backend error ");
+						req.setAttribute("errorMsgName", "error.backendsave");					
+						RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+						dispatcher.forward(req, rspn);	
+						return;
+					}
+					
+					if ((statusAioRet==0) ||(errAioCode == 0))
+					{
+						req.setAttribute("confirmMsgName", "paymentupdate.updated");
+						SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_CHG_ADDR", true, 0, 0);
+							
+						(SPortalSession.getSession(req)).reloadAcctObj(req);	
+						(SPortalSession.getSession(req)).getContactInfoMap().remove(AccountAccess.compressSN(primarySN));
+					}
+					//errCodeRet =42596 is ced error
+					else if ((errAioCode==42596) && ((ArrayList)acctRsp.getCedErrors() !=null)) 
+					{ 
+						logger.error("UpdateContactPrimary in payment_update page got CED error.");
+						SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_CHG_ADDR", false, 0, 0);
+							
+						inputData.setInvalidDataFromAIOCED((ArrayList)acctRsp.getCedErrors());			
+					}
+					// else other errors, log it
+					else
+					{
+						logger.error("SPortal-522, UpdateContactPrimary in payment_update page got non_CED error. code is "+ errAioCode +", error text is "+errAioTxt );
+						
+						req.setAttribute("errorMsgName", "error.goodpaymenterrorcontact");		
+						RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+						dispatcher.forward(req, rspn);	
+						return;
+					}
+				}//checked
+				else //not checked
+				{
+					req.setAttribute("confirmMsgName", "paymentupdate.updated");
+				}
+					
+				req.setAttribute("success", "true");		
+				RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+				dispatcher.forward(req, rspn);	
+				return;
+			}//retCode==0
+			else  //retCode != 0, internal account has different error message as other MF, because internal only update OBI, not MF
+			{
+				if  (action.equalsIgnoreCase("edit")) 
+				{
+					if ( (cardType.contains("Debit")) || (cardType.contains("debit")))
+					{
+						jspPage="payment_debit_card.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&action=edit&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+					
+					else if ( (cardType.contains("Credit")) || (cardType.contains("credit")))
+					{
+						jspPage="payment_credit_card.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&action=edit&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+					else 
+					{
+						jspPage="payment_checking.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&action=edit&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+				}
+				else if  (action.equalsIgnoreCase("add")) 
+				{
+					if ( (cardType.contains("Debit")) || (cardType.contains("debit")))
+					{
+						jspPage="payment_debit_card.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&action=add&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+					
+					else if ( (cardType.contains("Credit")) || (cardType.contains("credit")))
+					{
+						jspPage="payment_credit_card.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&action=add&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+					else
+					{
+						jspPage="payment_checking.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&action=add&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+				}
+	
+		    	//defaut
+				req.setAttribute("errorType", "ced");
+				
+				if (managePayMethodResponse.getMessage() ==null)
+				{
+					req.setAttribute("errorMsgName", "error.backendsave");					
+					RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+					dispatcher.forward(req, rspn);	
+					return;
+				}
+							    		
+		    	if ((managePayMethodResponse.getMessage().contains("-1001")) || 
+							(managePayMethodResponse.getMessage().contains("-1002")) ||
+							(managePayMethodResponse.getMessage().contains("-1003")) ||
+							(managePayMethodResponse.getMessage().contains("-1004")) ||
+							(managePayMethodResponse.getMessage().contains("-1005")) ||
+							(managePayMethodResponse.getMessage().contains("-10034")))
+							
+				{
+		    		logger.error("setPayMethodResponseRetCode is not valid.");
+		    		req.setAttribute("omniturepagename", " Manage My Account Details Manage Payment Options Save backend error ");
+						
+					AccountAccess.displayError(req, rspn, "error.backendsave");
+					return;
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-308")) || //ced -- card number
+							(managePayMethodResponse.getMessage().contains("-1209")))
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"card"));
+						
+					if (isEdit)
+					{
+						req.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+					}
+					else
+					{
+						if (cardType.contains("Checking"))
+						{
+							req.setAttribute("errorMsgName", "error.payment.routingnumber");
+							inputData.setInvalidDataFromBackend("routing",cardType);
+						}
+						else
+						{
+								req.setAttribute("errorMsgName", "error.payment.cardnumber");
+								inputData.setInvalidDataFromBackend("ccnumber",cardType);
+						}
+					}
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1501")) || 
+							(managePayMethodResponse.getMessage().contains("-1607")) ||
+							(managePayMethodResponse.getMessage().contains("-1217")) ||
+							(managePayMethodResponse.getMessage().contains("-1616"))) //ced -- last name
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+					req.setAttribute("errorMsgName", "error.payment.lastname");
+					inputData.setInvalidDataFromBackend("last",cardType);
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1502"))|| 
+							(managePayMethodResponse.getMessage().contains("-1608")) ||
+							(managePayMethodResponse.getMessage().contains("-1619")))//ced -- address1
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+					req.setAttribute("errorMsgName", "error.payment.street1");
+					inputData.setInvalidDataFromBackend("address1",cardType);
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1605"))  //ced -- expire date
+					|| (managePayMethodResponse.getMessage().contains("-1223")) )
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+					req.setAttribute("errorMsgName", "error.payment.expirationdate");
+					inputData.setInvalidDataFromBackend("expirationdate",cardType);
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1546")) ||
+						(managePayMethodResponse.getMessage().contains("-302")) )
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"auth"));
+					if (isEdit)
+					{
+						req.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+					}
+					else
+					{
+						req.setAttribute("errorMsgName", "error.authorizationFailed");
+						inputData.setInvalidDataFromBackend("routing",cardType);
+					}
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-325")) || (managePayMethodResponse.getMessage().contains("-321")))
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"auth"));
+					
+					req.setAttribute("errorMsgName", "error.authorizationFailed");
+					//inputData.setInvalidDataFromBackend("cvv2",cardType);
+				}
+				else if (managePayMethodResponse.getMessage().contains("-320"))
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"auth"));
+					
+					req.setAttribute("errorMsgName", "error.authorizationFailed");
+					inputData.setInvalidDataFromBackend("cvv2",cardType);
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1534")) || 
+						(managePayMethodResponse.getMessage().contains("-1533")) ||
+						(managePayMethodResponse.getMessage().contains("-1527")))//1527 is trying to update sub's PM
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"auth"));
+					if (isEdit)
+					{
+						req.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+					}
+					else
+					{
+						req.setAttribute("errorMsgText", "You do not have permission.");
+					}
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1609"))|| (managePayMethodResponse.getMessage().contains("-1617")))  //ced -- city
+				{
+					req.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+					
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+					req.setAttribute("errorMsgName", "error.payment.city");
+					inputData.setInvalidDataFromBackend("city",cardType);
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1567")) || (managePayMethodResponse.getMessage().contains("-316")) )//ced -- address
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+					req.setAttribute("errorMsgText", "Sorry there seems to be a problem with the billing address. Please correct and try again!");
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1610"))|| (managePayMethodResponse.getMessage().contains("-1618")))  //ced -- state
+				{
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+					req.setAttribute("errorMsgName", "error.payment.state");
+					inputData.setInvalidDataFromBackend("state",cardType);
+				}
+				else if (managePayMethodResponse.getMessage().contains("-1620"))  //ced -- zipcode
+				{
+						req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+						req.setAttribute("errorMsgName", "error.payment.zipcode");
+						inputData.setInvalidDataFromBackend("zip",cardType);
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-300")) || (managePayMethodResponse.getMessage().contains("-303"))
+							||(managePayMethodResponse.getMessage().contains("-304"))|| (managePayMethodResponse.getMessage().contains("-307"))
+							|| (managePayMethodResponse.getMessage().contains("-311")) || (managePayMethodResponse.getMessage().contains("-306")) ||
+							(managePayMethodResponse.getMessage().contains("-1604")) ) //auth	
+				{
+					if (isEdit)
+					{
+						req.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+					}
+					else
+					{
+						req.setAttribute("errorMsgName", "error.authorizationFailed");
+						inputData.setInvalidDataFromBackend("ccnumber",cardType);
+					}
+					req.setAttribute("errorType", "auth");
+					logger.info("update payment Auth error");
+					req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"auth"));
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-301")) || (managePayMethodResponse.getMessage().contains("-1537")) ) //dup	
+				{
+					if (isEdit)
+					{
+						req.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+					}
+					else
+					{
+						req.setAttribute("errorMsgName", "error.dupPaymentFailed");
+						inputData.setInvalidDataFromBackend("ccnumber",cardType);
+					}
+						logger.info("update payment Duplication error");
+						req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"dup"));
+						req.setAttribute("errorType", "dup");
+						
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-305")) ||
+							(managePayMethodResponse.getMessage().contains("-1208")) ||
+							(managePayMethodResponse.getMessage().contains("-1611"))) //valid	
+				{
+					if (isEdit)
+					{
+						req.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+					}
+					else
+					{
+						req.setAttribute("errorMsgName", "error.validationFailed");
+						
+						if (cardType.contains("Checking"))
+						{
+							inputData.setInvalidDataFromBackend("routing",cardType);
+						}
+						else
+						{
+							inputData.setInvalidDataFromBackend("ccnumber",cardType);
+						}
+					}
+						logger.info("update payment Validation error");
+						req.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"valid"));
+						
+						req.setAttribute("errorType", "valid");
+				}
+				else if ((managePayMethodResponse.getMessage().contains("-1300")) || //obi generic error
+						(managePayMethodResponse.getMessage().contains("-29001")))
+				{
+					logger.error("Edit PM, got OBI Generic Error.");
+					req.setAttribute("omniturepagename", " Manage My Account Details Manage Payment Options Save backend error ");
+					req.setAttribute("errorMsgName", "error.backendsave");					
+					RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);//oldJspPage);
+					req.setAttribute("PaymentBean", null);
+					dispatcher.forward(req, rspn);	
+					return;
+				}
+				else if (managePayMethodResponse.getMessage().contains("-1170")) //exceed 10 times adding
+				{
+					AccountAccess.setHasAddedTooManyPM(req,rspn, true, sn);
+					
+					logger.error("Add PM exceed 10 times.");
+					req.setAttribute("omniturepagename", " Manage My Account Details Manage Payment Options Save backend error ");
+					req.setAttribute("errorMsgText", "Please try again another day or reach out to AOL contact center for further assistance at 1-800-827-6364");					
+					RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);//oldJspPage);
+					req.setAttribute("PaymentBean", null);
+					dispatcher.forward(req, rspn);	
+					return;
+				}
+				else  //other error
+				{
+					PaymentMethodUpdateResponse amiResponse = null;
+					try
+					{
+						if(managePayMethodResponse.getData()!=null && managePayMethodResponse.getData() instanceof PaymentMethodUpdateResponse)
+							amiResponse=(PaymentMethodUpdateResponse)managePayMethodResponse.getData();
+							
+					}
+					catch (Exception e)
+					{
+						logger.error("SPortal-521, Update payment, AccountUpdateResponse is null.",e);
+						req.setAttribute("omniturepagename", " Manage My Account Details Manage Payment Options Save backend error ");
+						req.setAttribute("errorMsgName", "error.backendsave");					
+						RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);//oldJspPage);
+						req.setAttribute("PaymentBean", null);
+						dispatcher.forward(req, rspn);	
+						return;
+					}
+					
+					if (amiResponse!=null)
+					{
+						handleAmiPaymentError(isEdit,inputData, req, rspn, amiResponse,cardType, action, instrumentID, jspPage );
+					}
+					else //error obi not handled, or  amiResponse==null
+					{
+						logger.error("SPortal-524, \n get other error code than ced from ami_payment, code is " + managePayMethodResponse.getCode() +
+								" message: " +managePayMethodResponse.getMessage());
+						req.setAttribute("omniturepagename", " Manage My Account Details Manage Payment Options Save backend error ");
+						req.setAttribute("errorMsgName", "error.backendsave");					
+						RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);//oldJspPage);
+						req.setAttribute("PaymentBean", null);
+						dispatcher.forward(req, rspn);	
+						return;
+					}
+				}
+			}//retCode!=0
+		}//valid
+		
+		else  //not valid
+		{
+			if  (action.equalsIgnoreCase("edit")) 
+			{
+					if ( (cardType.contains("Debit")) || (cardType.contains("debit")))
+					{
+						jspPage="payment_debit_card.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&action=edit&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+					
+					else if ( (cardType.contains("Credit")) || (cardType.contains("credit")))
+					{
+						jspPage="payment_credit_card.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&action=edit&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+					else 
+					{
+						jspPage="payment_checking.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&instrumentid="+instrumentID+"&action=edit&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+			}
+			else if  (action.equalsIgnoreCase("add")) 
+			{
+					if ( (cardType.contains("Debit")) || (cardType.contains("debit")))
+					{
+						jspPage="payment_debit_card.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&action=add&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+					
+					else if ( (cardType.contains("Credit")) || (cardType.contains("credit")))
+					{
+						jspPage="payment_credit_card.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&action=add&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+					else
+					{
+						jspPage="payment_checking.jsp?sn="+URLEncoder.encode(sn,"UTF-8")+"&action=add&cardtype="+URLEncoder.encode(cardType,"UTF-8");
+					}
+			}
+
+			req.setAttribute("omniturepagename",getBlankFieldsOmniturePageNameString(cardType, action));
+			
+			String alertString=inputData.getInvalidMsg(cardType);
+			
+			if (alertString!=null)
+			{
+				req.setAttribute("errorMsgText", alertString);
+			}
+			else
+			{
+				req.setAttribute("errorMsgName", "paymentupdate.error");
+			}
+		}
+			
+		RequestDispatcher dispatcher = req.getRequestDispatcher(jspPage);
+		dispatcher.forward(req, rspn);	
+		return;
+	}//payment_update
+	
+	private AccountUpdateResponse updatePMContact(ModelManager modelManager,HttpServletRequest req, HttpServletResponse rspn,PaymentBean updDataBean, long acctNumber)
+	{
+		AccountUpdateResponse acctRsp=null;
+		UpdateRequest serviceReq=new UpdateRequest();
+		if (serviceReq !=null)
+		{
+			serviceReq.setAcctNum(acctNumber);
+			
+			serviceReq.setNewStreet1(updDataBean.get("address1"));	
+			serviceReq.setNewStreet2(updDataBean.get("address2"));
+			serviceReq.setNewStreet3(updDataBean.get("address3"));
+			serviceReq.setNewCity(updDataBean.get("city"));
+			serviceReq.setNewState(updDataBean.get("state"));
+			serviceReq.setNewZip(updDataBean.get("zip"));
+		}//req !=null
+		
+		try 
+		{
+			acctRsp=modelManager.updateAccountInformation(serviceReq);
+		}
+		catch (Exception e)
+		{
+			logger.error("SPortal-520, modelManager.updateAccountInformation in update PM throws exception",e);
+			
+			return null;
+		}
+		return acctRsp;
+	}	
+
+	@SuppressWarnings("deprecation")
+	private REEStatus addPaymentMethodOnly(HttpServletRequest req, 
+			HttpServletResponse rspn,PaymentBean updDataBean, String cardType, String sn)	
+	throws ServletException, IOException 
+	{
+		REEStatus status=null;
+		try 
+		{
+			AppSession spSession = null;
+			boolean isMorf=AccountAccess.isMorf(req);
+			Instrument newInstrument= new Instrument();
+						
+			//paymentInstrument
+			PaymentInstrument newPayIns=new PaymentInstrument();
+			newPayIns.setAccountNumber(updDataBean.get("ccnumber"));
+			
+			AuthRule authRule=new AuthRule();
+			
+			if (cardType.equals("Checking Account")==false)
+			{
+			    DateFormat formatter = new SimpleDateFormat("MMyy");
+			    String expiryDate=updDataBean.get("month")+updDataBean.get("year");
+			    
+			    if (isValidateTime(updDataBean.get("year"),updDataBean.get("month"))==false)
+			    {
+			    	throw new ServletException("hacker, wrong exp date.");
+			    }
+			    
+			    Date date = (Date)formatter.parse(expiryDate);
+			    GregorianCalendar cal = new GregorianCalendar();
+			    cal.set(1900+date.getYear(), date.getMonth(), 20);
+			  
+			    XMLGregorianCalendar xgc = new XMLGregorianCalendarImpl(cal);
+				newPayIns.setExpiryDate(xgc);
+				
+				newPayIns.setCreditVerificationValue(updDataBean.get("cvv2"));
+				authRule.setCvvRequired(true);
+				authRule.setAvsRequired(true);
+				authRule.setStrictAddressValidation(true);
+			}
+			
+			PaymentType newPMType= null;
+			if (cardType.equals("MasterCard Credit"))
+			{
+				newPMType=PaymentType.MASTER_CARD;
+			}
+			else if (cardType.equals("Visa Credit"))
+			{
+				newPMType=PaymentType.VISA;
+			}
+			else if (cardType.equals("American Express Credit"))
+			{
+				newPMType=PaymentType.AMERICAN_EXPRESS;
+			}
+			else if (cardType.equals("Discover Credit"))
+			{
+				newPMType=PaymentType.DISCOVER;
+			}
+			else if (cardType.equals("Visa Debit"))
+			{
+				newPMType=PaymentType.VISA_DEBIT;
+			}
+			else if (cardType.equals("MasterCard Debit"))
+			{
+				newPMType=PaymentType.MASTER_CARD_DEBIT;
+			}
+			else if (cardType.equals("Checking Account"))
+			{
+				newPMType=PaymentType.CHECKING;
+				newPayIns.setRoutingNumber(updDataBean.get("routing"));
+			}
+			
+			newPayIns.setPaymentType(newPMType);
+	
+			newInstrument.setNickName("garbage");
+
+			newInstrument.setPaymentInstrument(newPayIns);
+			
+			//UserInfo
+			UserInformation newUserInfo=new UserInformation();
+			
+			UserName newUn=new UserName();
+			newUn.setFirstName(AccountAccess.validateInput(updDataBean.get("first")));
+			newUn.setLastName(AccountAccess.validateInput(updDataBean.get("last")));
+			newUserInfo.setFirstUserName(newUn);
+			
+			Address newAddr=new Address();
+			newAddr.setStreet1(AccountAccess.validateInput(updDataBean.get("address1")));
+			newAddr.setStreet2(AccountAccess.validateInput(updDataBean.get("address2")));
+			newAddr.setStreet3(AccountAccess.validateInput(updDataBean.get("address3")));
+			newAddr.setCity(AccountAccess.validateInput(updDataBean.get("city")));
+			newAddr.setState(AccountAccess.validateInput(updDataBean.get("state")));
+			newAddr.setZip(AccountAccess.validateInput(updDataBean.get("zip")));
+			newAddr.setCountry(com.aol.obi.schema.CountryCode.US);
+			newUserInfo.setBillingAddress(newAddr);
+		
+			List<EmailAddress> emailList = newUserInfo.getEmailAddress();
+			EmailAddress email = new EmailAddress();
+			
+			if (isMorf==false)
+			{
+				email.setValue(AccountAccess.getLoginItem(req,"Username")+"@aol.com");
+			}
+			else
+			{
+				email.setValue("morf@aol.com");
+			}
+			
+			emailList.add(email);
+			newInstrument.setUserInformation(newUserInfo);
+			
+			newInstrument.setAuthRule(authRule);
+			
+			//call trx
+			PremiumAccess premiumAccess = AccountAccess.getPremiumAccess(req, rspn);
+			
+			if(premiumAccess!=null) 
+			{
+				status=premiumAccess.addPaymentInstrumentSubmit(req, rspn, newInstrument, sn);
+			}
+			else
+			{
+				logger.error("pm edit, premiumAccess is null.");
+			}
+		}
+		catch (Exception e)
+		{
+			logger.info("SPortal-518, updatePaymentMethodOnly:" ,e);
+		}
+
+		return status;
+	}
+	
+	
+	@SuppressWarnings("deprecation")
+	private REEStatus editPaymentMethodOnly(HttpServletRequest req, 
+			HttpServletResponse rspn,PaymentBean updDataBean, String cardType, InstrumentBean existInstrument, String sn)	
+	throws ServletException, IOException 
+	{
+		REEStatus status=null;
+		PremiumAccess premiumAccess = AccountAccess.getPremiumAccess(req, rspn);
+		
+		if(premiumAccess==null) 
+		{
+			logger.error("pm edit function, premiumAccess is null.");
+			return null;
+		}
+				
+		AppSession spSession = null;
+		boolean isMorf=AccountAccess.isMorf(req);
+		AccountInformationModel acctObj=null;
+					
+		if (isMorf==false)
+		{
+			spSession = (SPortalSession)AccountAccess.getSession(req, rspn);
+			
+			//11.7
+			//when primary master is COF, subs has id=1234, if master update cof, then this card only be updated in MF, 
+			//so we send sunaccount's enfo to update
+			String primarySN="";
+			CCBizAccount bizAcct =null;
+		
+			acctObj = AccountAccess.getAcctObj(req, rspn);
+			if (acctObj==null)
+			{
+				return null;
+			}
+			bizAcct = acctObj.getAccount();
+			if (bizAcct==null)
+			{
+				return null;
+			}
+			if (bizAcct.getScreenName()!=null)
+			{
+				primarySN=bizAcct.getScreenName().getAolScreenName();
+			}
+			
+			if (AccountAccess.compressSN(sn).equalsIgnoreCase(AccountAccess.compressSN(primarySN))==true)
+			{
+				if (existInstrument.getPaymentKey().equalsIgnoreCase("cof")==true)
+				{
+					InstrumentBean newInstrumentFromDmsn= premiumAccess.getDmsnObiInstrumentWithCofFlag(req, rspn, existInstrument);
+					
+					//PremiumServiceUtil.InstrumentWithScreenName instrumentWithSn=PremiumServiceUtil.getInstrumentForSubAccount (req, rspn, existInstrument,primarySN);
+					if (newInstrumentFromDmsn!=null)
+					{
+						existInstrument=newInstrumentFromDmsn;
+						//this sn is compressed, it comes from OBI's map
+						sn=newInstrumentFromDmsn.getSn();
+					}
+				}
+			}
+		}
+	
+		Instrument cloneInstrument=new Instrument();
+			
+		try 
+		{
+			//set as much as we can
+			cloneInstrument.setCardOnFileFlag(existInstrument.getInstrument().getCardOnFileFlag());
+			cloneInstrument.setDefaultFlag(existInstrument.getInstrument().getDefaultFlag());
+			cloneInstrument.setId(existInstrument.getInstrument().getId());
+			cloneInstrument.setMasterFileAccount(existInstrument.getInstrument().getMasterFileAccount());
+			cloneInstrument.setNickName(existInstrument.getInstrument().getNickName());
+			
+			//paymentInstrument
+			PaymentInstrument existPayIns=existInstrument.getInstrument().getPaymentInstrument();
+			PaymentInstrument clonePayIns=new PaymentInstrument();
+			clonePayIns.setAccountNumber(existPayIns.getAccountNumber());
+				
+			if ((existInstrument.getInstrument().getCardOnFileFlag()==true) || (existInstrument.getInstrument().getId().equalsIgnoreCase("cof")))
+			{
+				CCBizBillPaymentInfo payment = acctObj.getAccount().getBillingInfo();
+				String strNumber=(payment.getBillAccountNumber());
+				clonePayIns.setAccountNumber(strNumber);
+			}
+				
+			PaymentType existingPMType= existPayIns.getPaymentType();
+			clonePayIns.setPaymentType(existingPMType);
+				
+			String strPMType=existingPMType.name();
+			
+			AuthRule authRule=new AuthRule();
+			
+			if (strPMType.equals("MASTER_CARD"))
+			{
+				cloneInstrument.setPmtIndex("5");
+			}
+			else if (strPMType.equals("VISA"))
+			{
+				cloneInstrument.setPmtIndex("4");
+			}
+			else if (strPMType.equals("AMERICAN_EXPRESS"))
+			{
+				cloneInstrument.setPmtIndex("3");
+			}
+			else if (strPMType.equals("DISCOVER"))
+			{
+				cloneInstrument.setPmtIndex("6");
+			}
+			else if (strPMType.equals("VISA_DEBIT"))
+			{
+				cloneInstrument.setPmtIndex("10");
+			}
+			else if (strPMType.equals("MASTER_CARD_DEBIT"))
+			{
+				cloneInstrument.setPmtIndex("11");
+			}
+			else if (strPMType.equals("CHECKING"))
+			{
+				cloneInstrument.setPmtIndex("2");
+			}
+
+			if (cardType.equals("Checking Account")==false)
+			{
+				DateFormat formatter = new SimpleDateFormat("MMyy");
+				String expiryDate=updDataBean.get("month")+updDataBean.get("year");
+				
+				if (isValidateTime(updDataBean.get("year"),updDataBean.get("month"))==false)
+			    {
+			    	throw new ServletException("hacker, wrong exp date.");
+			    }
+								
+				Date date = (Date)formatter.parse(expiryDate);
+				GregorianCalendar cal = new GregorianCalendar();
+				cal.set(1900+date.getYear(), date.getMonth(), 20);
+				XMLGregorianCalendar xgc = new XMLGregorianCalendarImpl(cal);
+				clonePayIns.setExpiryDate(xgc);
+				
+				clonePayIns.setCreditVerificationValue(updDataBean.get("cvv2"));
+				authRule.setCvvRequired(true);
+				authRule.setAvsRequired(true);
+				authRule.setStrictAddressValidation(true);
+			}
+				
+			clonePayIns.setAccountHolderName(existPayIns.getAccountHolderName());
+			clonePayIns.setAuthorizeEmailAddress(existPayIns.getAuthorizeEmailAddress());
+			clonePayIns.setAuthorizeIPAddress(existPayIns.getAuthorizeIPAddress());
+		
+			clonePayIns.setIbanCode(existPayIns.getIbanCode());
+			clonePayIns.setLastFourDigits(existPayIns.getLastFourDigits());
+			clonePayIns.setPinNumber(existPayIns.getPinNumber());
+			clonePayIns.setRoutingNumber(existPayIns.getRoutingNumber());
+			clonePayIns.setSwiftCode(existPayIns.getSwiftCode());
+				
+			cloneInstrument.setPaymentInstrument(clonePayIns); 
+				
+				//might not need it, need testing
+			if (existInstrument.getInstrument().getNickName() ==null)
+			{
+				cloneInstrument.setNickName("garbage");
+			}
+			else
+			{
+				cloneInstrument.setNickName(existInstrument.getInstrument().getNickName());
+			}
+
+			//UserInfo
+			UserInformation existUserInfo=existInstrument.getInstrument().getUserInformation();
+			UserInformation cloneUserInfo=new UserInformation();
+				
+			if (existUserInfo==null)
+				return null;
+				
+			List<EmailAddress> emailList = existUserInfo.getEmailAddress();
+			EmailAddress email = null;
+			if (emailList.size()<=0)
+			{
+				email = new EmailAddress();
+				if (isMorf==false)
+				{
+					email.setValue(AccountAccess.getLoginItem(req,"Username")+"@aol.com");
+				}
+				else
+				{
+					email.setValue("morf@aol.com");
+				}
+				emailList.add(email);
+			}
+			else
+			{
+				email=emailList.get(0);
+			}
+				
+			List<EmailAddress> cloneEmailList = cloneUserInfo.getEmailAddress();
+			cloneEmailList.add(email);
+	
+			UserName cloneUn=new UserName();
+				
+			cloneUn.setFirstName(AccountAccess.validateInput(updDataBean.get("first")));
+			cloneUn.setLastName(AccountAccess.validateInput(updDataBean.get("last")));
+			cloneUserInfo.setFirstUserName(cloneUn);
+			
+			Address cloneAddr=new Address();
+			Address existAddr=existUserInfo.getBillingAddress();
+			cloneAddr.setCareof(existAddr.getCareof());
+			
+			cloneAddr.setStreet1(AccountAccess.validateInput(updDataBean.get("address1")));
+			cloneAddr.setStreet2(AccountAccess.validateInput(updDataBean.get("address2")));
+		
+			cloneAddr.setStreet3(AccountAccess.validateInput(updDataBean.get("address3")));
+			cloneAddr.setCity(AccountAccess.validateInput(updDataBean.get("city")));
+			cloneAddr.setState(AccountAccess.validateInput(updDataBean.get("state")));
+			cloneAddr.setZip(AccountAccess.validateInput(updDataBean.get("zip")));
+			cloneAddr.setCountry(com.aol.obi.schema.CountryCode.US);
+			cloneUserInfo.setBillingAddress(cloneAddr);
+			
+			cloneInstrument.setUserInformation(cloneUserInfo);
+			
+			/*String myUniqueIdString = updDataBean.get("kapSessionId");
+			SafeTech sftk=new SafeTech();
+			sftk.setKaptchaSessionId(myUniqueIdString);
+			sftk.setSafetechMerchantId("300130");
+			sftk.setWebsiteId("magathr");
+			cloneInstrument.setSafeTech(sftk);
+			
+			authRule.setSafeTechRequired(true);*/
+			cloneInstrument.setAuthRule(authRule);
+			
+			
+		
+			status=premiumAccess.editPaymentInstrumentSubmit(req, rspn, cloneInstrument, sn);
+		}
+		catch (Exception e)
+		{
+			logger.info("SPortal-518, updatePaymentMethodOnly:" ,e);
+		}
+	
+		return status;
+	}
+	
+	private String getSuccessOmniturePageNameString(String cardType, String action)
+	{
+		String strRet="";
+		
+		cardType=cardType.toLowerCase();
+				
+		if (cardType.contains("credit"))
+		{
+			if (action.equalsIgnoreCase("add"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Add-Credit Success";
+			}
+			else if (action.equalsIgnoreCase("edit"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Update-Credit Success";
+			}
+		}
+		else if (cardType.contains("debit"))
+		{
+			if (action.equalsIgnoreCase("add"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Add-Debit Success";
+			}
+			else if (action.equalsIgnoreCase("edit"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Update-Debit Success";
+			}
+		}
+		else if (cardType.contains("checking"))
+		{
+			if (action.equalsIgnoreCase("add"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Add-Checking Success";
+			}
+			else if (action.equalsIgnoreCase("edit"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Update-Checking Success";
+			}
+		}
+		return strRet;
+	}
+	
+	private String getBlankFieldsOmniturePageNameString(String cardType, String action)
+	{
+		String strRet="";
+		
+		cardType=cardType.toLowerCase();
+				
+		if (cardType.contains("credit"))
+		{
+			if (action.equalsIgnoreCase("add"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Add-Credit Error";
+			}
+			else if (action.equalsIgnoreCase("edit"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Update-Credit Error";
+			}
+		}
+		else if (cardType.contains("debit"))
+		{
+			if (action.equalsIgnoreCase("add"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Add-Debit Error";
+			}
+			else if (action.equalsIgnoreCase("edit"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Update-Debit Error";
+			}
+		}
+		else if (cardType.contains("checking"))
+		{
+			if (action.equalsIgnoreCase("add"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Add-Checking Error";
+			}
+			else if (action.equalsIgnoreCase("edit"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Update-Checking Error";
+			}
+		}
+		return strRet;
+	}
+	
+	private String getObiErrorOmniturePageNameString(String cardType, String errorType)
+	{
+		String strRet="";
+		
+		cardType=cardType.toLowerCase();
+				
+		if (cardType.contains("credit"))
+		{
+			if (errorType.equalsIgnoreCase("ced"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Field Error-Credit";
+			}
+			else if (errorType.equalsIgnoreCase("auth"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Authorization failed Error-Credit";
+			}
+			else if (errorType.equalsIgnoreCase("dup"))
+			{
+				strRet= " Manage My Account Details Manage Payment Options Duplicate check Error-Credit";
+			}
+			else if (errorType.equalsIgnoreCase("valid"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Invalid Card Error-Credit";
+			}
+			else if (errorType.equalsIgnoreCase("card"))
+			{
+				strRet= " Manage My Account Details Manage Payment Options Invalid Card Error-Credit";
+			}
+		}
+		else if (cardType.contains("debit"))
+		{
+			if (errorType.equalsIgnoreCase("ced"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Field Error-Debit";
+			}
+			else if (errorType.equalsIgnoreCase("auth"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Authorization failed Error-Debit";
+			}
+			else if (errorType.equalsIgnoreCase("dup"))
+			{
+				strRet= " Manage My Account Details Manage Payment Options Duplicate check Error-Debit";
+			}
+			else if (errorType.equalsIgnoreCase("valid"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Invalid Card Error-Debit";
+			}
+			else if (errorType.equalsIgnoreCase("card"))
+			{
+				strRet= " Manage My Account Details Manage Payment Options Invalid Card Error-Debit";
+			}
+		}
+		else if (cardType.contains("checking"))
+		{
+			if (errorType.equalsIgnoreCase("ced"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Field Error-Checking";
+			}
+			else if (errorType.equalsIgnoreCase("auth"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Authorization failed Error-Checking";
+			}
+			else if (errorType.equalsIgnoreCase("dup"))
+			{
+				strRet= " Manage My Account Details Manage Payment Options Duplicate check Error-Checking";
+			}
+			else if (errorType.equalsIgnoreCase("valid"))
+			{
+				strRet= "Manage My Account Details Manage Payment Options Invalid Card Error-Checking";
+			}
+			else if (errorType.equalsIgnoreCase("card"))
+			{
+				strRet= " Manage My Account Details Manage Payment Options Invalid Routing Number-Checking";
+			}
+		}
+		return strRet;
+	}
+	
+	private void handleAmiPaymentError(boolean isEdit,PaymentBean inputData,HttpServletRequest request,HttpServletResponse response,
+			PaymentMethodUpdateResponse amiRspn, String cardType, String action, String instrumentID, String jspPage)
+		throws ServletException, IOException
+	{
+		String fieldName=amiRspn.getFieldName();
+		
+		if ((fieldName == null ) || (fieldName.length()<=0))
+		{
+			request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+			request.setAttribute("errorMsgText", "The information that you have provided is invalid. Please try again.");
+			request.setAttribute("errorType", "ced");
+			return;
+		}
+	
+		//ced
+		if ((amiRspn.getCedFailed()!=null) && (amiRspn.getCedFailed().booleanValue() == true))
+		{
+			logger.info("update payment CED error");
+			
+			if ((fieldName.equalsIgnoreCase("credit card number")) || (fieldName.equalsIgnoreCase("account"))
+				||(fieldName.equalsIgnoreCase("Direct debit number")) )
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				if (isEdit)
+				{
+					request.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+				}
+				else
+				{
+					if (cardType.contains("Checking"))
+					{
+						request.setAttribute("errorMsgText", "We were not able to authorize the charge on this account please use another payment method.");
+					}
+					else
+					{
+						request.setAttribute("errorMsgText", "We were not able to authorize the charge on this card, please use another card.");
+					}
+					
+					inputData.setInvalidDataFromBackend("ccnumber",cardType);
+					
+				}
+				request.setAttribute("errorType", "ced");
+			}
+			else if (fieldName.equalsIgnoreCase("Expiration date"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your Expiration Date.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("expirationdate",cardType);
+			}
+			else if (fieldName.equalsIgnoreCase("firstNm"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your First Name.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("first",cardType);
+			
+			}
+			else if (fieldName.equalsIgnoreCase("lastNm"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your Last Name.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("last",cardType);
+			}
+			else if (fieldName.equalsIgnoreCase("transit number"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your Routing Number.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("routing",cardType);
+			}
+			else if (fieldName.equalsIgnoreCase("street1"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your Address.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("street1",cardType);
+				
+			}
+			else if (fieldName.equalsIgnoreCase("street2"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your Address.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("street2",cardType);
+				
+			}
+			else if (fieldName.equalsIgnoreCase("street3"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your Address.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("street3",cardType);
+				
+			}
+			else if (fieldName.equalsIgnoreCase("city"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your City.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("city",cardType);
+			}
+			else if (fieldName.equalsIgnoreCase("state"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your State.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("state",cardType);
+			}
+			else if (fieldName.equalsIgnoreCase("zip"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+				request.setAttribute("errorMsgText", "Please correct your Zip Code, it should be a 5 digit number.");
+				request.setAttribute("errorType", "ced");
+				inputData.setInvalidDataFromBackend("zip",cardType);
+			}
+		}//end if ced
+		else if ((amiRspn.getAuthFailed()!=null) && (amiRspn.getAuthFailed().booleanValue() == true))
+		{
+			logger.info("update payment Auth error");
+			
+			if (fieldName.equalsIgnoreCase("account"))
+			{
+				if (isEdit)
+				{
+					request.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+				}
+				else
+				{
+					request.setAttribute("errorMsgName", "error.authorizationFailed");
+					inputData.setInvalidDataFromBackend("ccnumber",cardType);
+				}
+			
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"auth"));
+			
+				request.setAttribute("errorType", "auth");
+			}
+		}
+		else if ((amiRspn.getDupFailed()!=null) &&(amiRspn.getDupFailed().booleanValue() == true))
+		{
+			logger.info("update payment Duplication error");
+			
+			if (fieldName.equalsIgnoreCase("account"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"dup"));
+				request.setAttribute("errorType", "dup");
+				if (isEdit)
+				{
+					request.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+				}
+				else
+				{
+					request.setAttribute("errorMsgName", "error.dupPaymentFailed");
+					inputData.setInvalidDataFromBackend("ccnumber",cardType);
+				}
+			}
+		}
+		else if ((amiRspn.getValidationFailed()!=null) && (amiRspn.getValidationFailed().booleanValue() == true))
+		{
+			logger.info("update payment Validation error");
+			if (fieldName.equalsIgnoreCase("account"))
+			{
+				request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"valid"));
+				request.setAttribute("errorType", "valid");
+				
+				if (isEdit)
+				{
+					request.setAttribute("errorMsgText", "This payment method is not eligible to be updated, please create a new payment method.");
+				}
+				else
+				{
+					request.setAttribute("errorMsgName", "error.validationFailed");
+					inputData.setInvalidDataFromBackend("ccnumber",cardType);
+				}
+			}
+		}
+		else
+		{
+			request.setAttribute("omniturepagename",getObiErrorOmniturePageNameString(cardType,"ced"));
+			request.setAttribute("errorMsgText", "Sorry!  We are having issues with our systems.  Please try again later.");
+			request.setAttribute("errorType", "ced");
+		}
+		return;
+	}
+	
+	public boolean isValidateTime(String year, String month)
+	throws ServletException, IOException
+	{
+		if ((year==null) || (year.length()!=2))
+		{
+			return false;
+		}
+		if ((month==null) || (month.length()!=2))
+		{
+			return false;
+		}
+			
+		int intYear=Integer.parseInt(year.trim());
+		intYear=2000+intYear;
+		
+		int intMonth=Integer.parseInt(month.trim());
+		
+		if ((intMonth<1) || (intMonth>12))
+			return false;
+		
+		Calendar today = Calendar.getInstance();
+		Calendar firstDayofThisMonth = new GregorianCalendar(today.get(Calendar.YEAR), today.get(Calendar.MONTH), 1);
+		Calendar tenYearsLater = new GregorianCalendar(today.get(Calendar.YEAR), 11, 3);
+		tenYearsLater.roll(Calendar.YEAR, 10);
+		
+		//month start from 0
+		Calendar expirationDate = new GregorianCalendar(intYear, intMonth-1, 2);
+
+		if (expirationDate.after(firstDayofThisMonth) && expirationDate.before(tenYearsLater))
+		{
+		    return true;
+		}
+		return false;
+	}
+}

@@ -1,0 +1,33 @@
+package pack;
+
+import java.util.PriorityQueue;
+
+public class PriorityQueueDS {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		PriorityQueue<Integer> priorityQueue = new PriorityQueue<Integer>();
+		Int obj = new Int();
+		System.out.println(obj.compareTo(new Integer(5)));
+	}
+
+}
+
+class PriorityQ {
+	
+}
+
+class Int implements Comparable<Integer> {
+
+	int i;
+	@Override
+	public int compareTo(Integer o) {
+		if(this.i > o) 
+			return 1;
+		if(this.i < o)
+			return -1;
+		else
+			return 0;
+	}
+	
+}

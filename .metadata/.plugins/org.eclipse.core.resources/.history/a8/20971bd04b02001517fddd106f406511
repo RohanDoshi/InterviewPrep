@@ -1,0 +1,17 @@
+package careerCup;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class Trie {
+	
+	private class TrieNode { 
+		char c;
+		Map<Character, TrieNode> map;
+		
+		public TrieNode(char c) {
+			this.c = c;
+			this.map = new HashMap<Character,TrieNode>();
+		}
+	}
+}

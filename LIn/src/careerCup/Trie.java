@@ -1,0 +1,91 @@
+package careerCup;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class Trie {
+	
+	private class TrieNode { 
+		char c;
+		Map<Character, TrieNode> map;
+		boolean isWord;
+		int count;
+		
+		public TrieNode(char c) {
+			this.c = c;
+			this.map = new HashMap<Character,TrieNode>();
+		}
+		
+		boolean containsChild(char ch) {
+			return map.containsKey(ch);
+		}
+		
+		TrieNode getChild(char ch) {
+			return map.get(ch);
+		}
+		
+		void addChild(char ch, TrieNode node) {
+			map.put(ch, node);
+		}
+		
+		Character[] getKeys() {
+			return map.keySet().toArray(new Character[map.size()]);
+		}
+		
+		int getNumberOfChildren() {
+			return map.size();
+		}
+		
+		boolean isWord() {
+			return isWord;
+		}
+		
+	}
+	
+	private TrieNode root; 
+	
+	public Trie() {
+		this.root = new TrieNode('\0');
+	}
+	
+	public void insert(String word) {
+		if(word == null || word.isEmpty())
+			return;
+		
+		TrieNode curr = root;
+		for(char c : word.toCharArray()) {
+			TrieNode node = curr.getChild(c);
+			if(node == null) {
+				node = new TrieNode(c);
+				curr.addChild(c, node);
+			} 
+			curr = node;
+		}
+		
+		curr.isWord = true;
+		curr.count++;
+	}
+	
+	public String longestRepeatingSubstring() {
+		TrieNode curr = root;
+		String longest[] = {""};
+		longestRepeatingSubstring(curr, "", longest);
+		return longest[0];
+	}
+	
+	private void longestRepeatingSubstring(TrieNode curr, String str, String[] longest) {
+		if(curr == null) 
+			return;
+		
+		if(curr.count >= 2) {
+			if(str.length() > longest[0].length())
+				longest[0] = str;
+			return;
+		}
+		
+		Character keys[] = curr.getKeys();
+		for(Character ch : keys) {
+			longestRepeatingSubstring(curr.getChild(ch), str + ch, longest);
+		}
+	}
+}

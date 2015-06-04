@@ -1,0 +1,152 @@
+package pack;
+
+import java.util.Arrays;
+
+public class ArrayDataStructure {
+	public static void main(String args[]) {
+		int arr[] = {91, 56, 58, 57, 90, 92, 94, 93, 1, 45};//{1,2,3};
+		Arr obj = new Arr();
+		//obj.printPermutations(arr);
+		//obj.largestSubArr(arr);
+		IntersectionArrays arrays = new IntersectionArrays();
+		int ar1[] = {1, 5, 10, 20, 40, 80};
+		int ar2[] = {6, 7, 20, 80, 100};
+		int ar3[] = {3, 4, 15, 20, 30, 70, 80, 120};
+		
+		//arrays.printCommonElements(ar1, ar2, ar3);
+		BinarySearch binarySearch = new BinarySearch();
+		System.out.println(binarySearch.numOfOccur(1));
+	}
+}
+
+class ShiftedArray {
+	int[] arr = {4,5,6,7,8,9,1,2,3};
+	
+}
+
+class BinarySearch {
+	
+	int a[] = {1, 1, 2, 2, 2, 2, 3,};
+	
+	public int numOfOccur(int val) {
+		int i =  bsLastOccurenceIndex(a, 0, a.length-1, val); 
+		int j = bsFirstOccurenceIndex(a, 0, a.length-1, val) ;
+		return i-j+1;
+	}
+	public int bsFirstOccurenceIndex(int a[], int from, int to, int val) {
+		if(from > to) 
+			return -1;
+		
+		int mid = (from + to) /2;
+		
+		if(a[mid] == val && (mid == 0 || a[mid-1] < a[mid])) {
+			return mid;
+		} else if(a[mid] < val){ 
+			return bsFirstOccurenceIndex(a, mid+1, to, val);
+		} else {
+			return bsFirstOccurenceIndex(a, from, mid-1, val);
+		}
+		
+	}
+	
+	public int bsLastOccurenceIndex(int a[], int from, int to, int val) {
+		if(from > to) 
+			return -1;
+		
+		int mid = (from + to) /2;
+		
+		if(a[mid] == val && (mid == a.length-1 || a[mid+1] > a[mid])) {
+			return mid;
+		} else if(a[mid] <= val){ 
+			return bsLastOccurenceIndex(a, mid+1, to, val);
+		} else {
+			return bsLastOccurenceIndex(a, from, mid-1, val);
+		}
+		
+	}
+}
+
+class IntersectionArrays { 
+	
+	public void printCommonElements(int[] a, int[] b, int[] c) {
+		int i=0, j=0, k=0;
+		while(i<a.length && j<b.length && k < c.length) {
+			if(a[i] == b[j] && a[i] == c[k]) {
+				System.out.print(a[i]+" ");
+				i++; j++; k++;
+			} else {
+				if(a[i] < b[j]) {
+					i++;
+					if(b[j] < c[k]) {
+						j++;
+					} else if(b[j] > c[k]) {
+						k++;
+					} else { 
+						
+					}
+				} else if(a[i] > b[j]) {
+					j++;
+					if(a[i] > c[k]) {
+						k++;
+					} else if(a[i] < c[k]) {
+						i++;
+					}
+				} else {
+					if(a[i] < c[k]) {
+						i++;
+						j++;
+					} else if(a[i] > c[k]){
+						k++;
+					}
+				}
+			}
+		}
+	}
+}
+
+class Arr {
+	
+	public void largestSubArr(int arr[]) {
+		int maxLen = 0;
+		for(int i=0; i<arr.length; i++) {
+			int max = arr[i];
+			int min = arr[i];
+			for(int j=i+1; j<arr.length; j++) {
+				if(max < arr[j]) {
+					max = arr[j];
+				}
+				if(min > arr[j]) {
+					min = arr[j];
+				}
+				
+				if(max-min == j-i) {
+					maxLen = Math.max(maxLen, j-i + 1);
+				}
+			}
+		}
+		System.out.println("maxLen = " +maxLen);
+	}
+	
+	
+	public void printPermutations(int arr[]) {
+		printPerm(arr, 0);
+	}
+	
+	private void printPerm(int arr[], int index) {
+		if(index == arr.length) {
+			System.out.println(Arrays.toString(arr));
+			return;
+		}
+		for(int i= index; i < arr.length; i++) {
+			swap(arr, i, index);
+			printPerm(arr, index+1);
+			swap(arr, i,index);
+		}
+	}
+	
+	private void swap(int arr[], int i, int j) {
+		int temp = arr[i];
+		arr[i] = arr[j];
+		arr[j] = temp;
+	}
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="conditionHistory">
+	</section>
+	<section name="org.eclipse.jdt.internal.debug.ui.ExpressionInformationControlCreator$ExpressionInformationControl">
+		<item value="765" key="SashWeightTree"/>
+		<item value="234" key="SashWeightDetails"/>
+		<item value="728" key="WIDTH"/>
+		<item value="432" key="HEIGHT"/>
+	</section>
+	<section name="org.eclipse.jdt.debug.ui.RUNTIME_CLASSPATH_ADVANCED_DIALOG">
+		<item value="212" key="DIALOG_WIDTH"/>
+		<item value="1|Lucida Grande|11.0|0|COCOA|1|LucidaGrande" key="DIALOG_FONT_NAME"/>
+		<item value="277" key="DIALOG_HEIGHT"/>
+		<item value="136" key="DIALOG_Y_ORIGIN"/>
+		<item value="294" key="DIALOG_X_ORIGIN"/>
+	</section>
+</section>

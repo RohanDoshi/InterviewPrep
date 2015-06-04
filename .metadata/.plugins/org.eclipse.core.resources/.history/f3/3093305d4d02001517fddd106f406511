@@ -1,0 +1,52 @@
+package careerCup;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class Trie {
+	
+	private class TrieNode { 
+		char c;
+		Map<Character, TrieNode> map;
+		
+		public TrieNode(char c) {
+			this.c = c;
+			this.map = new HashMap<Character,TrieNode>();
+		}
+		
+		boolean containsChild(char ch) {
+			return map.containsKey(ch);
+		}
+		
+		TrieNode getChild(char ch) {
+			return map.get(ch);
+		}
+		
+		void addChild(char ch, TrieNode node) {
+			map.put(ch, node);
+		}
+	}
+	
+	private TrieNode root; 
+	
+	public Trie() {
+		this.root = new TrieNode('\0');
+	}
+	
+	public void insert(String word) {
+		if(word == null || word.isEmpty())
+			return;
+		
+		TrieNode curr = root;
+		for(char c : word.toCharArray()) {
+			TrieNode node = curr.getChild(c);
+			if(node == null) {
+				node = new TrieNode(c);
+				curr.addChild(c, node);
+			} 
+			curr = node;
+		}
+	}
+	
+	
+}

@@ -1,0 +1,119 @@
+package pack;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class General2 {
+
+	public static void main(String[] args) {
+		int denom[] = {1, 5, 10, 25 };
+		int quantity[] = {10, 10, 10, 10};
+		MinCoins coins = new MinCoins(denom, quantity);
+		System.out.println(coins.findMinCoins(35));
+		System.out.println(coins.findMinCoins(37));
+		System.out.println(Arrays.toString(coins.returnChange(35)));
+		System.out.println(Arrays.toString(coins.returnChange(37)));
+	}
+
+}
+
+class KnapSack {
+	
+	int val[] = {60, 100, 120};
+    int wt[] = {10, 20, 30};
+    int W = 50;
+}
+
+class MinCoins {
+	private int denom[];
+	private int quantity[]; 
+	private Map<Integer, List<Integer>> listOfMinCoins ;
+	
+	public MinCoins(int[] denom, int[] quantity) {
+		this.denom = denom;
+		this.quantity = quantity;
+	}
+	
+	public Integer[] returnChange(int change) {
+		listOfMinCoins = new HashMap<>();
+		List<Integer> list = returnChangeCoins(change, listOfMinCoins);
+		return list.toArray(new Integer[list.size()]);
+	}
+	public int findMinCoins(int change) {
+		int storedMin[] = new int[change+1];
+		Arrays.fill(storedMin, -1);
+		int res =  findMinCoins(change, storedMin);
+		return res;
+	}
+	
+	public int findMinCoins(int change, int storedMin[]) {
+		if(change <= 0) {
+			storedMin[0] = 0;
+			return 0;
+		}
+		
+		if(storedMin[change] != -1) {
+			return storedMin[change];
+		}
+		int minCoins = -1;
+		for(int den : denom) {
+			if(change >= den) {
+				int numCoins = findMinCoins(change-den, storedMin) + 1;
+				if(minCoins == -1) {
+					minCoins = numCoins;
+				} else {
+					minCoins = Math.min(minCoins, numCoins);
+				}
+			}
+		}
+		
+		if(minCoins == -1) {
+			storedMin[change] = 0;
+			return 0;
+		} else {
+			storedMin[change] = minCoins;
+			return minCoins;
+		}
+	}
+	
+	public List<Integer> returnChangeCoins(int change, Map<Integer, List<Integer>> listOfMinCoins) {
+		
+		if(change == 0) {
+			List<Integer> list = new ArrayList<>();
+			listOfMinCoins.put(change, list);
+			return list;
+		}
+		if(listOfMinCoins.get(change) != null) {
+			return listOfMinCoins.get(change);
+ 		}
+		List<Integer> min = null;
+	
+		for(int i=0; i<denom.length; i++) {
+			if(change >= denom[i]) {
+				// min coins with this denom
+				List<Integer> minCoins = returnChangeCoins(change - denom[i],listOfMinCoins) ;
+				if(minCoins != null) {
+					minCoins.add(denom[i]);
+				
+					if(min == null) {
+						min = minCoins;
+					} else if(minCoins.size() < min.size()) {
+						min = minCoins;
+					}
+				}
+			}
+		}
+		if(min == null) {
+			listOfMinCoins.put(change, null);
+			return null;
+		}
+		listOfMinCoins.put(change, min);
+		return min;
+				
+	}
+	
+	
+}

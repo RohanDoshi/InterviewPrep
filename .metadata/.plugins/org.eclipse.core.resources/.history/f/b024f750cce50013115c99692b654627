@@ -1,0 +1,1696 @@
+package com.aol.sportal.util;
+
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.ResourceBundle;
+import java.util.StringTokenizer;
+import java.util.UUID;
+import java.util.regex.Pattern;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.log4j.Logger;
+import org.codehaus.jackson.map.ObjectMapper;
+
+import com.aol.cbi.api.CustomerProfile;
+import com.aol.cbi.api.Result;
+import com.aol.cbi.api.impl.SubAccountProfileImpl;
+import com.aol.cbi.api.impl.udr2.Device;
+import com.aol.cc.common.account.AccountUpdateResponse;
+import com.aol.cc.common.account.MorfAccountInfoDataBean;
+import com.aol.cc.common.account.UpdateRequest;
+import com.aol.cc.common.accountstatus.AccountStatusRequest;
+import com.aol.cc.common.accountstatus.AccountStatusResponse;
+import com.aol.cc.common.biz.CCBizAccount;
+import com.aol.cc.common.biz.CCBizContactInfo;
+import com.aol.cc.common.biz.CCBizSubAccount;
+import com.aol.obi.schema.Instrument;
+import com.aol.sportal.app.AppSession;
+import com.aol.sportal.app.MorfSession;
+import com.aol.sportal.app.SPortalSession;
+import com.aol.sportal.beans.AccountData;
+import com.aol.sportal.beans.ContactInfoBean;
+import com.aol.sportal.beans.LoginInfo;
+import com.aol.sportal.beans.MorfData;
+import com.aol.sportal.beans.NewPaymentBean;
+import com.aol.sportal.beans.UserSessionObj;
+import com.aol.sportal.model.AccountInformationModel;
+import com.aol.sportal.model.AccountStatusModel;
+import com.aol.sportal.model.BrsModelHelper;
+import com.aol.sportal.model.ModelManager;
+import com.aol.sportal.model.ModelType;
+import com.aol.sportal.model.PriceInfoModel;
+import com.aol.sportal.model.UdrModelHelper;
+import com.aol.util.hog4j.MsStats;
+
+public class AccountAccess{
+	
+	private static MsStats SPortalStatistics = null;
+	private static final Logger logger = Logger.getLogger(AccountAccess.class);
+	public static MsStats getStats() {
+		if (SPortalStatistics == null) {
+			double transactionThreshold = 0, percentage = 0;
+			try {
+				
+				ResourceBundle resources = null;
+				if (resources == null) {
+					resources = ResourceBundle.getBundle("ApplicationResources");
+					String thresholdTimeStr = resources.getString("transactionTimeThresold");
+					String thresholPercentageStr = resources.getString("transactionPercentageThresold");
+					transactionThreshold = Double.parseDouble(thresholdTimeStr);
+					percentage = Double.parseDouble(thresholPercentageStr);
+				}
+				
+			} catch (Exception e) {
+				logger.error("Error getting the threshold params from applicationResource.properties, using default.transactionThreshold = 2000 percentage = 20", e);
+				transactionThreshold = 2000;
+				percentage = 20;
+				
+			}
+			try {
+				SPortalStatistics = MsStats.instance("SPortal", transactionThreshold, percentage);
+			} catch (Exception e) {
+				logger.error("failed to call MsStats.instance(), please investigate!", e);
+			}
+		}
+		return SPortalStatistics;
+	}
+	
+	public static void updateStats(String transactionName, long milliSeconds) {
+		getStats();
+		if (SPortalStatistics != null) SPortalStatistics.update(transactionName.replace(":", " "), milliSeconds);
+	}
+	
+	public static AccountData getAcctData(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		
+		return getSession(req, rspn).getAccountData(req);
+	}
+	
+	public static MorfData getMorfData(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		
+		return getMorfSession(req, rspn).getAccountData(req);
+	}
+	
+	public static String getCdnUrl(HttpServletRequest req) {
+		String urlString;
+		
+		try {
+			ResourceBundle rb = SPortalSession.getResources(req);
+			urlString = rb.getString("label.cdn.url");
+		} catch (Exception e) {
+			return "https://s.aolcdn.com/bill.aol.com";
+		}
+		
+		if (urlString == null) return "https://s.aolcdn.com/bill.aol.com";
+		
+		return urlString;
+	}
+	
+	public static String getBillUrl(HttpServletRequest req) {
+		String urlString;
+		
+		try {
+			ResourceBundle rb = SPortalSession.getResources(req);
+			urlString = rb.getString("omniture.sitedomain");
+		} catch (Exception e) {
+			return "bill.aol.com";
+		}
+		
+		if (urlString == null) return "bill.aol.com";
+		
+		return urlString;
+	}
+	
+	public static String getHelpUrl(HttpServletRequest req) {
+		String urlString;
+		
+		try {
+			ResourceBundle rb = SPortalSession.getResources(req);
+			urlString = rb.getString("help.url");
+		} catch (Exception e) {
+			return "http://help.aol.com";
+		}
+		
+		if (urlString == null) return "http://help.aol.com";
+		
+		return urlString;
+	}
+	
+	public static String getParentalControlUrl(HttpServletRequest req) {
+		String urlString;
+		
+		try {
+			ResourceBundle rb = SPortalSession.getResources(req);
+			urlString = rb.getString("parental.control.url");
+		} catch (Exception e) {
+			return "https://parentalcontrols.aol.com";
+		}
+		
+		if (urlString == null) return "https://parentalcontrols.aol.com";
+		
+		return urlString;
+	}
+	
+	public static String getLoginItem(HttpServletRequest req, String item) {
+		LoginInfo myLoginInfo = SPortalSession.getLoginInfo(req);
+		if (myLoginInfo == null) return "";
+		return myLoginInfo.getValue(req, item);
+	}
+	
+	public static boolean isFreePi(HttpServletRequest request, HttpServletResponse response) {
+		if (AccountAccess.isMorf(request) == true) return true;
+		
+		UserSessionObj userSessionObj;
+		try {
+			userSessionObj = AccountAccess.getUserSessionObj(request, response);
+			if (userSessionObj.getFreePricePlan() != null) return userSessionObj.getFreePricePlan().booleanValue();
+		} catch (Exception e) {
+			userSessionObj = null;
+		}
+		String pi;
+		try {
+			pi = AccountAccess.getAcctData(request, response).getMAAcctCurrentPiStr(request, response);
+		} catch (Exception e) {
+			pi = AccountAccess.getLoginItem(request, "mst_price_index");
+		}
+		ModelManager modelManager = new ModelManager();
+		BrsModelHelper brsModelHelper = (BrsModelHelper) modelManager.factory(ModelType.BRS);
+		boolean isFree = brsModelHelper.getIsFree(pi);
+		if (userSessionObj != null) userSessionObj.setFreePricePlan(new Boolean(isFree));
+		
+		return isFree;
+	}
+	
+	public static boolean isPatchAccount(HttpServletRequest request, HttpServletResponse response) {
+		
+		boolean isPatch = false;
+		String pi;
+		if (AccountAccess.isMorf(request)) {
+			return false;
+		}
+		else if(AccountAccess.isEnGb(request)==true) {
+			return false;
+		}
+	/*	else if (AccountAccess.isUSAOL(request) == false) {
+			return false;
+		} */
+		else {
+			try {
+				pi = AccountAccess.getAcctData(request, response).getMAAcctCurrentPiStr(request, response);
+			} catch (Exception e) {
+				pi = AccountAccess.getLoginItem(request, "mst_price_index");
+			}
+			ModelManager modelManager = new ModelManager();
+			BrsModelHelper brsModelHelper = (BrsModelHelper) modelManager.factory(ModelType.BRS);
+			String category = brsModelHelper.getPricePlanCategory(pi);
+			if (category != null && (category.equalsIgnoreCase("0075") || category.equalsIgnoreCase("0076") || category.equalsIgnoreCase("0077") )) isPatch = true;
+			
+			logger.debug("category from WBRS =" + category);
+		}
+		return isPatch;
+	}
+	
+	public static boolean isFreeAccount(HttpServletRequest req) {
+		String brandiString = getLoginItem(req, "mst_brandi");
+		
+		Boolean isCurrentPIFreeBoolean = (Boolean) req.getSession().getAttribute("isCurrentPIFree");
+		if (isCurrentPIFreeBoolean != null) {
+			// read from the session and return
+			logger.debug("AccountAccess::isFreeAccount returning from session ");
+			return isCurrentPIFreeBoolean.booleanValue();
+		} else {
+			// did not get from the session, so call back-end to get priceInfo -
+			// determine if free or not.
+			String accountNumber = AccountAccess.getLoginItem(req, "mst_acct_number");
+			PricePlanUtil pricePlanUtil = new PricePlanUtil();
+			PriceInfoModel priceInfoModel = null;
+			try {
+				priceInfoModel = pricePlanUtil.getPriceInfoObj(req, new Long(accountNumber).longValue());
+			} catch (NumberFormatException e) {
+				logger.error("Error getting the priceplan is free from REE" + e, e);
+			} catch (Exception e) {
+				logger.error("Error getting the priceplan is free from REE" + e, e);
+			}
+			
+			req.getSession().setAttribute("priceInfoModel", priceInfoModel);
+			logger.debug("After Calliing REE to get price Info");
+			if (priceInfoModel != null) {
+				
+				Boolean ischeckReactivationBoolean = new Boolean(priceInfoModel.isCheckReactivation());
+				req.getSession().setAttribute("checkReactivation", ischeckReactivationBoolean);
+				isCurrentPIFreeBoolean = new Boolean(priceInfoModel.isCurrentPiFree());
+				// System.out.println("KKKKKKKKKKKKKK isCurrentPiFree=" +
+				// isCurrentPIFreeBoolean);
+				req.getSession().setAttribute("isCurrentPIFree", isCurrentPIFreeBoolean);
+				req.getSession().setAttribute("checkReactivation", ischeckReactivationBoolean);
+				
+				logger.debug("In AccountAccess setting the isCurrentPIFree= " + isCurrentPIFreeBoolean + "ischeckReactivationBoolean= " + ischeckReactivationBoolean);
+				return isCurrentPIFreeBoolean.booleanValue();
+				
+			} else {
+				// could not determine from session or priceInfo - rely on
+				// Brandi 100.
+				return (brandiString != null && brandiString.equals("100"));
+			}
+		}
+	}
+	
+	public static boolean showSurveyPopup(HttpServletRequest req) {
+		int NthVisitor;
+		
+		try {
+			ResourceBundle rb = SPortalSession.getResources(req);
+			NthVisitor = Integer.parseInt(rb.getString("label.survey.nthvisitor"));
+		} catch (Exception e) {
+			logger.error(e, e);
+			return false;
+		}
+		
+		if (NthVisitor == 0) return false;
+		
+		SPortalSession.RANDOM_SURVEY_COUNTER++;
+		int displaysurvey = SPortalSession.RANDOM_SURVEY_COUNTER % NthVisitor;
+		
+		if (displaysurvey == 0) return true;
+		
+		return false;
+	}
+	
+	public static String getResourceString(HttpServletRequest req, String name) {
+		String valueString;
+		
+		try {
+			ResourceBundle rb = SPortalSession.getResources(req);
+			valueString = rb.getString(name);
+		} catch (Exception e) {
+			return "";
+		}
+		
+		if (valueString == null) return "";
+		
+		return valueString;
+	}
+	
+	public static boolean isMasterAccount(HttpServletRequest req) {
+		
+		return (getLoginItem(req, "is_primary_master").equals("1") || getLoginItem(req, "sub_is_master_acct").equals("1"));
+	}
+	
+	/**
+	 * the number values defined in the function is used by main.jsp,
+	 * Permission.java
+	 * 
+	 * @param req
+	 * @return
+	 */
+	public static short getAccountType(HttpServletRequest req) {
+		
+		String groupId = getLoginItem(req, "GrpID");
+		String pi = getLoginItem(req, "mst_price_index");
+		String paymentindex = getLoginItem(req, "mst_payment_index");
+		logger.debug("In getAccountType groupId=" + groupId + "pi=" + pi + "paymentindex=" + paymentindex);
+		if (groupId.equals("I")) return 1; // = internal
+		else if (groupId.equals("O")) return 2; // = overhead
+		else if ((groupId.equals("N") || groupId.equals("B")) && paymentindex.equals("9")) return 3; // = invoice
+		else if ((groupId.equals("N") || groupId.equals("B")) && paymentindex.equals("25")) return 4; // = prepaid
+		else if ((groupId.equals("N") || groupId.equals("B")) && pi.equals("128")) return 5; // = one plus one
+		
+		return 0; // = regular account
+		
+	}
+	
+	public static SPortalSession getSession(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		
+		SPortalSession mySession = SPortalSession.getSession(req);
+		if (mySession == null) {
+			logger.error("SPortal-827:failed to get mySession, master acct number:" + getLoginItem(req, "mst_acct_number"));
+			displayError(req, rspn, "error.systemError");
+		}
+		
+		return mySession;
+	}
+	
+	public static MorfSession getMorfSession(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		
+		MorfSession mySession = MorfSession.getSession(req);
+		if (mySession == null) {
+			logger.error("SPortal-827:failed to get mySession, master acct number:" + getLoginItem(req, "mst_acct_number"));
+			displayError(req, rspn, "error.systemError");
+		}
+		
+		return mySession;
+	}
+	
+	public static boolean getHasAddedTooManyPM(HttpServletRequest req, HttpServletResponse rspn, String sn) throws ServletException, IOException {
+		AppSession mySession = null;
+		if (isMorf(req) == false) {
+			mySession = AccountAccess.getSession(req, rspn);
+		} else {
+			mySession = AccountAccess.getMorfSession(req, rspn);
+		}
+		
+		if (mySession != null) { return mySession.isHasAddedTooManyPM(AccountAccess.compressSN(sn)); }
+		
+		return false;
+	}
+	
+	public static void setHasAddedTooManyPM(HttpServletRequest req, HttpServletResponse rspn, boolean isTooMany, String sn) throws ServletException, IOException {
+		AppSession mySession = null;
+		if (isMorf(req) == false) {
+			mySession = AccountAccess.getSession(req, rspn);
+		} else {
+			mySession = AccountAccess.getMorfSession(req, rspn);
+		}
+		
+		if (mySession != null) {
+			mySession.setHasAddedTooManyPM(isTooMany, AccountAccess.compressSN(sn));
+		}
+		return;
+	}
+	
+	public static CCBizContactInfo getContactInfoObj(HttpServletRequest req, HttpServletResponse rspn, String screenName, boolean isPrimaryMaster) throws ServletException, IOException {
+		CCBizContactInfo contactInfoBean = null;
+		
+		if (AccountAccess.isMorf(req) == true) {
+			contactInfoBean = getMorfSession(req, rspn).getContactInfoObj(req, rspn, screenName);
+			
+			String guid = AccountAccess.getLoginItem(req, "guid");
+			if ((guid != null) && (guid.length() > 0)) screenName = guid;
+		} else contactInfoBean = getSession(req, rspn).getContactInfoObj(req, rspn, screenName, isPrimaryMaster);
+		
+		if (contactInfoBean == null) {
+			logger.error("SPortal-828:failed to get myAccountObject, master acct number:" + getLoginItem(req, "mst_acct_number"));
+		}
+		
+		if (AccountAccess.isUSAOL(req) == true) {
+			String latestMobileNumber = null;
+			ModelManager modelManager = new ModelManager();
+			UdrModelHelper udrModel = (UdrModelHelper) modelManager.factory(ModelType.UDR);
+			
+			try {
+				Device devc = udrModel.getLatestMobile(screenName, null);
+				
+				if (devc != null) latestMobileNumber = devc.getNumber();
+				
+				if ((latestMobileNumber != null) && (latestMobileNumber.length() > 2)) // maybe
+				// is
+				// -1
+				{
+					if (contactInfoBean == null) { // aio and dbr both failed
+						contactInfoBean = new CCBizContactInfo();
+					}
+					
+					// add mobile to bean
+					contactInfoBean.setMobilePhone(latestMobileNumber);
+					
+					if (devc.isConfirmed() == true) contactInfoBean.setMobileStatus("yes");
+					else contactInfoBean.setMobileStatus("no");
+					
+					logger.debug("Mobile phone number returned from UDR=" + latestMobileNumber);
+				} else { // ignore this field, and log it
+					contactInfoBean.setMobilePhone("");
+					logger.debug("UDR GetLatestMobileNumber is empty");
+				}
+			} catch (Exception e) {
+				contactInfoBean.setMobilePhone("");
+				logger.error("UDR GetLatestMobileNumber exception", e);
+			}
+		}
+		
+		return contactInfoBean;
+	}
+	
+	public static AccountUpdateResponse setContactInfoObj(HttpServletRequest req, HttpServletResponse rspn, UpdateRequest updateRequest, String screenName, boolean isPrimaryMaster)
+					throws ServletException, IOException {
+		AccountUpdateResponse accountUpdateResponse = null;
+		accountUpdateResponse = getSession(req, rspn).setContactInfoObj(req, rspn, updateRequest, screenName, isPrimaryMaster);
+		
+		if (accountUpdateResponse == null) {
+			accountUpdateResponse = new AccountUpdateResponse();
+			accountUpdateResponse.setStatus(Result.ERROR);
+			logger.error("SPortal-828:failed to get myAccountObject, master acct number:" + getLoginItem(req, "mst_acct_number"));
+			// displayError(req, rspn, "error.systemError");
+		}
+		return accountUpdateResponse;
+	}
+	
+	public static AccountUpdateResponse setContactInfoObj(HttpServletRequest req, HttpServletResponse rspn, UpdateRequest updateRequest, String screenName) throws ServletException, IOException {
+		AccountUpdateResponse accountUpdateResponse = null;
+		accountUpdateResponse = getSession(req, rspn).setDmsnContactInfoObj(req, rspn, updateRequest, screenName);
+		
+		if (accountUpdateResponse == null) {
+			accountUpdateResponse = new AccountUpdateResponse();
+			accountUpdateResponse.setStatus(Result.ERROR);
+			logger.error("SPortal-828:failed to get myAccountObject, master acct number:" + getLoginItem(req, "mst_acct_number"));
+			// displayError(req, rspn, "error.systemError");
+		}
+		return accountUpdateResponse;
+	}
+	
+	public static AccountUpdateResponse setMorfContactInfoObj(HttpServletRequest req, HttpServletResponse rspn, UpdateRequest updateRequest, String screenName) throws ServletException, IOException {
+		AccountUpdateResponse accountUpdateResponse = null;
+		accountUpdateResponse = getMorfSession(req, rspn).setMorfContactInfoObj(req, rspn, updateRequest, screenName);
+		
+		if (accountUpdateResponse == null) {
+			accountUpdateResponse = new AccountUpdateResponse();
+			accountUpdateResponse.setStatus(Result.ERROR);
+			logger.error("SPortal-828:failed to get myAccountObject, master acct number:" + getLoginItem(req, "mst_acct_number"));
+			// displayError(req, rspn, "error.systemError");
+		}
+		return accountUpdateResponse;
+	}
+	
+	public static void setContactInfoObj(HttpServletRequest req, HttpServletResponse rspn, String screenName, UpdateRequest updateRequest, boolean isPrimaryMaster) throws ServletException,
+					IOException {
+		ContactInfoBean contactInfoBean = null;
+		getSession(req, rspn).setContactInfoObj(req, rspn, updateRequest, screenName, isPrimaryMaster);
+		
+		if (contactInfoBean == null) {
+			contactInfoBean.setStatus(Result.ERROR);
+			logger.error("SPortal-828:failed to get myAccountObject, master acct number:" + getLoginItem(req, "mst_acct_number"));
+			// displayError(req, rspn, "error.systemError");
+		}
+		// return contactInfoBean;
+	}
+	
+	public static AccountInformationModel getAcctObj(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		AccountInformationModel acctObj = null;
+		acctObj = getSession(req, rspn).getAcctObj(req);
+		
+		if (acctObj == null) {
+			logger.error("SPortal-828:failed to get myAccountObject, master acct number:" + getLoginItem(req, "mst_acct_number"));
+			displayError(req, rspn, "error.systemError");
+		}
+		return acctObj;
+	}
+	
+	public static AccountInformationModel getAcctObjCare(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		AccountInformationModel acctObj = null;
+		acctObj = getSession(req, rspn).getAcctObj(req);
+		return acctObj;
+	}
+	
+	public static MorfAccountInfoDataBean getMorfAcctObj(HttpServletRequest req, HttpServletResponse rspn) throws Exception {
+		MorfAccountInfoDataBean acctObj = null;
+		acctObj = getMorfSession(req, rspn).getAcctObj(req);
+		if (acctObj == null) {
+			logger.error("SPortal-828:failed to get morf AcctObj, nick:" + getLoginItem(req, "nick"));
+			displayError(req, rspn, "error.systemError");
+		}
+		return acctObj;
+	}
+	
+	public static void displayError(HttpServletRequest req, HttpServletResponse rspn, String errorMsgName) throws ServletException, IOException {
+		logger.warn("AccessAccount.displayError() function called, the error name is: " + errorMsgName);
+		RequestDispatcher dispatcher = req.getRequestDispatcher("/jsp/error.jsp");
+		
+		if (errorMsgName != null) req.setAttribute("errorName", errorMsgName);
+		dispatcher.forward(req, rspn);
+	}
+	
+	public static void dispatchJsp(HttpServletRequest request, HttpServletResponse response, String jspFileName) throws ServletException, IOException {
+		RequestDispatcher dispatcher = request.getRequestDispatcher(jspFileName);
+		dispatcher.forward(request, response);
+		return;
+	}
+	
+	public static String encodeMD5HashBase64(String inputValue) {
+		
+		String encodedInputValueHash;
+		sun.misc.BASE64Encoder encoder;
+		
+		if (inputValue == null) return null;
+		
+		try {
+			// create a message Digest for MD5 hash
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			
+			// convert the input String to bytes to perform the hash
+			byte[] inputValueBytes = inputValue.getBytes();
+			
+			md.update(inputValueBytes);
+			
+			// excute has algorithm in the byte array
+			byte[] inputValueHash = md.digest();
+			
+			try {
+				// Get a instance of the base64 encoder
+				encoder = (sun.misc.BASE64Encoder) Class.forName("sun.misc.BASE64Encoder").newInstance();
+			} catch (Exception e) {
+				// can throw an Instantiation or class not found exception
+				logger.debug("Could not instantiate the sun.misc.BASE64Encoder");
+				return inputValue;
+			}
+			encodedInputValueHash = encoder.encode(inputValueHash);
+			
+		} catch (NoSuchAlgorithmException noSuchAlgo) {
+			// AccountManagerSession.getLogger().error(
+			// "SpAccMgr-FE-502 could not find the MD5 Hash Algorithm: "+noSuchAlgo.getMessage());
+			return inputValue;
+		}
+		
+		return encodedInputValueHash;
+	}
+	
+	public static boolean isInClient(HttpServletRequest request) {
+		// if(1==1) return true;
+		String versionStr = getLoginItem(request, "qc_major_version");
+		if (versionStr == null || versionStr.length() < 1) {
+			versionStr = getLoginItem(request, "version");
+			if (versionStr == null || versionStr.length() < 1) return false;
+		}
+		
+		return true;
+	}
+	
+	public static boolean isGuestUser(HttpServletRequest request) {
+		String guestStr = getLoginItem(request, "guest");
+		if (guestStr != null && guestStr.equals("1") == true) return true;
+		
+		return false;
+	}
+	
+	public static String getMajorVersion(String version) {
+		String[] majorVersion;
+		
+		if (version != null) {
+			majorVersion = version.split("\\.");
+			
+			if (majorVersion[0] != null) return majorVersion[0];
+		}
+		
+		return null;
+	}
+	
+	public static int getBrandiNum(HttpServletRequest req) {
+		String brandiStr = getLoginItem(req, "brandi");
+		int brandiNum = 0;
+		try {
+			brandiNum = Integer.parseInt(brandiStr);
+		} catch (Exception e) {
+			brandiNum = 0;
+		}
+		return brandiNum;
+	}
+	
+	public static String getCountryCodeString(HttpServletRequest req) {
+		return "US";
+	}
+	
+	public static String getScreenNameNumLimit(HttpServletRequest req) {
+		if (getLoginItem(req, "mst_price_index").equals("1736")) return "2";
+		else return "7";
+	}
+	
+	public static String validateSn(String str) {
+		if (str == null) return null;
+		return str.replaceAll("&", "&amp;").replaceAll("\"", "&quot;").replaceAll("<", "&lt;");
+	}
+	
+	public static String validateInput(String str) {
+		if (str == null) return null;
+		return str.replaceAll("&", " ").replaceAll("<", "").replaceAll(">", "");
+	}
+	
+	public static String validateOutput(String str) {
+		if (str == null) return null;
+		return StringEscapeUtils.escapeHtml(str);
+	}
+	
+	public static String validateString(String str) {
+		if (str == null) return null;
+		return str.replaceAll("\"", "&quot;");
+	}
+	
+	public static void displayChangePlanError(HttpServletRequest req, HttpServletResponse rspn, String errorMsgName) throws ServletException, IOException {
+		logger.warn("Error happened, the error name is: " + errorMsgName);
+		RequestDispatcher dispatcher = req.getRequestDispatcher("/jsp/kwcancelerror.jsp");
+		
+		if (errorMsgName != null) req.setAttribute("msg", errorMsgName);
+		dispatcher.forward(req, rspn);
+	}
+	
+	public static void displayHelpUrl(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		
+		RequestDispatcher dispatcher = req.getRequestDispatcher("/jsp/kwcancelerror.jsp");
+		dispatcher.forward(req, rspn);
+	}
+	
+	public static boolean isMorf(HttpServletRequest req) {
+		String realm = AccountAccess.getLoginItem(req, "Realm");
+		String isMasterValue = AccountAccess.getLoginItem(req, "IsMaster");
+		String mfCancelCode = AccountAccess.getLoginItem(req, "mst_cancel_code");
+		String accountNumber = AccountAccess.getLoginItem(req, "mst_acct_number");
+		
+		if (realm.equals("aol") && accountNumber != null && accountNumber.length() > 0) return false;
+		else if (mfCancelCode.equalsIgnoreCase("0") && (isMasterValue.equalsIgnoreCase("t") || isMasterValue.equalsIgnoreCase("f"))) return false;
+		else return true;
+	}
+	
+	public static String getFromWherePrefix(HttpServletRequest req, HttpServletResponse rspn) {
+		String whereString;
+		try {
+			if (isPatchAccount(req, rspn) == true) return "patch__";
+			
+			if (AccountAccess.isMorf(req) == true) whereString = AccountAccess.getMorfSession(req, rspn).getUserSessionObj().getFromWhere();
+			else whereString = AccountAccess.getSession(req, rspn).getUserSessionObj().getFromWhere();
+			if (whereString != null && (whereString.equalsIgnoreCase("pc") == true || whereString.equalsIgnoreCase("pc__") == true)) return "pc__";
+			if (whereString != null && (whereString.equalsIgnoreCase("gathr") == true || whereString.equalsIgnoreCase("gathr__") == true)) return "gathr__";
+			
+		} catch (Exception e) {
+			return "";
+		}
+		
+		return "";
+	}
+	
+	public static boolean isFromGathrOrPc(HttpServletRequest request, HttpServletResponse response) {
+		String fromwhereString = getFromWherePrefix(request, response);
+		
+		if (fromwhereString.length() > 0) return true;
+		else {
+			String HEADER_fromwhere = request.getParameter("fw");
+			if (HEADER_fromwhere != null && HEADER_fromwhere.length() > 0) { return true; }
+		}
+		return false;
+	}
+	
+	public static void setFromWherePrefix(HttpServletRequest req, HttpServletResponse rspn, String prefix) {
+		try {
+			if (AccountAccess.isMorf(req) == true) AccountAccess.getMorfSession(req, rspn).getUserSessionObj().setFromWhere(prefix);
+			else AccountAccess.getSession(req, rspn).getUserSessionObj().setFromWhere(prefix);
+		} catch (Exception e) {
+			logger.error("Can not get Session object! treat it as regular user.",e);
+		}
+		return;
+	}
+	
+	public static void reloadPaymentSubs(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+		if (AccountAccess.isMorf(request) == true) {
+			MorfSession ms = AccountAccess.getMorfSession(request, response);
+			ms.setPsbMap(null);
+		} else {
+			SPortalSession ss = AccountAccess.getSession(request, response);
+			ss.setPsbMap(null);
+			ss.reloadAcctObj(request);
+		}
+		AccountAccess.reloadPremiumAccess(request, response);
+		return;
+	}
+	
+	public static boolean isPendingCancel(HttpServletRequest request, HttpServletResponse response) {
+		boolean isPendingCancel = false;
+		try {
+			
+			logger.debug("Checking account status for pending cancel ");
+			String acctNumber = AccountAccess.getLoginItem(request, "sub_acct_number");
+			long accountNumberLong = 0;
+			if (acctNumber != null && acctNumber.length() != 0) accountNumberLong = new Long(acctNumber).longValue();
+			
+			AccountStatusModel accountStatusModel = new AccountStatusModel();
+			AccountStatusRequest accountStatusRequest = new AccountStatusRequest();
+			accountStatusRequest.setAccountNumber(accountNumberLong);
+			AccountStatusResponse accountStatusResponse = accountStatusModel.getIsPendingCancel(accountStatusRequest);
+			if (accountStatusResponse != null) {
+				isPendingCancel = accountStatusResponse.isPendingCancel();
+			}
+			
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		
+		return isPendingCancel;
+		
+	}
+	
+	public static long getAccountNumberBySn(HttpServletRequest request, HttpServletResponse response, String selectedSN) {
+		
+		String loggedUser = AccountAccess.getLoginItem(request, "Username");
+		if (selectedSN == null || loggedUser == null) {
+			logger.error("AccountAccess.getAccountNumberBySn(): invalid SN. Passed in selectedSN=" + selectedSN + ", loggedUserSN=" + loggedUser);
+			return -1;
+		}
+		
+		logger.debug("AccountAccess.getAccountNumberBySn():passed in selectedSN=" + selectedSN + ", loggedUserSN=" + loggedUser);
+		
+		if (AccountAccess.compressSN(selectedSN).equalsIgnoreCase(AccountAccess.compressSN(loggedUser)) == true) return Long.parseLong(AccountAccess.getLoginItem(request, "sub_acct_number"));
+		
+		AccountInformationModel acctObj;
+		try {
+			acctObj = AccountAccess.getAcctObj(request, response);
+		} catch (Exception e) {
+			e.printStackTrace();
+			logger.error("AccountAccess.getAccountNumberBySn(): Exception, failed to get account info.... Passed in selectedSN=" + selectedSN + ", loggedUserSN=" + loggedUser,e);
+			return -1;
+		}
+		
+		CCBizAccount bizAcct = acctObj.getAccount();
+		if (AccountAccess.compressSN(selectedSN).equalsIgnoreCase(AccountAccess.compressSN(bizAcct.getScreenName().getAolScreenName())) == true) return bizAcct.getAccountNumber();
+		
+		CCBizSubAccount[] subs = bizAcct.getSubAccounts();
+		int index;
+		
+		if (subs == null) {
+			logger.error("AccountAccess.getAccountNumberBySn(): Error. sub[] array is null. Passed in selectedSN=" + selectedSN + ", loggedUserSN=" + loggedUser);
+			return -1;
+		}
+		
+		for (index = 0; index < subs.length; index++) {
+			if (AccountAccess.compressSN(selectedSN).equalsIgnoreCase(AccountAccess.compressSN(subs[index].getScreenName().getAolScreenName())) == true) return subs[index].getAcctNumber();
+		}
+		
+		logger.error("AccountAccess.getAccountNumberBySn(): Error. can not find the selectedSN. Passed in selectedSN=" + selectedSN + ", loggedUserSN=" + loggedUser);
+		return -1;
+	}
+	
+	public static String compressSN(String s) {
+		return s == null ? null : s.toLowerCase().replaceAll("\\s+", "");
+		/*
+		 * StringTokenizer st = new StringTokenizer(s," ",false); String t="";
+		 * while (st.hasMoreElements()) t += st.nextElement(); return t;
+		 */
+	}
+	
+	public static boolean isValidCvv2(String cvv2) {
+		if (cvv2 == null) return false;
+		
+		Pattern myPattern = Pattern.compile("^\\d{3}$|^\\d{4}$");
+		return myPattern.matcher(cvv2).matches();
+	}
+	
+	public static boolean isValidAgree(String agree) {
+		if (agree == null) return false;
+		
+		agree = agree.trim();
+		Pattern myPattern = Pattern.compile("(?i)^i\\s+agree$");
+		return myPattern.matcher(agree).matches();
+	}
+	
+	public static String getSafeTechUUID() {
+		UUID myUniqueId = UUID.randomUUID();
+		String myUniqueIdString = myUniqueId.toString();
+		String retStr = myUniqueIdString.replaceAll("-", "");
+		
+		return retStr;
+	}
+	
+	public static boolean isPrimary(HttpServletRequest request, HttpServletResponse response, String selectedSN) {
+		if (AccountAccess.getSnLevel(request, response, selectedSN) == 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	public static boolean isDmsn(HttpServletRequest request, HttpServletResponse response, String selectedSN) {
+		if (AccountAccess.getSnLevel(request, response, selectedSN) == 1) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	// for ASQ. Subs only can view/Update it own, PMSN can do anything; DMSN
+	// only can not do PMSN
+	// Other family's SNs can not hack this Account
+	public static boolean isAValidSnForASQ(HttpServletRequest request, HttpServletResponse response, String selectedSN) {
+		
+		boolean valid = isAValidSnAndHasPermission(request, response, selectedSN);
+		
+		if (valid == false) return false;
+		else {
+			short selectLevel = getSnLevel(request, response, selectedSN);
+			
+			String loginName = AccountAccess.getLoginItem(request, "Username");
+			short loginLevel = getSnLevel(request, response, loginName);
+			
+			if (loginLevel == 1) {
+				if ((selectLevel == 1) || (selectLevel == 2)) {
+					return true;
+				} else // selectLevel=0, pmsn
+				{
+					return false;
+				}
+			}
+			
+			return valid;
+		}
+	}
+	
+	// for Contact Info View and Update. Subs only can view/Update it own, PMSN
+	// and DMSN can do anything;
+	// Other family's SNs can not hack this Account
+	public static boolean isAValidSnAndHasPermission(HttpServletRequest request, HttpServletResponse response, String selectedSN) {
+		
+		short selectLevel = getSnLevel(request, response, selectedSN);
+		String loginName = AccountAccess.getLoginItem(request, "Username");
+		short loginLevel = getSnLevel(request, response, loginName);
+		
+		if (selectLevel < 0 || loginLevel < 0) { return false; }
+		
+		// one family, and login as pmsn or dmsn
+		if (loginLevel < 2) { return true; }
+		
+		// login >=2, should only be 2
+		if (selectLevel != 2) return false;
+		
+		// login ==2, log as sub, trying to change pmsn or dmsn
+		// sub change itself
+		if (AccountAccess.compressSN(loginName).equalsIgnoreCase(AccountAccess.compressSN(selectedSN)) == true) // sub
+		// change
+		// itself
+		{
+			return true;
+		}
+		// sub change other sub
+		else {
+			return false;
+		}
+		
+	}
+	
+	public static short getSnLevel(HttpServletRequest request, HttpServletResponse response, String selectedSN) {
+		
+		/*
+		 * return -1, error happened return 0, primary master sn return 1,
+		 * designated master sn return 2, sub-SN
+		 */
+		
+		AccountInformationModel acctObj;
+		if (selectedSN == null || selectedSN.length() < 1) {
+			logger.error("AccountAccess.getSnLevel(): invalid argument, selectedSN is not valid");
+			return -1;
+		}
+		selectedSN = AccountAccess.compressSN(selectedSN);
+		try {
+			acctObj = AccountAccess.getAcctObj(request, response);
+		} catch (Exception e) {
+			e.printStackTrace();
+			logger.error("AccountAccess.getSnLevel(): Exception, failed to get account info",e);
+			return -1;
+		}
+		
+		CCBizAccount bizAcct = acctObj.getAccount();
+		String aolSn = bizAcct.getScreenName().getAolScreenName();
+		aolSn = AccountAccess.compressSN(aolSn);
+		if (selectedSN.equalsIgnoreCase(aolSn) == true) return 0;
+		
+		CCBizSubAccount[] subs = bizAcct.getSubAccounts();
+		int index;
+		
+		if (subs == null || subs.length < 1) {
+			logger.error("AccountAccess.getSnLevel(): no sub-SNs for selectedSN account");
+			return -1;
+		}
+		for (index = 0; index < subs.length; index++) {
+			String subsAol = subs[index].getScreenName().getAolScreenName();
+			subsAol = AccountAccess.compressSN(subsAol);
+			if (selectedSN.equalsIgnoreCase(subsAol) == true) {
+				if (subs[index].getAcctPref().isMaster() == true) return 1;
+				else return 2;
+			}
+		}
+		logger.error("AccountAccess.getSnLevel(): can not find selectedSN for the account");
+		return -1;
+	}
+	
+	public static String getPrimarySn(HttpServletRequest request, HttpServletResponse response) {
+		AccountInformationModel acctObj;
+		try {
+			acctObj = AccountAccess.getAcctObj(request, response);
+		} catch (Exception e) {
+			e.printStackTrace();
+			logger.error("AccountAccess.getPrimarySn(): Exception, failed to get account info",e);
+			return "";
+		}
+		
+		CCBizAccount bizAcct = acctObj.getAccount();
+		return bizAcct.getScreenName().getAolScreenName();
+	}
+	
+	public static boolean isOver_18(HttpServletRequest request, HttpServletResponse response) {
+		
+		return isMasterAccount(request) || isOver_18only_sn(getLoginItem(request, "Username"), request, response);
+		
+		/*
+		 * // 18+, DMSN, PMSN will return true; // kids, MT, YT will return
+		 * false; // if you want to check 18+ SN, then use isOver_18only_sn().
+		 * String PC_GrpIDStr = AccountAccess.getLoginItem(request, "PC_GrpID");
+		 * return PC_GrpIDStr.equalsIgnoreCase("PC_Adult");
+		 */
+		
+		/****
+		 * boolean isOver18 = AccountAccess.getLoginItem(request,
+		 * "over_18").equalsIgnoreCase("y"); if(isOver18 == true) { //parental
+		 * control didn't set it to kid(18 below), we need to check the SN
+		 * category in MF String PC_GrpIDStr =
+		 * AccountAccess.getLoginItem(request, "PC_GrpID");
+		 * if(PC_GrpIDStr.equalsIgnoreCase("PC_Adult")==false) isOver18 = false;
+		 * }
+		 * return isOver18;
+		 ****/
+	}
+	
+	public static boolean isOver_18only_sn(String screenName, HttpServletRequest request, HttpServletResponse response) {
+		boolean isOver18 = AccountAccess.getLoginItem(request, "over_18").equalsIgnoreCase("y");
+		
+		AccountInformationModel acctObj = null;
+		try {
+			
+			if (isMorf(request)) return false;
+			else {
+				acctObj = getSession(request, response).getAcctObj(request);
+				
+				SPortalSession spSession = (SPortalSession) getSession(request, response);
+				CustomerProfile profile = spSession.getProfile();
+				@SuppressWarnings("unchecked")
+				List<SubAccountProfileImpl> childProfileList = profile.getAllSubAccounts();
+				Iterator<SubAccountProfileImpl> iterator = null;
+				if (childProfileList != null) {
+					iterator = childProfileList.iterator();
+					while (iterator.hasNext()) {
+						SubAccountProfileImpl subProfile = (SubAccountProfileImpl) iterator.next();
+						if (subProfile != null && AccountAccess.compressSN(subProfile.getScreenname()).equalsIgnoreCase(AccountAccess.compressSN(screenName))) {
+							if (!(subProfile.isMaster() || subProfile.isKidsOnly() || subProfile.isYoungTeensOnly() || subProfile.isMatureTeensOnly())) return true;
+							else return false;
+							
+						}
+					}
+					
+				}
+			}
+			
+		} catch (ServletException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return isOver18;
+	}
+	
+	public static int getAccountType(String screenName, HttpServletRequest request, HttpServletResponse response) {
+		
+		AccountInformationModel acctObj = null;
+		try {
+			if (isMorf(request)) return -1;
+			else {
+				acctObj = getSession(request, response).getAcctObj(request);
+				SPortalSession spSession = (SPortalSession) getSession(request, response);
+				CustomerProfile profile = spSession.getProfile();
+				@SuppressWarnings("unchecked")
+				List<SubAccountProfileImpl> childProfileList = profile.getAllSubAccounts();
+				Iterator<SubAccountProfileImpl> iterator = null;
+				if (childProfileList != null) {
+					iterator = childProfileList.iterator();
+					while (iterator.hasNext()) {
+						SubAccountProfileImpl subProfile = (SubAccountProfileImpl) iterator.next();
+						if (subProfile != null && AccountAccess.compressSN(subProfile.getScreenname()).equalsIgnoreCase(AccountAccess.compressSN(screenName))) {
+							if (subProfile.isKidsOnly()) return 1;
+							else if (subProfile.isYoungTeensOnly()) return 2;
+							else if (subProfile.isMatureTeensOnly()) return 3;
+							else if (!(subProfile.isMaster() || subProfile.isKidsOnly() || subProfile.isYoungTeensOnly() || subProfile.isMatureTeensOnly())) return 4;
+							else if (subProfile.isMaster()) return 5;
+							else return -1;
+							
+						}
+					}
+					
+				}
+			}
+			
+		} catch (ServletException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return -1;
+	}
+	
+	public static String getSnStatusString(String sn, HttpServletRequest request, HttpServletResponse response) {
+		if (AccountAccess.isMorf(request) == true) return "N/A";
+		CustomerProfile profile;
+		
+		try {
+			// the first line is only for load profile..... bad!!!
+			AccountAccess.getSession(request, response).getAcctObj(request);
+			profile = AccountAccess.getSession(request, response).getProfile();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "N/A";
+		}
+		
+		List<SubAccountProfileImpl> childProfileList = profile.getAllSubAccounts();
+		if (childProfileList == null) return "N/A";
+		
+		Iterator<SubAccountProfileImpl> iterator = childProfileList.iterator();
+		while (iterator.hasNext()) {
+			SubAccountProfileImpl subProfile = (SubAccountProfileImpl) iterator.next();
+			if (subProfile != null && AccountAccess.compressSN(subProfile.getScreenname()).equalsIgnoreCase(AccountAccess.compressSN(sn))) {
+				if (subProfile.isMaster()) return "Master";
+				else if (subProfile.isKidsOnly()) return "Kid";
+				else if (subProfile.isYoungTeensOnly()) return "Young Teen";
+				else if (subProfile.isMatureTeensOnly()) return "Mature Teen";
+				else return "General";
+			}
+		}
+		
+		return "N/A";
+		
+	}
+	
+	public static boolean isObiOnlyBilling(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		return isMorf(req) == true || isIntl(req) == true;
+	}
+	
+	public static Boolean isNetscape(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		String realm = AccountAccess.getLoginItem(req, "Realm");
+		if ((realm != null) && (realm.equalsIgnoreCase("wal-mart") == true)) { return true; }
+		
+		return false;
+	}
+	
+	public static Boolean isCompuserve(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		String realm = AccountAccess.getLoginItem(req, "Realm");
+		if ((realm != null) && (realm.equalsIgnoreCase("cs-aol") == true)) { return true; }
+		
+		return false;
+	}
+	
+	public static boolean isBrandi82(HttpServletRequest req) {
+		return AccountAccess.getLoginItem(req, "mst_brandi").equals("82") || AccountAccess.getLoginItem(req, "brandi").equals("82");
+	}
+	
+	public static UserSessionObj getUserSessionObj(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		if (isMorf(req) == true) return getMorfSession(req, rspn).getUserSessionObj();
+		else return getSession(req, rspn).getUserSessionObj();
+	}
+	
+	public static String processScreenNameLength(String sn, int allowedLength) {
+		if (sn == null) return sn;
+		int len = sn.length();
+		if (allowedLength >= len) return sn;
+		
+		return sn.substring(0, allowedLength - 3) + "...";
+	}
+	
+	public static boolean isEnGb(HttpServletRequest req) {
+		String unifiedBid = getLoginItem(req, "unified_bid");
+		
+		if (unifiedBid.equalsIgnoreCase("3") == true) { return true; }
+		
+		return false;
+	}
+	
+	public static boolean isUSAOL(HttpServletRequest req) {
+		// CompuServe Members have bid 1 and service 3
+		// Netscape Connect Members have bid 14
+		// AOL Canada Members have bid 5 and service 1
+		
+		// aol morf's service=2
+		
+		String unifiedBid = getLoginItem(req, "unified_bid");
+		String service = getLoginItem(req, "Service");
+		
+		if ((unifiedBid != null) && (unifiedBid.equalsIgnoreCase("1") == true) && (service != null) && (service.equalsIgnoreCase("3") == false)) return true;
+		
+		return false;
+	}
+	
+	public static boolean isIntl(HttpServletRequest req) {
+		String unifiedBid = getLoginItem(req, "unified_bid");
+		if (unifiedBid.equalsIgnoreCase("3") == true) return true;
+		return false;
+	}
+	
+	public static int getLangCode(String lang) {
+		if (lang == null) return 0;
+		
+		for (Iterator it = langTable.iterator(); it.hasNext();) {
+			String[] thisValue = (String[]) it.next();
+			
+			if (lang.equalsIgnoreCase(thisValue[0])) { return Integer.parseInt(thisValue[1]); }
+		}
+		
+		return 0; // english
+	}
+	
+	public static boolean isEnGBFreeMF(HttpServletRequest request, HttpServletResponse response) {
+		try {
+			AccountData myAcct = AccountAccess.getAcctData(request, response);
+			int payListIndex = myAcct.getMAAccountObj(request, response).getPaylistIndex();
+			String paymentIndex = AccountAccess.getLoginItem(request, "mst_payment_index");
+			
+			if ((payListIndex == 188) && (paymentIndex.equalsIgnoreCase("63") == true)) { return true; }
+		} catch (Exception ex) {
+			return false;
+		}
+		
+		return false;
+	}
+	
+	// based on 10.7 PRD, SR4
+	public static boolean isEnUSFreeMF(HttpServletRequest request, HttpServletResponse response) {
+		try {
+			String paymentIndex = AccountAccess.getLoginItem(request, "mst_payment_index");
+			
+			if (paymentIndex.equalsIgnoreCase("63") == true) { return true; }
+		} catch (Exception ex) {
+			return false;
+		}
+		
+		return false;
+	}
+	
+	// from LANG.snac
+	private static ArrayList langTable = null;
+	static {
+		langTable = new ArrayList();
+		
+		langTable.add(new String[] { "en", "0" });
+		langTable.add(new String[] { "fr", "1" });
+		langTable.add(new String[] { "de", "2" });
+		langTable.add(new String[] { "es", "6" });
+		langTable.add(new String[] { "zh", "33" });
+		langTable.add(new String[] { "tw", "19" });
+		langTable.add(new String[] { "ru", "32" });
+		langTable.add(new String[] { "pt", "8" });
+		langTable.add(new String[] { "tr", "17" });
+		langTable.add(new String[] { "cn", "33" });
+		langTable.add(new String[] { "nl", "34" });
+		
+		langTable.add(new String[] { "ja", "11" });
+	};
+	
+	public static Instrument getInstrument(HttpServletRequest request, HttpServletResponse response, String instrumentId, ArrayList instrumentsList) {
+		if ((instrumentsList == null) || (instrumentsList.size() <= 0)) return null;
+		
+		for (int iInstrument = 0; iInstrument < instrumentsList.size(); iInstrument++) {
+			HashMap instrumentsMap = (HashMap) ((NewPaymentBean.InstrumentWrapper) instrumentsList.get(iInstrument)).getInstrumentMap();
+			
+			for (Iterator iterInstrument = instrumentsMap.keySet().iterator(); iterInstrument.hasNext();) {
+				String thisInstrumentID = (String) iterInstrument.next();
+				
+				if ((thisInstrumentID != null) && (thisInstrumentID.equalsIgnoreCase(instrumentId))) { return (Instrument) instrumentsMap.get(thisInstrumentID); }
+			}
+		}
+		return null;
+	}
+	
+	public static Instrument getInstrumentObj(HttpServletRequest request, HttpServletResponse response, String instrumentId) {
+		boolean isMorf = AccountAccess.isMorf(request);
+		Map subscriptionMap = null;
+		AppSession mySession;
+		if (isMorf == true) {
+			mySession = MorfSession.getSession(request);
+			subscriptionMap = ((MorfSession) mySession).getPsbMap(request, response);
+		} else {
+			mySession = SPortalSession.getSession(request);
+			subscriptionMap = ((SPortalSession) mySession).getPsbMap(request, response);
+		}
+		
+		if (subscriptionMap == null || subscriptionMap.size() < 1) return null;
+		
+		String subscriptionType;
+		String screenName;
+		for (Iterator it = subscriptionMap.entrySet().iterator(); it.hasNext();) {
+			Map.Entry entry = (Map.Entry) it.next();
+			Object key = entry.getKey();
+			Object value = entry.getValue();
+			
+			String keyFromMap = (String) key;
+			StringTokenizer tokenizer = new StringTokenizer(keyFromMap, ":");
+			screenName = tokenizer.nextToken();
+			
+			if (tokenizer.hasMoreTokens()) subscriptionType = tokenizer.nextToken();
+			else continue;
+			
+			if (subscriptionType != null && subscriptionType.equalsIgnoreCase("instruments")) {
+				LinkedHashMap paymentMap = (LinkedHashMap) value;
+				
+				if (paymentMap != null && paymentMap.size() > 0) {
+					for (Iterator it2 = paymentMap.entrySet().iterator(); it2.hasNext();) {
+						Map.Entry paymentEntry = (Map.Entry) it2.next();
+						String paymentKey = (String) paymentEntry.getKey();
+						if (instrumentId.equalsIgnoreCase(paymentKey)) { return (Instrument) paymentEntry.getValue(); }
+					} // end for loop
+				}
+			}
+		} // end for loop
+		return null;
+	}
+	
+	// return -- [0]-html link; [1]-number of instruments; [2]-last instrument's
+	// ID
+	public static String[] getRadioButtonHtmlForIntl(HttpServletRequest request, HttpServletResponse response) {
+		String[] retStrArray = { "", "", "" };
+		String sn = AccountAccess.getLoginItem(request, "Username");
+		
+		boolean isMorf = AccountAccess.isMorf(request);
+		Map subsMap = null;
+		AppSession mySession;
+		if (isMorf == true) {
+			mySession = MorfSession.getSession(request);
+			subsMap = ((MorfSession) mySession).getPsbMap(request, response);
+		} else {
+			mySession = SPortalSession.getSession(request);
+			subsMap = ((SPortalSession) mySession).getPsbMap(request, response);
+		}
+		
+		if (subsMap == null || subsMap.size() < 1) return retStrArray;
+		
+		String subsType;
+		String screenName;
+		String retStrHtml = "";
+		int i = 0;
+		String paymentKey = "";
+		
+		for (Iterator it = subsMap.entrySet().iterator(); it.hasNext();) {
+			Map.Entry entry = (Map.Entry) it.next();
+			Object key = entry.getKey();
+			Object value = entry.getValue();
+			
+			String keyFromMap = (String) key;
+			StringTokenizer tokenizer = new StringTokenizer(keyFromMap, ":");
+			screenName = tokenizer.nextToken();
+			
+			if (isMorf == false) // only apply to MF
+			{
+				if ((screenName == null) || (screenName.equalsIgnoreCase(sn) == false)) continue;
+			}
+			
+			if (tokenizer.hasMoreTokens()) subsType = tokenizer.nextToken();
+			else continue;
+			
+			if ((subsType != null) && (subsType.equalsIgnoreCase("instruments"))) {
+				LinkedHashMap paymentMap = (LinkedHashMap) value;
+				
+				if (paymentMap != null && paymentMap.size() > 0) {
+					for (Iterator it2 = paymentMap.entrySet().iterator(); it2.hasNext();) {
+						Map.Entry paymentEntry = (Map.Entry) it2.next();
+						paymentKey = (String) paymentEntry.getKey();
+						Instrument instrum = (Instrument) paymentEntry.getValue();
+						
+						if (instrum.getId().equalsIgnoreCase("cof") == false) // no
+						// master
+						// file
+						// is
+						// updated
+						{
+							String currentCardType = instrum.getPaymentInstrument().getPaymentType().name();
+							
+							String cardTypeDisplay = PremiumServiceUtil.lookupPaymentTypeName(currentCardType);
+							String cardNumber = instrum.getPaymentInstrument().getAccountNumber();
+							if ((cardNumber != null) && (cardNumber.length() > 4)) {
+								cardNumber = "************" + cardNumber.substring(cardNumber.length() - 4);
+							}
+							cardTypeDisplay += " " + cardNumber;
+							
+							retStrHtml += "<li class=\"dialog_form_list\">" + "<input type=\"radio\" name=\"payment_type\" id=\"payment_type" + i + "\" value=" + paymentKey + " />"
+											+ "<label for=\"payment_type" + i + "\">" + cardTypeDisplay + "</label>" + "</li>";
+							
+							i++;
+						}
+					} // end for loop
+					break;
+				}
+			}
+		} // end for loop
+		
+		retStrArray[0] = retStrHtml;
+		retStrArray[1] = i + "";
+		
+		// this one only hold the last one, we only care about it when ONLY one
+		// instrument
+		retStrArray[2] = paymentKey;
+		
+		return retStrArray;
+	}
+	
+	public static ArrayList<String> getAllScreenNames(HttpServletRequest request, HttpServletResponse response) {
+		ArrayList<String> arraySNs = new ArrayList<String>();
+		
+		try {
+			AccountInformationModel acctObj = AccountAccess.getAcctObj(request, response);
+			if (acctObj == null) { return null; }
+			
+			CCBizAccount bizAcct = acctObj.getAccount();
+			if (bizAcct == null) { return null; }
+			
+			String primarySN = "";
+			if (bizAcct.getScreenName() != null) {
+				primarySN = bizAcct.getScreenName().getAolScreenName();
+			}
+			
+			arraySNs.add(0, primarySN);
+			
+			CCBizSubAccount[] subs = bizAcct.getSubAccounts();
+			if ((subs != null) && (subs.length > 0)) {
+				for (int index = 0; index < subs.length; index++) {
+					arraySNs.add(index + 1, subs[index].getScreenName().getAolScreenName().toLowerCase());
+				}
+			}
+		} catch (Exception e) {
+			return null;
+		}
+		
+		return arraySNs;
+	}
+	
+	public static String getKeyStringForUpdating(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		if (AccountAccess.isMorf(request) == true) return AccountAccess.getMorfSession(request, response).getKeyStringForUpdating();
+		else return AccountAccess.getSession(request, response).getKeyStringForUpdating();
+	}
+	
+	public static boolean isGoodKeyStringForUpdating(HttpServletRequest request, HttpServletResponse response, String passedString) throws ServletException, IOException {
+		if (passedString == null) {
+			logger.error("Update Key String is not right, passed in value=null");
+			return false;
+		}
+		
+		String keyStr = AccountAccess.getKeyStringForUpdating(request, response);
+		if (passedString.equalsIgnoreCase(keyStr) == true) return true;
+		
+		logger.error("Update Key String is not right, passed in value=" + passedString + ", in sp session=" + keyStr);
+		return false;
+	}
+	
+	public static PremiumAccess getPremiumAccess(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		if (AccountAccess.isMorf(request)) return AccountAccess.getMorfData(request, response).getPremiumAccess(request, response);
+		else return AccountAccess.getAcctData(request, response).getPremiumAccess(request, response);
+	}
+	
+	public static void reloadPremiumAccess(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		if (AccountAccess.isMorf(request)) {
+			AccountAccess.getMorfSession(request, response).setPsbMap(null);
+			AccountAccess.getMorfData(request, response).resetPremiumAccess();
+		} else {
+			AccountAccess.getSession(request, response).setPsbMap(null);
+			AccountAccess.getAcctData(request, response).resetPremiumAccess();
+		}
+	}
+	
+	public static int getAccountType(HttpServletRequest request, HttpServletResponse response) {
+		String pmIndex = AccountAccess.getLoginItem(request, "mst_payment_index");
+		short acctType = AccountAccess.getAccountType(request);
+		
+		if (pmIndex.equals("13") || pmIndex.equals("14")) {
+			return 1; // hone Bill
+		} else if (pmIndex.equals("23")) {
+			return 2; // Sears Card
+		} else if (pmIndex.equals("28")) {
+			return 2; // Walmart Card
+		} else if (pmIndex.equals("33")) {
+			return 2; // Diner Card
+		} else if (pmIndex.equals("12")) {
+			return 2; // AOL Visa
+		} else if (acctType == 4) {
+			return 3; // Prepaid
+		} else if (acctType == 1) {
+			return 3; // Internal
+		} else if (acctType == 5) {
+			return 3; // OnePlusOne
+		} else if (acctType == 2) {
+			return 3; // Overhead
+		} else if (acctType == 3) { return 3; // Invoice
+		}
+		return 0; // regular
+	}
+	
+	public static void ajaxResponse(HttpServletResponse response, int retCode, Object... objects) throws IOException {
+		response.setCharacterEncoding("UTF-8");
+		ArrayList<Object> returnObjectList = new ArrayList<Object>();
+		returnObjectList.add(new Integer(retCode));
+		for (Object obj : objects)
+			returnObjectList.add(obj);
+		
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			String resultStr = mapper.writeValueAsString(returnObjectList);
+			logger.debug(resultStr);
+			response.getWriter().write(resultStr);
+			
+			// mapper.writeValue(response.getWriter(), returnObjectList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			logger.error("Error when responsing Ajax - ObjectMapper process error. Please see exception stack trace.",e);
+			response.getWriter().write("[-100]");
+		}
+		return;
+	}
+	
+	public static HashMap<String, Boolean> getHasAddedTooManyPMMap(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		
+		AppSession mySession = null;
+		if (isMorf(req) == false) {
+			mySession = AccountAccess.getSession(req, rspn);
+		} else {
+			mySession = AccountAccess.getMorfSession(req, rspn);
+		}
+		
+		if (mySession != null) { return mySession.getHasAddedTooManyPMMap(); }
+		
+		return null;
+	}
+	
+	// for mvp2 to get token only, strIn is a long url, parse it by ? or &
+	// strIn="https://aol.whiteskyservices.com/partnerservice/service.svc/substatus/?token=37828262-ed9e-4e2c-af6b-11e8ad07bb2e&sku=WHITESKY&masterGuid=4bd9f42edd6f30364e49075df36cdac7";
+	public static String getValueByNameInUrl(String strUrl, String name) {
+		if ((strUrl == null) || (strUrl.length() < 1)) { return ""; }
+		
+		// put this strIn to map first
+		Map<String, String> paramters = new HashMap<String, String>();
+		String[] splited = strUrl.split("[&?]");
+		if ((splited == null) || (splited.length < 1)) { return ""; }
+		paramters.put("url", splited[0]);
+		
+		for (String pair : splited) {
+			String[] nameValue = pair.split("=");
+			if ((nameValue != null) && (nameValue.length > 1)) {
+				paramters.put(nameValue[0], nameValue[1]);
+			}
+		}
+		
+		return paramters.get(name);
+	}
+	
+	public static String getDashboardTopForFreeAOL(HttpServletRequest request, HttpServletResponse response) {
+		String currentPI = "";
+		try {
+			if (AccountAccess.getAcctData(request, response) != null && AccountAccess.isMorf(request) == false) {
+				currentPI = AccountAccess.getAcctData(request, response).getMAAcctCurrentPiStr(request, response);
+			} else currentPI = AccountAccess.getLoginItem(request, "mst_price_index");
+			
+			ModelManager modelManager = new ModelManager();
+			BrsModelHelper brsModelHelper = (BrsModelHelper) modelManager.factory(ModelType.BRS);
+			
+			String categoryIdStr = brsModelHelper.getPricePlanCategory(currentPI);
+			
+			Properties premiumResources = AppSession.getPremiumServiceResourcesInstance(request);
+			return premiumResources.getProperty(categoryIdStr + "DashboardTop", "");
+		} catch (Exception e) {
+			logger.debug("getDashboardTopForFreeAOL has problem" + currentPI);
+			return "";
+		}
+	}
+	
+	// used by MyBenefits
+	public static ArrayList<String> getFeaturesListOrder(HttpServletRequest request, HttpServletResponse response, int featuresType) {
+		
+		ArrayList<String> orderList = new ArrayList<String>();
+		
+		String currentPI = "";
+		try {
+			
+			if (AccountAccess.getAcctData(request, response) != null && AccountAccess.isMorf(request) == false) {
+				currentPI = AccountAccess.getAcctData(request, response).getMAAcctCurrentPiStr(request, response);
+			} else {
+				currentPI = AccountAccess.getLoginItem(request, "mst_price_index");
+			}
+			
+			String categoryIdStr = "";
+			ModelManager modelManager = new ModelManager();
+			BrsModelHelper brsModelHelper = (BrsModelHelper) modelManager.factory(ModelType.BRS);
+			categoryIdStr = brsModelHelper.getPricePlanCategory(currentPI);
+			// categoryIdStr="0063";
+			
+			Properties premiumServiceResources = AppSession.getPremiumServiceResourcesInstance(request);
+			String orderListProductIds = "";
+			
+			if (featuresType == 1) // return for ALL.
+			orderListProductIds = premiumServiceResources.getProperty(categoryIdStr + "Features", "");
+			else if (featuresType == 2) // return the featured ones.
+			{
+				Calendar today = new GregorianCalendar();
+				int dayOfMonth = today.get(Calendar.DAY_OF_MONTH);
+				
+				if (dayOfMonth < 11) orderListProductIds = premiumServiceResources.getProperty(categoryIdStr + "Features_v1", "");
+				else if (dayOfMonth < 21) orderListProductIds = premiumServiceResources.getProperty(categoryIdStr + "Features_v2", "");
+				else orderListProductIds = premiumServiceResources.getProperty(categoryIdStr + "Features_v3", "");
+				
+			} else orderListProductIds = premiumServiceResources.getProperty(categoryIdStr + "Features", "");
+			if (orderListProductIds == null || orderListProductIds.length() < 3) return orderList;
+			
+			String updateOrderStr = orderListProductIds.substring(1, orderListProductIds.length() - 1);
+			logger.debug("updateOrderStr=" + updateOrderStr);
+			StringTokenizer stk = new StringTokenizer(updateOrderStr, ",");
+			// Eligible loop.
+			while (stk.hasMoreTokens()) {
+				String currentProdId = stk.nextToken();
+				if (currentProdId != null) orderList.add(currentProdId.trim());
+				
+			}
+			
+		} catch (ServletException e) {
+			logger.debug("Error getting the features order list from property file. ");
+			e.printStackTrace();
+		} catch (IOException e) {
+			logger.debug("Error getting the features order list from property file. ");
+			e.printStackTrace();
+		}
+		
+		return orderList;
+		
+	}
+	
+	// used by CP
+	public static ArrayList<String> getFeaturesListOrderByPi(HttpServletRequest request, HttpServletResponse response, String currentPI) {
+		
+		ArrayList<String> orderList = new ArrayList<String>();
+		
+		try {
+			
+			Properties premiumServiceResources = AppSession.getPremiumServiceResourcesInstance(request);
+			String orderListProductIds = "";
+			
+			orderListProductIds = premiumServiceResources.getProperty(currentPI + "Features", "");
+			if (orderListProductIds == null || orderListProductIds.length() < 3) return orderList;
+			
+			String updateOrderStr = orderListProductIds.substring(1, orderListProductIds.length() - 1);
+			logger.debug("updateOrderStr=" + updateOrderStr);
+			StringTokenizer stk = new StringTokenizer(updateOrderStr, ",");
+			// Eligible loop.
+			while (stk.hasMoreTokens()) {
+				String currentProdId = stk.nextToken();
+				if (currentProdId != null) orderList.add(currentProdId.trim());
+				
+			}
+			
+		} catch (Exception e) {
+			logger.debug("Error getting the features order list from property file. ");
+			e.printStackTrace();
+		}
+		
+		return orderList;
+		
+	}
+	
+	// afw, 13.5
+	public static boolean isNumeric(String str) {
+		for (char c : str.toCharArray()) {
+			if (!Character.isDigit(c)) return false;
+		}
+		return true;
+	}
+	
+	private static boolean vaildTopDomain(String topDomain) {
+		if (topDomain.length() < 2 || topDomain.length() > 3) { return false; }
+		
+		// String[] allowedTopDomain = {"com", "net", "cn"};
+		
+		String[] notAllowedTopDomain = { "web" };
+		
+		for (String top : notAllowedTopDomain) {
+			if (top.equalsIgnoreCase(topDomain)) { return false; }
+		}
+		
+		return true;
+	}
+	
+	public static boolean validateEmailAddress(String email) {
+		int idx = email.indexOf('@');
+		
+		// this should be the text after @
+		String domain = email.substring(idx + 1);
+		
+		// if start with -, stop here.
+		if (domain.startsWith("-")) { return false; }
+		
+		String[] pieces = domain.split("\\.");
+		
+		String topdomain = pieces[pieces.length - 1];
+		
+		if (isNumeric(topdomain)) {
+			if (pieces.length != 4) { return false; }
+			
+			for (int i = 0; i < pieces.length; i++) {
+				try {
+					int ipa = Integer.parseInt(pieces[i]);
+					if ((ipa < 0) || (ipa > 255)) { return false; }
+				} catch (Exception ee) {
+					return false;
+				}
+			}
+			return true;
+		}
+		
+		return vaildTopDomain(topdomain);
+	}
+	
+	public static String getNickName(HttpServletRequest request, HttpServletResponse response) {
+		
+		
+		String nickName="";
+		try {
+		AppSession spSession = null;
+		if (AccountAccess.isMorf(request) == false) {
+			spSession = (SPortalSession) AccountAccess.getSession(request, response);
+			nickName = ((SPortalSession)spSession).getDisplayName();
+		} else {
+			spSession = (MorfSession) AccountAccess.getMorfSession(request, response);
+			nickName = ((MorfSession)spSession).getDisplayName();
+		}
+		
+		if (nickName != null)  //session has value
+			return nickName;
+		
+		
+		nickName=AccountAccess.getLoginItem(request, "displayname");
+		if ((nickName !=null) && (nickName.length()>0) ) {
+			//return as is, even it has @ in it
+			return nickName;
+		}
+		else {
+			nickName=AccountAccess.getLoginItem(request, "Username");
+			
+			if ((nickName !=null) && (nickName.length()>0) ) {
+				int idx=nickName.indexOf('@');
+				
+				if (idx >0)
+					nickName=nickName.substring(0,idx);
+			}
+		}
+		}
+		catch (Exception e) {}
+		return nickName;
+	}
+
+}

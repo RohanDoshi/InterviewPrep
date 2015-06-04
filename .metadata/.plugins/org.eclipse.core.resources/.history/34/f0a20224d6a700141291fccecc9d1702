@@ -1,0 +1,11 @@
+
+public class EightQueensProblem {
+
+	public static void main(String args[]) {
+		
+	}
+}
+
+class EightQueen {
+	
+}

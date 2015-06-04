@@ -1,0 +1,14 @@
+package pack;
+
+public class PriorityQueueDS {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+	}
+
+}
+
+class PriorityQ {
+	
+}

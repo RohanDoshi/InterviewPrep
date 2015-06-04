@@ -1,0 +1,153 @@
+package com.aol.sportal.servlets;
+
+import java.io.IOException;
+import java.util.*;
+import java.lang.*;
+import java.net.URLEncoder;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.aol.cc.common.biz.*;
+import com.aol.sportal.util.*;
+import com.aol.sportal.model.*;
+import com.aol.sportal.app.*;
+import com.aol.sportal.beans.*;
+
+public class ScreenNameMain extends HttpServlet {
+	
+	public void doGet(	HttpServletRequest request, 
+			HttpServletResponse response)
+		throws ServletException, IOException {
+		
+		if(AccountAccess.isMorf(request)==true) {
+			if(AccountAccess.isEnGb(request)==true)
+				response.sendRedirect("morfchange_contact_intl.jsp");
+			else				
+				response.sendRedirect("contact_new.jsp");
+			return;
+		}
+		if (AccountAccess.isMasterAccount(request)==false) {
+			AccountAccess.dispatchJsp(request, response, "screen_names_sub.jsp");
+			return;
+		}
+		
+		long performancestarttime=System.currentTimeMillis();
+		boolean isMasterSnOnly=AccountAccess.getLoginItem(request,"mst_acct_number").equals(AccountAccess.getLoginItem(request,"sub_acct_number"));
+		//ArrayList SNs = new ArrayList();		 
+		ArrayList linkedSNs = null;
+		
+		
+		AccountInformationModel acctObj=AccountAccess.getAcctObj(request, response);
+		CCBizAccount bizAcct = acctObj.getAccount();
+		CCBizSubAccount[] subs = bizAcct.getSubAccounts();
+		
+		String primarySN=bizAcct.getScreenName().getAolScreenName();
+		String SNlistString="";
+		boolean justAsq = AccountAccess.getAcctData(request, response).justCreateAsq(request, response);
+		String cdnurlprefix=AccountAccess.getCdnUrl(request);
+		
+		String sn;
+		String changepwString;
+		String storedpwString="";
+		String [] alt ={""," class='alt'"};
+		short snIndex=0;
+		boolean displayStoredPassword=false;
+		String displayName = "";
+		String changeDisplayName = "";
+		String snStatus;
+		
+		if(isMasterSnOnly==false && AccountAccess.isInClient(request)==true)
+			displayStoredPassword = true;
+		
+		if (subs != null) {
+			for (snIndex = 0; snIndex<subs.length; snIndex++) {
+				 //SPortalSession.getLogger().error(bizAcct.getAccountNumber()+", sub:"+subs[snIndex].getAcctNumber()+", SN:"+subs[snIndex].getScreenName().getAolScreenName());
+    			if(bizAcct.getAccountNumber()==subs[snIndex].getAcctNumber()) 
+    				continue;//primarySN = subs[snIndex].getScreenName().getAolScreenName();
+    			else {
+    				sn=subs[snIndex].getScreenName().getAolScreenName();
+    				if(justAsq==false || sn.equalsIgnoreCase(AccountAccess.getLoginItem(request,"Username"))==true)
+    				{
+    					changepwString="<a href='ChangePassword?fw=names&sn="+URLEncoder.encode(sn, "UTF-8")+"'>Change<b class='hidden'> Password for "+sn+"</b></a>";		
+    				}
+    				else
+    				{
+    					changepwString="&nbsp;";
+    				}
+    				
+    				if(displayStoredPassword==true) {
+    					if(sn.equalsIgnoreCase(AccountAccess.getLoginItem(request,"Username"))==true)
+    					{
+    						storedpwString="<td style='text-align:center;' headers='Edit Stored Password Options'><a href=\"aol://1722:StoredPassword/\" >Edit Options<b class='hidden'> for "+sn+"</b></a></td>";
+    					}
+    					else
+    					{
+    						storedpwString = "<td headers='Edit Stored Password Options'>&nbsp;</td>";
+    					}
+    				}
+    				displayName = AccountAccess.getAcctData(request, response).getDisplayName(request, response, sn);
+    				if(displayName==null || displayName.length()<1) {
+    					displayName = "";
+    					changeDisplayName = "<a href=ChangeDisplayName?sn="+URLEncoder.encode(sn, "UTF-8")+">Add Display Name<b class='hidden'> for "+sn+"</b></a>";
+    				} else
+    					changeDisplayName = " <a href=ChangeDisplayName?sn="+URLEncoder.encode(sn, "UTF-8")+">(Change)<b class='hidden'> Display Name for "+sn+"</b></a>";
+    				
+    				snStatus = AccountAccess.getSnStatusString(sn, request, response);
+    				SNlistString+="<tr"+alt[snIndex%2]+"><td headers='Screen Name' class='sn' title=\""+sn+"\">"+AccountAccess.processScreenNameLength(sn, 30)+"</td><td headers='Display Name' class='sn' title=\""+displayName+"\">"+AccountAccess.processScreenNameLength(displayName, 20)+changeDisplayName+"</td><td headers='Change Password' style='text-align:center;' class='pw'>"+changepwString+"</td>"+storedpwString+"<td headers='Delete Screen Name' style='text-align:center;' class='de'><a href='DeleteScreenName?sn="+URLEncoder.encode(sn, "UTF-8")+"' ><img border=0 src='"+cdnurlprefix+"/images/delete.gif' width=16 alt='Delete' /><b class=hidden> Delete screen name "+sn+"</b></a></td>" +
+    				"<td style='text-align:center;' headers='Change Account Security Question' class='sn'><a href=change_asq.jsp?sn="+URLEncoder.encode(sn, "UTF-8")+">Change<b class='hidden'> Account Security Question for "+sn+"</b></a></td><td headers='screen Name status' class='pc'>"+snStatus+"</td></tr>";
+    			}
+    		}
+        } 
+	
+		//load linked SNs
+		try {
+			linkedSNs = (ArrayList)AccountAccess.getSession(request, response).getScreenNameModelObj().getListOfAssociatedScreenNames(AccountAccess.getLoginItem(request,"Username"));
+		} catch (Exception e) {
+			SPortalSession.getLogger().error("Get Linked SNs failed");
+			e.printStackTrace();
+		}
+		
+		String linkedSNlistString="";
+		if(linkedSNs!=null && linkedSNs.size()>0) {
+			if(displayStoredPassword==true) 
+				storedpwString = "<td>&nbsp;</td>";
+			else
+				storedpwString="";
+			
+			for (Iterator it=linkedSNs.iterator(); it.hasNext(); snIndex++ ) {
+				String linkedSN = (String)it.next();
+				linkedSNlistString += "<tr"+alt[snIndex%2]+"><td headers='Screen Name' class=\"sn\" title=\""+linkedSN+"\">"+AccountAccess.processScreenNameLength(linkedSN,30)+
+				"</td><td>&nbsp;</td><td style='text-align:center;' headers='Password' class=\"pw\">&nbsp;</td>"+storedpwString+
+				"<td headers='delete' class=\"de\">&nbsp;</td><td>&nbsp;</td>" +
+				"</td><td headers='Password' class=\"pw\">&nbsp;</td></tr>";
+			}
+		} else {
+			SPortalSession.getLogger().info("No Linked SNs found");
+		}
+	    
+	   	if(AccountAccess.getAcctData(request, response).allowAddNewSn(request, response)==false)
+			request.setAttribute("reachlimit", "yes");
+		
+		 request.setAttribute("snliststring", SNlistString+linkedSNlistString);
+		 request.setAttribute("primarysn", primarySN);
+		 request.setAttribute("ismasteronly", new Boolean(isMasterSnOnly));
+		 request.setAttribute("displaystoredpassword", new Boolean(displayStoredPassword));
+			
+		 ArrayList deletedlist=ScreenNames.getDeletedSns(request, response);
+		 if(deletedlist==null ||deletedlist.size()<1)
+			 request.setAttribute("allowrestore", "no");
+		 
+		 AccountAccess.updateStats("ScreenNameMain",System.currentTimeMillis()-performancestarttime);
+		 AccountAccess.dispatchJsp(request, response, "screen_names.jsp");
+		 return;
+		   
+	}
+	
+	public void doPost(HttpServletRequest req, HttpServletResponse res)
+		throws ServletException, IOException {			
+		doGet(req, res);
+	}
+}

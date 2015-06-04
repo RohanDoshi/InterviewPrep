@@ -1,0 +1,41 @@
+
+public class Deadlock {
+
+	 String s1 = "abc";
+	 String s2 = "xyz";
+	
+	Thread t1 = new Thread(new Runnable() {
+		
+		@Override
+		public void run() {
+			synchronized (s1) {
+				synchronized (s2) {
+					System.out.println(s1 + s2);
+				}
+			}
+		}
+	});
+	
+	Thread t2 = new Thread(new Runnable() {
+		
+		@Override
+		public void run() {
+			synchronized (s2) {
+				synchronized (s1) {
+					for(int i=0; i<20; i++)
+					System.out.println(s2 + s2);
+				}
+			}
+		}
+	});
+	
+	public static void main(String[] args) {
+		
+		Deadlock d = new Deadlock();
+		
+		d.t2.start();
+		d.t1.start();
+		System.out.println("No deadlock");
+	}
+
+}

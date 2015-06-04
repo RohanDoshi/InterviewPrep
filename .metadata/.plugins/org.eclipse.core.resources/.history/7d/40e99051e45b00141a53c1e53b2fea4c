@@ -1,0 +1,65 @@
+package pack;
+
+public class DynamicDP {
+
+	public static void main(String args[]) {
+		LCSubsequence subsequence = new LCSubsequence();
+		String s1 = "ABCDGH" ;
+		String s2 = "AEDFHR";
+		System.out.println(subsequence.lcs(s1, s2));
+		
+		System.out.println(subsequence.lcs("AGGTAB", "GXTXAYB"));
+	}
+}
+
+class LCSubsequence {
+	
+	public String lcs(String s1, String s2) {
+		
+		int l1 = s1.length();
+		int l2 = s2.length();
+		
+		if(l1 == 0 || l2 == 0) 
+			return "";
+		
+		String r1 = "", r2 = "", r3 = "" ;
+		if(s1.charAt(0) == s2.charAt(0)) {
+			r1 = s1.substring(0, 1) + lcs(s1.substring(1, l1), s2.substring(1, l2));
+		} else { 
+			r2 = lcs(s1, s2.substring(1, l2));
+			r3 = lcs(s1.substring(1, l1), s2);
+		}
+		
+		String max = "";
+		
+		if(r1.length() > r2.length()) {
+			if(r1.length() > r3.length()) {
+				max = r1;
+			} else {
+				max = r3;
+			}
+		} else if(r2.length() > r3.length()) {
+			max = r2;
+		} else {
+			max = r3;
+		}
+		
+		return max;
+	}
+	
+	public String lcsDP(String s1, String s2) {
+		return lcsDPChar(s1.toCharArray(), s2.toCharArray());
+	}
+	
+	private String lcsDPChar(char[] c1, char[] c2) {
+		
+		int l1 = c1.length;
+		int l2 = c2.length;
+		
+		
+	}
+}
+
+class LCString {
+	
+}

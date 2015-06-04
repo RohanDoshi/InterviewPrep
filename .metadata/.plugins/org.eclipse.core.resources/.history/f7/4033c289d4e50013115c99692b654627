@@ -1,0 +1,657 @@
+/*
+ * PricePlanChangeServlet.java
+ * Created on August 18, 2006, 2:03 PM
+ */
+
+package com.aol.sportal.servlets;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Properties;
+import java.util.ResourceBundle;
+
+import javax.naming.NamingException;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.apache.log4j.Logger;
+
+import com.aol.cc.common.biz.CCBizAolScreenName;
+import com.aol.cc.common.biz.CCBizRepInfo;
+import com.aol.cc.common.biz.enums.CCBizSourceSystem;
+import com.aol.cc.common.priceplan.ChangePricePlanRequest;
+import com.aol.cc.common.priceplan.ChangePricePlanResponse;
+import com.aol.cc.common.priceplan.ChangeType;
+import com.aol.cc.common.priceplan.PPRequestChangeReqOpts;
+import com.aol.rules.xom.result.RuleExecutionResult;
+import com.aol.sportal.app.AppSession;
+import com.aol.sportal.app.SPortalSession;
+import com.aol.sportal.beans.LoginInfo;
+import com.aol.sportal.exception.SPortalException;
+import com.aol.sportal.model.ModelManager;
+import com.aol.sportal.model.ModelType;
+import com.aol.sportal.model.PricePlanChangeModelHelper;
+import com.aol.sportal.util.AccountAccess;
+import com.aol.sportal.util.PremiumAccess;
+import com.aol.sportal.util.PricePlanUtil;
+
+/**
+ * @author kundan04
+ * @version
+ */
+public class PricePlanChangeServlet extends HttpServlet{
+	
+	private final static int DUPLICATE_PI_CHANGE_ERROR = 24601;
+	private final static int INVALID_PAYMENT_METHOD = 24666;
+	private final static int PI_NOT_ALLOWED_CHANGE_ERROR = 25003;
+	private final static int PI_LEGACY_DSL_ERROR = 25002;
+	private final static int PREPAY_CHANGE_NOT_ALLOWED_ERROR = 25001;
+	
+	private final static int FREE_PI = 3829;
+	private static final Logger logger = Logger.getLogger(PricePlanChangeServlet.class);
+	/**
+	 * Initializes the servlet.
+	 */
+	public void init(ServletConfig config) throws ServletException {
+		super.init(config);
+		
+	}
+	
+	/**
+	 * Destroys the servlet.
+	 */
+	public void destroy() {
+		
+	}
+	
+	/**
+	 * Processes requests for both HTTP <code>GET</code> and <code>POST</code> methods.
+	 * 
+	 * @param request
+	 *            servlet request
+	 * @param response
+	 *            servlet response
+	 */
+	protected void processRequest(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+		RequestDispatcher dispatcher = null;
+		String referredBy = "";
+		referredBy = request.getParameter("referredBy");
+		logger.debug("Start of PricePlanChangeServlet::processRequest referredBy=" + referredBy);
+		try {
+			request.setAttribute("pricePlanSelected", request.getParameter("pricePlanToChangeTo"));
+			if (PricePlanUtil.checkRestrictedPricePlan(request, response)) return;
+			
+		} catch (ServletException e2) {
+			
+			e2.printStackTrace();
+			request.setAttribute("isSuccess", new Boolean(false));
+			request.setAttribute("isFailure", new Boolean(true));
+			logger.debug("PricePlanChangeServlet::processRequest Price Plan Update failed");
+			dispatcher = request.getRequestDispatcher(referredBy);
+			dispatcher.forward(request, response);
+		} catch (IOException e2) {
+			
+			e2.printStackTrace();
+			request.setAttribute("isSuccess", new Boolean(false));
+			request.setAttribute("isFailure", new Boolean(true));
+			logger.debug("PricePlanChangeServlet::processRequest Price Plan Update failed");
+			dispatcher = request.getRequestDispatcher(referredBy);
+			dispatcher.forward(request, response);
+		}
+		
+		try {
+			
+			String pricePlanSelected = request.getParameter("pricePlanToChangeTo");
+			
+			boolean isPricePlanChangeSuccessful = this.updatePricePlan(request, response);
+			String fwString = AccountAccess.getFromWherePrefix(request, response);
+			
+			// If the user came from the my_account page - set the SpSession.isvalid to false -
+			// so it makes a backend call to get upto date data.
+			
+			SPortalSession sp = AccountAccess.getSession(request, response);
+			if (sp != null) sp.setValid(false);
+			
+			AccountAccess.setFromWherePrefix(request, response, fwString);
+			
+			if (isPricePlanChangeSuccessful) {
+				logger.debug("PricePlanChangeServlet::processRequest forwarding to the Confirm Thank you page.");
+				request.getSession().setAttribute("pricePlanSelected", request.getParameter("pricePlanToChangeTo"));
+				request.setAttribute("isChangePlanSuccess", new Boolean(true));
+				request.setAttribute("isFailure", new Boolean(false));
+				request.setAttribute("pricePlanSelected", request.getParameter("pricePlanToChangeTo"));
+				if (referredBy != null && referredBy.equalsIgnoreCase("/jsp/cancel_billing.jsp")) request.setAttribute("isCancelBilling", "true");
+				else request.setAttribute("isCancelBilling", "false");
+				// if successful, reload the acct object to reload the PI information - as now supporting immediate PI change for upgrade scenario.
+				sp.reloadAcctObj(request);
+				dispatcher = request.getRequestDispatcher("premium_list.jsp");
+				dispatcher.forward(request, response);
+			} else {
+				request.setAttribute("pricePlanSelected", request.getParameter("pricePlanToChangeTo"));
+				request.setAttribute("isSuccess", new Boolean(false));
+				request.setAttribute("isFailure", new Boolean(true));
+				logger.debug("PricePlanChangeServlet::processRequest Price Plan Update failed");
+				dispatcher = request.getRequestDispatcher(referredBy);
+				dispatcher.forward(request, response);
+				
+			}
+			
+		} catch (Exception exception) {
+			exception.printStackTrace();
+			logger.error("PricePlanChangeServlet::processRequest" + exception);
+			// throw a new Appexception to show error page to user.
+			// throw new ServletException("Error saving price plan");
+			request.setAttribute("isSuccess", new Boolean(false));
+			request.setAttribute("isFailure", new Boolean(true));
+			logger.debug("PricePlanChangeServlet::processRequest Price Plan Update failed");
+			request.setAttribute("pricePlanSelected", request.getParameter("pricePlanToChangeTo"));
+			dispatcher = request.getRequestDispatcher(referredBy);
+			
+			dispatcher.forward(request, response);
+		}
+		
+	}
+	
+	/**
+	 * Handles the HTTP <code>GET</code> method.
+	 * 
+	 * @param request
+	 *            servlet request
+	 * @param response
+	 *            servlet response
+	 */
+	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+		if (AccountAccess.isGoodKeyStringForUpdating(request, response, request.getParameter("updateKey")) == false) {
+			response.sendRedirect("main.jsp");
+			return;
+		}
+		processRequest(request, response);
+	}
+	
+	/**
+	 * Handles the HTTP <code>POST</code> method.
+	 * 
+	 * @param request
+	 *            servlet request
+	 * @param response
+	 *            servlet response
+	 */
+	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		
+		doGet(request, response);
+	}
+	
+	/**
+	 * Updates the price plan , by interacting wth the PricePlanService, which in turn invokes the AMI_Price_lan Srever
+	 * to make the required changes.
+	 * 
+	 * @param request
+	 *            HttpServletRequest
+	 * @throws NamingException
+	 *             , CreateException, RemoteException, AppException, PricePlanServiceException, CCWSException
+	 * @returns boolean - representing the status of the transaction.
+	 **/
+	public boolean updatePricePlan(HttpServletRequest request, HttpServletResponse response) throws SPortalException {
+		
+		logger.debug("PricePlanServlet:: updatePricePlan START");
+		LoginInfo loginInfo = new LoginInfo(request);
+		// String pmsnAccountNumberStr = AccountAccess.getLoginItem(request,"mst_acct_number");
+		String cancelReason = request.getParameter("cancelReason");
+		
+		String referredBy = "";
+		referredBy = request.getParameter("referredBy");
+		String pmsnAccountNumberStr = loginInfo.getValue(request, "mst_acct_number");
+		
+		boolean isPricePlanChangeSuccessful = false;
+		logger.debug("PricePlanChangeServlet::updatePricePlan Start");
+		HttpSession session = request.getSession();
+		ResourceBundle resources = SPortalSession.getResources(request);
+		
+		// if(request.getParameter("secondaryEmail")!=null) ---- no longer need to update AIO with secondary email, just write to SVU blob.
+		// updateSecondaryEmail(request);
+		
+		int pricePlanId = 0;
+		String pricePlanToChangeTo = request.getParameter("pricePlanToChangeTo");
+		logger.error("PricePlanChangeServlet pricePlanToChangeTo=" + pricePlanToChangeTo);
+		
+		if (pricePlanToChangeTo != null) pricePlanId = new Integer(pricePlanToChangeTo.trim()).intValue();
+		
+		String originator = (String) request.getSession().getAttribute("ChangePlanOriginator");
+		
+		logger.debug("PricePlanChangeServlet::updatePricePlan pricePlanId=" + pricePlanId);
+		if (session == null) throw new SPortalException(resources, "error.noSession");
+		
+		ChangePricePlanRequest req = (ChangePricePlanRequest) session.getAttribute("updatePricePlanRequest");
+		
+		if (req == null) {
+			req = new ChangePricePlanRequest();
+		}
+		
+		// LoginInfo loginInfo = SPortalSession.getLoginInfo(request);
+		String screenName = loginInfo.getValue(request, "CompressedName");
+		logger.debug("PricePlanChangeServlet::updatePricePlan Screen Name from header =" + screenName);
+		// String accountNumberStr =AccountAccess.getLoginItem(request, "sub_acct_number");
+		
+		// long loginAccountNumber = Long.parseLong(accountNumberStr.trim());
+		long pmsnAccountNumber = Long.parseLong(pmsnAccountNumberStr.trim());
+		// set the price plan request params based on the SNS header, user selections.
+		req.setMastAcctNumber(pmsnAccountNumber);
+		req.setSourceId(CCBizSourceSystem.SUPPORT_PORTAL);
+		
+		req.setType(ChangeType.PENDING);
+		req.setScreenName(screenName);
+		PPRequestChangeReqOpts opts = new PPRequestChangeReqOpts();
+		CCBizRepInfo rep = new CCBizRepInfo();
+		// hardcoding the bid and sid , as these are not available from SNS header ,
+		// and trying to avoid the backend call just for this data.
+		opts.setBusinessId(new Integer(1));
+		opts.setServiceId(new Integer(2));
+		rep.setBusinessId(1);
+		rep.setServiceId(2);
+		CCBizAolScreenName aolRepScreenName = new CCBizAolScreenName();
+		aolRepScreenName.setAolScreenName(screenName);
+		rep.setScreenName(aolRepScreenName);
+		logger.debug("PricePlanChangeServlet::updatePricePlan New Price plan ID =" + pricePlanId);
+		
+		opts.setNewPriceIdx(new Integer(pricePlanId));
+		String pricePlanIndexStr = loginInfo.getValue(request, "mst_price_index");
+		logger.debug("PricePlanChangeServlet::updatePricePlan Current pricePlanIndexStr from header =" + pricePlanIndexStr);
+		opts.setCurPriceIdx(new Integer(pricePlanIndexStr));
+		opts.setRepinfo(rep);
+		long contactNumber = 0;
+		try {
+			
+			contactNumber = AccountAccess.getSession(request, response).getContactNum(request, response, Long.parseLong(AccountAccess.getLoginItem(request, "mst_acct_number")));
+		} catch (ServletException e1) {
+			
+			logger.error("Error getting contact number from SVU for account number =" + pmsnAccountNumber,e1);
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			
+			request.setAttribute("errorType", "requestFailedChangePlan");
+			logger.error("Error getting contact number from SVU   for account number =" + pmsnAccountNumber,e1);
+			e1.printStackTrace();
+		}
+		
+		opts.setContactNumber(new Long(contactNumber));
+		req.setOpts(opts);
+		
+		logger.debug("PricePlanChangeServlet::updatePricePlan Before pricePlanService.changePricePlan(req)");
+		// call the back end to change the price plan.
+		
+		ModelManager modelManager = new ModelManager();
+		PricePlanChangeModelHelper pricePlanModelHelper = (PricePlanChangeModelHelper) modelManager.factory(ModelType.PRICE_PLAN);
+		
+		ChangePricePlanResponse pricePlanResponse = null;
+		try {
+			
+			logger.debug("Before calling REE updating the price plan");
+			pricePlanResponse = pricePlanModelHelper.changePricePlan(req);
+			logger.debug("After updating the price plan");
+			
+		} catch (Exception e) {
+			
+			// TODO Auto-generated catch block
+			request.setAttribute("errorType", "requestFailedChangePlan");
+			logger.error("Error updating the price plan  for account number =" + pmsnAccountNumber,e);
+			e.printStackTrace();
+			throw new SPortalException(resources, "error.requestFailedChangePlan", new String[] { "error happenned  trying to change PricePlanUpdate thru Ree" }, new Exception(
+							"SPFE-502 Update of Price Plan Failed"));
+		}
+		logger.debug("PricePlanChangeServlet::updatePricePlan After pricePlanService.changePricePlan(req)");
+		String activeBenefitIds = "";
+		String activeBenefitsNames = "";
+		HashMap<String, String> blob = new HashMap<String, String>();
+		if (pricePlanId == FREE_PI) {
+			
+			try {
+				PremiumAccess premiumAccess = AccountAccess.getPremiumAccess(request, response);
+				ArrayList<String> activeBenefitsList = premiumAccess.getMyBenefitsProductIdJson(request, 1);
+				if (activeBenefitsList != null) {
+					Properties premiumResources = AppSession.getPremiumServiceResourcesInstance(request);
+					logger.debug(">>>>>>>>>>>>>> activeBenefitsList size=" + activeBenefitsList.size());
+					for (String benefitId : activeBenefitsList) {
+						
+						if (benefitId != null) {
+							if (activeBenefitIds.equalsIgnoreCase(""))
+								activeBenefitIds += benefitId;
+							else
+								activeBenefitIds += "#@#" + benefitId;
+							try {
+								if (activeBenefitsNames.equalsIgnoreCase(""))
+									activeBenefitsNames += premiumResources.getProperty(benefitId);
+								else
+									activeBenefitsNames += "#@#" + premiumResources.getProperty(benefitId);
+							} catch (Exception e)
+							{
+								// do nothing - axiom publishing issue, render
+								// user page.
+								e.printStackTrace();
+							}
+						}
+						
+					}
+					
+					logger.debug("PricePlanServlet::ActiveBenefitsIDs=" + activeBenefitIds + " activeBenefitsNames=" + activeBenefitsNames);
+					
+					blob.put("svu_product_id", activeBenefitIds);
+					blob.put("benefit_name", activeBenefitsNames);
+				}
+				
+			} catch (ServletException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+		
+		if (pricePlanResponse != null) {
+			
+			logger.debug("updatePricePlan Response !=null , pricePlanResponse.getStatus()=" + pricePlanResponse.getStatus());
+			
+			if (pricePlanResponse.getStatus() != RuleExecutionResult.STATUS_OK) {
+				// Error case .
+				
+				logger.error("PricePlanChange Error for SN" + AccountAccess.getLoginItem(request, "CompressedName") + " Response from REE" + pricePlanResponse.getStatus());
+				isPricePlanChangeSuccessful = false;
+				int errCode = pricePlanResponse.getErrorCode();
+				logger.error(
+								"PricePlanChangeServlet::updatePricePlan for account number=Status from REE=" + pmsnAccountNumber + " Status=" + pricePlanResponse.getStatus()
+												+ " Error code received from REE=" + errCode);
+				// write SVU action - as 439 will not be written by back end (failure condition).
+				
+				if (errCode == DUPLICATE_PI_CHANGE_ERROR) // user tried to switch to the same PI as they are on.
+				{
+					
+					// write SVU actions with reason code 3133 - since duplicate failure.
+					SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_DUPLICATE"), false,
+									new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+									getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), false, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					// write action 1727 only when changing to free price plan.
+					if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+						
+						logger.debug("FreePlan::Writing action 1727 1");
+						SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS_DUPLICATE"), false, 0, 0);
+					}
+					request.setAttribute("msg", "error.requestSamePI");
+					request.setAttribute("errorType", "PpDuplicateError");
+					throw new SPortalException(resources, "error.requestSamePI", new String[] { Integer.toString(errCode) }, new Exception("SPFE-502 Update of Price Plan Failed"));
+				} else if (errCode == INVALID_PAYMENT_METHOD) // invalid payment method on file error.
+				{
+					
+					// write SVU actions with reason code 3133 - since duplicate failure.
+					SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_PM_INVALID"), false,
+									new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+									getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), false, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					// write action 1727 only when changing to free price plan.
+					if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+						
+						logger.debug("FreePlan::Writing action 1727 2");
+						SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS_INVALID_PM"), false, 0, 0);
+					}
+					request.setAttribute("msg", "error.ppPminvalid");
+					request.setAttribute("errorType", "ppInvalidPM");
+					throw new SPortalException(resources, "error.ppPminvalid", new String[] { Integer.toString(errCode) }, new Exception("SPFE-502 Update of Price Plan Failed"));
+				} else if (errCode == PI_NOT_ALLOWED_CHANGE_ERROR) {
+					
+					// write SVU actions with reason code 3133 - since duplicate failure.
+					SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_PI_NOT_ALLOWED_CHANGE_ERROR"), false,
+									new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+									getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), false, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					// write action 1727 only when changing to free price plan.
+					if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+						
+						logger.debug("FreePlan::Writing action 1727 3");
+						SPortalSession.getActionWriter(request)
+										.writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS_PI_NOT_ALLOWED_CHANGE_ERROR"), false, 0, 0);
+					}
+					request.setAttribute("msg", "error.NotAllowedChangePi");
+					request.setAttribute("errorType", "ppNotAllowedChangePi");
+					throw new SPortalException(resources, "error.NotAllowedChangePi", new String[] { Integer.toString(errCode) }, new Exception("SPFE-502 Update of Price Plan Failed"));
+				} else if (errCode == PI_LEGACY_DSL_ERROR) {
+					
+					// write SVU actions with reason code 3133 - since duplicate failure.
+					SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_PI_LEGACY_DSL_ERROR"), false,
+									new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+									getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), false, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					// write action 1727 only when changing to free price plan.
+					if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+						
+						logger.debug("FreePlan::Writing action 1727 4");
+						SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS_PI_LEGACY_DSL_ERROR"), false, 0, 0);
+					}
+					request.setAttribute("msg", "error.NotAllowedChangeLegacyDSL");
+					request.setAttribute("errorType", "ppNotAllowedChangeLegacyDSL");
+					throw new SPortalException(resources, "error.NotAllowedChangeLegacyDSL", new String[] { Integer.toString(errCode) }, new Exception("SPFE-502 Update of Price Plan Failed"));
+				} else if (errCode == PREPAY_CHANGE_NOT_ALLOWED_ERROR) // user tried to switch to the same PI as they are on.
+				{
+					
+					// write SVU actions with reason code 3133 - since duplicate failure.
+					SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_PREPAY_CHANGE_NOT_ALLOWED_ERROR"), false,
+									new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+									getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), false, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					// write action 1727 only when changing to free price plan.
+					if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+						
+						logger.debug("FreePlan::Writing action 1727 5");
+						SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS_PREPAY_CHANGE_NOT_ALLOWED_ERROR"), false,
+										0, 0);
+					}
+					
+					request.setAttribute("msg", "error.NotAllowedChangePrepay");
+					request.setAttribute("errorType", "ppNotAllowedChangePrepay");
+					throw new SPortalException(resources, "error.NotAllowedChangePrepay", new String[] { Integer.toString(errCode) }, new Exception("SPFE-502 Update of Price Plan Failed"));
+				} else {
+					
+					SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP"), false, new Integer(pricePlanIndexStr).intValue(),
+									pricePlanId);
+					
+					if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+									getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), false, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					// write action 1727 only when changing to free price plan.
+					if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+						
+						logger.debug("FreePlan::Writing action 1727 6");
+						SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS"), false, 0, 0);
+					}
+					
+					request.setAttribute("errorType", "requestFailedChangePlan");
+					logger.error("PricePlanChangeServlet::updatePricePlan Response from Price plan is" + pricePlanResponse);
+					throw new SPortalException(resources, "error.requestFailedChangePlan", new String[] { Integer.toString(errCode) }, new Exception("SPFE-502 Update of Price Plan Failed"));
+				}
+				
+			} else {
+				
+				// Success case .
+				// not setting the SVU action 439 , as this is taken care by billing interface (backend).
+				logger.info(
+								"PricePlanChangeServlet::updatePricePlan for account number=" + pmsnAccountNumber + " Status from REE=" + pricePlanResponse.getStatus() + " ErrorCode="
+												+ pricePlanResponse.getErrorCode());
+				
+				if (pricePlanResponse.getStatus() == RuleExecutionResult.STATUS_OK && pricePlanResponse.getErrorCode() == 0) {
+					SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP"), true, new Integer(pricePlanIndexStr).intValue(),
+									pricePlanId);
+					if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+									getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), true, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					// write action 1727 only when changing to free price plan.
+					if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+						logger.debug("FreePlan::Writing action 1727 7");
+						SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS"), true, 0, 0);
+						logger.debug("Writing SVU acton 2103 SVU_MIGRATE_TO_FREE_INFOR....");
+						SPortalSession.getActionWriter(request).writeSvuActionWithBlob(request, response, "SVU_MIGRATE_TO_FREE_INFOR", true, 0, 0, 0, blob);
+					}
+					
+					isPricePlanChangeSuccessful = true;
+				} else  // treat it as error - as both status and error code are not 0 ( not a true success from REE).
+				{
+					logger.debug("Since both status and errorCode not success from REE - treating as error response, write corressponding SVU action outcome.");
+					SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP"), false, new Integer(pricePlanIndexStr).intValue(),
+									pricePlanId);
+					if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+									getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), false, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+					// write action 1727 only when changing to free price plan.
+					if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+						logger.debug("FreePlan::Writing action 1727 8");
+						SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS"), false, 0, 0);
+
+
+					}
+					request.setAttribute("errorType", "requestFailedChangePlan");
+					logger.error(
+									"PricePlanChangeServlet::updatePricePlan Response from Price plan status=" + pricePlanResponse.getStatus() + "ErrorCode=" + pricePlanResponse.getErrorCode());
+					throw new SPortalException(resources, "error.requestFailedChangePlan", new String[] { Integer.toString(pricePlanResponse.getErrorCode()) }, new Exception(
+									"SPFE-502 Update of Price Plan Failed"));
+					
+				}
+			}
+		} else // NULL response received.
+		{
+			
+			SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP"), false, new Integer(pricePlanIndexStr).intValue(),
+							pricePlanId);
+			if ((originator != null && originator.length() != 0)) SPortalSession.getActionWriter(request).writeSvuAction(request, response,
+							getSVUActionByPPTestAndOrigin(request, "SVU_CHG_PP_WITH_INTENT"), false, new Integer(pricePlanIndexStr).intValue(), pricePlanId);
+			// write action 1727 only when changing to free price plan.
+			if (pricePlanId == FREE_PI || (cancelReason != null && !(cancelReason.trim().length() < 1))) {
+				
+				logger.debug("FreePlan::Writing action 1727 9");
+				SPortalSession.getActionWriter(request).writeSvuAction(request, response, getSVUActionByPPTestAndOrigin(request, "SVU_CHG_ACC_STATUS"), false, 0, 0);
+			}
+			
+			logger.debug("updatePricePlan Response 3");
+			logger.error("PricePlanChangeServlet::updatePricePlan Response from Price plan is" + pricePlanResponse);
+			
+			request.setAttribute("errorType", "requestFailedChangePlan");
+			throw new SPortalException(resources, "error.requestFailedChangePlan", new String[] { "Null response received from REE for PricePlanUpdate" }, new Exception(
+							"SPFE-502 Update of Price Plan Failed"));
+		}
+		
+		logger.debug("PricePlanChangeServlet::updatePricePlan End ");
+		
+		return isPricePlanChangeSuccessful;
+	}
+	
+	private String getSVUActionByPPTestAndOrigin(HttpServletRequest request, String defaultSvuAction) {
+		
+		logger.debug("getSVUActionByPPTestAndOrigin start action=" + defaultSvuAction);
+		String pricePlanTestVersion = (String) request.getSession().getAttribute("pricePlanTestVersion");
+		String originator = (String) request.getSession().getAttribute("ChangePlanOriginator");
+		
+		logger.debug("pricePlanTestVersion=" + pricePlanTestVersion + "originator=" + originator);
+		
+		if (defaultSvuAction.equalsIgnoreCase("SVU_CHG_PP") && pricePlanTestVersion != null && pricePlanTestVersion.trim().length() != 0) {
+			// set the reason code based on test type - if the user qualified for a test, else return the action with default reason code.
+			if (pricePlanTestVersion.trim().equalsIgnoreCase("TestVersion")) {
+				
+				logger.debug("SVU action=SVU_CHG_PP_3122");
+				return "SVU_CHG_PP_3122";
+			}
+			
+		} else if (defaultSvuAction.equalsIgnoreCase("SVU_CHG_ACC_STATUS") && pricePlanTestVersion != null && pricePlanTestVersion.trim().length() != 0) {
+			
+			String reason = request.getParameter("cancelReason");
+			logger.debug("PricePlanServlet::cancelreason=" + reason);
+			
+			// set the reason code based on test type - if the user qualified for a test, else return the action with default reason code.
+			if (pricePlanTestVersion.trim().equalsIgnoreCase("TestVersion")) {
+				logger.debug("SVU action=SVU_CHG_ACC_STATUS_3122");
+				return "SVU_CHG_ACC_STATUS_3122";
+			}
+			
+			/*
+			 * SVU_CHG_ACC_STATUS_HAS_BROADBAND hasBroadBand
+			 * SVU_CHG_ACC_STATUS_TECH_ISSUES techProblem
+			 * SVU_CHG_ACC_STATUS_NOT_WORTH_PRICE notWorthPrice
+			 * SVU_CHG_ACC_STATUS_SWITCHING_PROVIDERS switching
+			 * SVU_CHG_ACC_STATUS_PRODUCT_NO_LONGER_USE noLongerUse
+			 * SVU_CHG_ACC_STATUS_OTHER other
+			 */
+			String actionName = "SVU_CHG_ACC_STATUS";
+			
+			if (reason != null && reason.trim().equalsIgnoreCase("hasBroadBand")) actionName = "SVU_CHG_ACC_STATUS_HAS_BROADBAND";
+			if (reason != null && reason.trim().equalsIgnoreCase("techProblem")) actionName = "SVU_CHG_ACC_STATUS_TECH_ISSUES";
+			if (reason != null && reason.trim().equalsIgnoreCase("notWorthPrice")) actionName = "SVU_CHG_ACC_STATUS_NOT_WORTH_PRICE";
+			if (reason != null && reason.trim().equalsIgnoreCase("switching")) actionName = "SVU_CHG_ACC_STATUS_SWITCHING_PROVIDERS";
+			if (reason != null && reason.trim().equalsIgnoreCase("noLongerUse")) actionName = "SVU_CHG_ACC_STATUS_PRODUCT_NO_LONGER_USE";
+			if (reason != null && reason.trim().equalsIgnoreCase("other")) actionName = "SVU_CHG_ACC_STATUS_OTHER";
+			
+			logger.debug("REASON=" + reason + " Action=" + actionName);
+			return actionName;
+		} else if (defaultSvuAction.equalsIgnoreCase("SVU_CHG_PP_WITH_INTENT") && pricePlanTestVersion != null && pricePlanTestVersion.trim().length() != 0) {
+			if (originator != null && originator.length() != 0 && originator.equalsIgnoreCase("freeplan")) {
+				
+				logger.debug("SVU_CHG_PP_WITH_INTENT_3172");
+				return "SVU_CHG_PP_WITH_INTENT_3172";
+			} else if (originator != null && originator.length() != 0 && originator.equalsIgnoreCase("migration")) {
+				logger.debug("SVU_CHG_PP_WITH_INTENT_3173");
+				return "SVU_CHG_PP_WITH_INTENT_3173";
+			} else if (originator != null && originator.length() != 0 && originator.equalsIgnoreCase("cancel")) {
+				logger.debug("SVU_CHG_PP_WITH_INTENT_3174");
+				return "SVU_CHG_PP_WITH_INTENT_3174";
+			}
+			
+		}
+		
+		logger.debug("SVU action=" + defaultSvuAction);
+		// if reached here means - default reason code still applies.
+		return defaultSvuAction; // default reason code from web.xml set.
+		
+	}
+	
+	private void updateSecondaryEmail(HttpServletRequest request) {
+		/*
+		 * try {
+		 * AccountServiceHome home = (AccountServiceHome)SpServiceCache.getInstance().getLocalHome("accountserviceEJB");
+		 * AccountService acct = home.create();
+		 * LoginInfo loginInfo = SPortalSession.getLoginInfo(request);
+		 * String screenName = loginInfo.getValue(request, "CompressedName");
+		 * String masterAccountNumber = loginInfo.getValue(request, "mst_acct_number");
+		 * String loggedUserAccountNumber = loginInfo.getValue(request, "sub_acct_number");
+		 * String bid = loginInfo.getValue(request, "bid");
+		 * String country = loginInfo.getValue(request, "mst_country_code");
+		 * String sid = loginInfo.getValue(request, "Service");
+		 * UpdateRequest req = new UpdateRequest(new Long(masterAccountNumber).longValue());
+		 * req.setBid(new Short(bid).shortValue());
+		 * req.setCountry(country);
+		 * req.setSid(new Short(sid).shortValue());
+		 * req.setSourceId(SPortalSession.getSVUSourceSystem());
+		 * req.setLoggedUserSecondaryEmail(request.getParameter("secondaryEmail"));
+		 * req.setLoggedUserAccountNumber(new Long(loggedUserAccountNumber).longValue());
+		 * // set the account number to be the master account #
+		 * req.setAcctNum(new Long(masterAccountNumber).longValue());
+		 * CCBizAolScreenName bizScreenName = new CCBizAolScreenName();
+		 * bizScreenName.setAolScreenName(screenName);
+		 * CCBizRepInfo rep = new CCBizRepInfo();
+		 * rep.setBusinessId(new Short(bid).shortValue());
+		 * rep.setServiceId(new Short(sid).shortValue());
+		 * rep.setScreenName(bizScreenName);
+		 * req.setRepInfo(rep);
+		 * AccountResponse rspn = acct.UpdateAccountInformation(req);
+		 * boolean success = true;
+		 * if(rspn != null && rspn.getStatus() == AccountResponse.FAILURE)
+		 * success = false;
+		 * }
+		 * catch(Exception ex) {
+		 * ex.printStackTrace();
+		 * }
+		 */
+		
+	}
+	
+}

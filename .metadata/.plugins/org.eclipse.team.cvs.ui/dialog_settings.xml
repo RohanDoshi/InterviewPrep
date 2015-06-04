@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="CheckoutAsWizard">
+	</section>
+	<section name="NewLocationWizard">
+		<item value="false" key="ConfigurationWizardMainPage.STORE_DONT_VALIDATE_ID"/>
+		<list key="ConfigurationWizardMainPage.STORE_PATH_ID">
+			<item value="/cvs/root/host"/>
+			<item value="support_portal/customer_care/supportportal"/>
+		</list>
+		<list key="ConfigurationWizardMainPage.STORE_HOSTNAME_ID">
+			<item value="cvs.cm.aol.com"/>
+		</list>
+		<list key="ConfigurationWizardMainPage.STORE_USERNAME_ID">
+			<item value="rdoshi61"/>
+		</list>
+	</section>
+</section>

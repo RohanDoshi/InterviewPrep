@@ -1,0 +1,34 @@
+
+public class Practice {
+	public static void main(String args[]) { 
+		
+	}
+}
+
+class Check { 
+	
+	int[] subArrayMeetsSumSimple(int a[], int sum) {
+		int in1 = -1, in2 = -1;
+		boolean found = false;
+		for(int i=0; i<a.length; i++) {
+			if(!found) {
+			in1 = i;
+			if(a[in1] == sum) {
+				found = true;
+				break;
+			}
+			int tempSum = a[in1];
+			for(int j=i+1; j<a.length; j++) {
+				in2 = j;
+				tempSum = tempSum + a[j];
+				if(tempSum == sum) {
+					found = true;
+					break;
+				}
+			}	
+		}
+	}
+}
+
+
+}

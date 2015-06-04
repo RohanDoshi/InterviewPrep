@@ -1,0 +1,297 @@
+package pack;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+
+public class GraphDS {
+
+	public static void main(String[] args) {
+		char[] vert = {'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z' };
+		Graph graph = new Graph(false);
+		for(int i=0; i<vert.length; i++) {
+			graph.addVertex(vert[i]);
+		}
+		
+		graph.addEdge('r', 's',0);
+		graph.addEdge('s', 'w',0);
+		graph.addEdge('r', 'v',0);
+		graph.addEdge('w', 't',0);
+		graph.addEdge('w', 'x',0);
+		graph.addEdge('x', 'u',0);
+		graph.addEdge('x', 'y',0);
+		graph.addEdge('t', 'u',0);
+		graph.addEdge('t', 'x',0);
+		graph.addEdge('u', 'y',0);
+		
+		//graph.breadthFirstSearch('r');
+		System.out.println("-----------------");
+		//graph.breadthFirstSearch('s');
+		
+		char[] setVert = {'u', 'v', 'w', 'x', 'y', 'z' };
+		Graph directedGraph = new Graph(true);
+		for(int i=0; i<setVert.length; i++) {
+			directedGraph.addVertex(setVert[i]);
+		}
+		
+		directedGraph.addEdge('u', 'v',0);
+		directedGraph.addEdge('u', 'x',0);
+		directedGraph.addEdge('x', 'v',0);
+		directedGraph.addEdge('v', 'y',0);
+		directedGraph.addEdge('y', 'x',0);
+		directedGraph.addEdge('w', 'y',0);
+		directedGraph.addEdge('w', 'z',0);
+		directedGraph.addEdge('z', 'z',0);
+		
+		directedGraph.depthFirstSearch();
+		
+		Graph cycleGraph = new Graph(true);
+		char cycleVert[] = {'a', 'b','c','d','e'};
+		for(char v: cycleVert) {
+			cycleGraph.addVertex(v);
+		}
+		
+		cycleGraph.addEdge('a', 'd',0);
+		cycleGraph.addEdge('b', 'a',0);
+		cycleGraph.addEdge('b', 'c',0); 
+		cycleGraph.addEdge('d', 'b',0);
+		cycleGraph.addEdge('d', 'e',0);
+		cycleGraph.addEdge('e', 'c',0);
+		System.out.println("---------------------------------------");
+		System.out.println(cycleGraph.hasCycle());
+		
+		
+		Graph dijkstraGraph = new Graph(true);
+		char[] dijVertices = {'s','t','x','y','z'};
+		for(int i=0; i<dijVertices.length; i++) {
+			dijkstraGraph.addVertex(dijVertices[i]);
+		}
+		
+		dijkstraGraph.addEdge('s', 't', 10);
+		dijkstraGraph.addEdge('s', 'y', 5);
+		dijkstraGraph.addEdge('t', 'x', 1);
+		dijkstraGraph.addEdge('t', 'y', 2);
+		dijkstraGraph.addEdge('y', 't', 3);
+		dijkstraGraph.addEdge('y', 'x', 9);
+		dijkstraGraph.addEdge('y', 'z', 2);
+		dijkstraGraph.addEdge('z', 's', 7);
+		dijkstraGraph.addEdge('z', 'x', 6);
+		dijkstraGraph.addEdge('x', 'z', 4);
+		
+	}
+
+}
+
+class Graph {
+	
+	private List<Vertex> vertices = null;
+	private Map<Character, Vertex> map = null;
+	private boolean isDirected = false;
+	private int TIME = 0;
+	private enum Color {
+		White,
+		Gray,
+		Black;
+	}
+	private class Vertex implements Comparable<Vertex> {
+		char c;
+		int distFromRoot = Integer.MAX_VALUE;
+		Color color = Color.White;
+		Vertex pred = null;
+		int sTime = 0;
+		int eTime = 0;
+		List<Vertex> edgeTo = null;
+		List<Integer> weights = null;
+		public Vertex(char c) {
+			this.c = c;
+			this.edgeTo = new LinkedList<Vertex>();
+			this.weights = new LinkedList<Integer>();
+		}
+		@Override
+		public int compareTo(Vertex o) {
+			if(this.eTime > o.eTime)
+				return -1;
+			else
+				return 1;
+		}
+		
+		@Override
+		public String toString() {
+			// TODO Auto-generated method stub
+			return Character.toString(c);
+		}
+		
+		
+	}
+	
+	public void dijkstras() {
+		
+	}
+	
+	public Graph(boolean isDirected) {
+		vertices = new LinkedList<Vertex>();
+		map = new HashMap<Character, Vertex>();
+		this.isDirected = isDirected;
+	}
+	
+	public void topologicalSort() {
+		dfs(vertices.get(0));
+		Arrays.sort(vertices.toArray());
+		System.out.println(Arrays.toString(vertices.toArray()));
+	}
+	
+	public void addVertex(char c) {
+		map.put(c, new Vertex(c));
+		vertices.add(map.get(c));
+	}
+	
+	public boolean containsVertex(char c) {
+		return map.containsKey(c);
+	}
+	
+	public void addEdge(char src, char dest, int weight) {
+		if(!map.containsKey(src) || !map.containsKey(dest)) {
+			return;
+		}
+		
+		map.get(src).edgeTo.add(map.get(dest));
+		map.get(src).weights.add(weight);
+		if(!isDirected) {
+			map.get(dest).edgeTo.add(map.get(src));
+			map.get(dest).weights.add(weight);
+		}
+	}
+	
+	public void breadthFirstSearch(char root) {
+		Vertex rootNode = map.get(root);
+		rootNode.color = Color.Gray;
+		rootNode.distFromRoot = 0;
+		rootNode.pred = null;
+		for(Vertex vert : vertices) {
+			if(vert != rootNode) {
+				vert.color = Color.White;
+				vert.distFromRoot = 0;
+				vert.pred = null;
+			}
+		}
+		Queue<Vertex> queue = new LinkedList<Vertex>();
+		queue.add(rootNode);
+		while(queue.size() > 0) {
+			Vertex vertex = queue.poll();
+			for(Vertex v : vertex.edgeTo) {
+				if(v.color.equals(Color.White)) {
+					queue.add(v);
+					v.color = Color.Gray;
+					v.distFromRoot = vertex.distFromRoot + 1;
+					v.pred = vertex;
+				}
+			}
+			vertex.color = Color.Black;
+		}
+		printBFSTree(rootNode);
+	}
+	
+	public void printBFSTree(Vertex rootNode) {
+		if(rootNode == null) {
+			return;
+		}
+		System.out.println("["+rootNode.c+", "+rootNode.distFromRoot+"]");
+		for(Vertex v : rootNode.edgeTo){
+			if(v.pred == rootNode) {
+				printBFSTree(v);
+			}
+		}
+	}
+	
+	public void depthFirstSearch() {
+		
+		for(Vertex v : vertices) {
+			v.color = Color.White;
+			v.distFromRoot = 0;
+			v.pred = null;
+			v.sTime = 0;
+			v.eTime = 0;
+		}
+		TIME = 0;
+		for(Vertex v: vertices) {
+			if(v.color.equals(Color.White)) {
+				dfs(v);
+			}
+		}
+		
+		printDFSTree();
+	}
+	
+	private void dfs(Vertex v) {
+		TIME++;
+		v.sTime = TIME;
+		v.color = Color.Gray;
+		for(Vertex adj : v.edgeTo) {
+			if(adj.color.equals(Color.White)) {
+				adj.pred = v;
+				dfs(adj);
+			}
+		}
+		TIME++;
+		v.eTime = TIME;
+		v.color = Color.Black;
+	}
+	
+	public void printDFSTree( ) {
+		for(Vertex v: vertices) {
+			v.color = Color.White;
+		}
+		for(Vertex v: vertices) {
+			if(v.color.equals(Color.White))
+				printDFS(v);
+		}
+		
+	}
+	
+	private void printDFS(Vertex v) {
+		v.color = Color.Gray;
+		System.out.println("["+v.c+", "+v.sTime+", "+v.eTime+"]");
+		for(Vertex vert : v.edgeTo) {
+			if(vert.color.equals(Color.White) && vert.pred == v) {
+				printDFS(vert);
+			}
+		}
+	}
+	
+	public boolean hasCycle() {
+		for(Vertex v: vertices) {
+			v.color = Color.White;
+		}
+		boolean hasCyc = false;
+		for(Vertex v: vertices) {
+			if(v.color.equals(Color.White)) {
+				hasCyc = hasCycle(v,new HashSet<Vertex>());
+				if(hasCyc)
+					break;
+			}
+		}
+		return hasCyc;
+	}
+	
+	private boolean hasCycle(Vertex v, Set<Vertex> path) {
+		v.color = Color.Gray;
+		path.add(v);
+		boolean hasCycle = false;
+		for(Vertex vert : v.edgeTo) {
+			if(path.contains(vert)) {
+				return true;
+			}
+			if(vert.color.equals(Color.White)) {
+				path.add(vert);
+				hasCycle = hasCycle || hasCycle(vert, path);
+			}
+		}
+		return hasCycle;
+	}
+	
+}

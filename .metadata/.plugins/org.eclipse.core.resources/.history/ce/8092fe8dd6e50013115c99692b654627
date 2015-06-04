@@ -1,0 +1,974 @@
+# Support Portal ResourceBundle properties file
+
+#Prod nstest_backend.jsp account number. 
+testAccountNumber=812185709
+
+
+#QA nstest_backend.jsp account number. 
+#testAccountNumber=397190791
+
+#testpea nstest_backend.jsp account number. 
+#testAccountNumber=74448397
+
+#survey intervel number
+label.survey.nthvisitor=0
+#label.survey.nthvisitor=25
+
+#prod value
+label.cdn.url=https://s.aolcdn.com/bill.aol.com
+#qa value
+#label.cdn.url=https://s.aolcdn.com/billqa.aol.com
+label.cdn.url=..
+
+#prod value
+help.url=http://help.aol.com
+
+#prod value for 500.jsp
+label.cdn.url.500=http://o.aolcdn.com/bill.aol.com
+#do not know qa value
+
+#DBR prod value  
+dbr.url= https://dbr.services.aol.com/query?key=
+#QA value
+#dbr.url=https://dbr-qh.services.aol.com:8300/query?key=
+#dbr.url=https://tmsd14a.blue.aol.com:6666/query?key=
+#testpea value
+#dbr.url=http://tipt23.test.aol.com:9998/query?key=
+
+dbr.vdb=&dataset=supportportal_vdb&applicationId=bill_aol_com
+
+#DBR Prod set url for email update. 
+dbr.setUrl=https://dbr.services.aol.com/set?key=
+#QA value
+#dbr.setUrl=https://dbr-qh.services.aol.com:8300/set?key=
+#Testpea value
+#dbr.setUrl=http://tmsd10.test.aol.com:7777/set?key=
+dbr.connectionTimeOut=2000
+
+dbr.setVdb=&keyType=LoginID&dataset=supportportal_vdb&applicationID=bill_aol_com
+
+#Prod UMT url. 
+umt.url=https://umtus.aol.com/umt/queued_add.jsp?action=insert&
+#QA UMT url.
+#umt.url=https://umt.qh.aol.com/umt/queued_add.jsp?action=insert&
+#Red UMT url
+#umt.url=https://buzz.office.aol.com:17526/daedalus/queued_add.jsp?action=insert&
+
+#Prod AVA Get
+avaGetUrl.url=https://ava.services.aol.com:6080/ava/get?idType=SCREEN_NAME&loginid=
+#QA AVA Get
+#avaGetUrl.url=http://tinfra06.test.aol.com:8039/ava/get?idType=SCREEN_NAME&loginid=
+# Testpea AVA Get
+#avaGetUrl.url=http://buzz.office.aol.com:8383/ava/get?idType=SCREEN_NAME&loginid=
+
+#Prod AVA Set
+avaSetUrl.url=https://ava.services.aol.com:6080/ava/set
+#QA AVA Set
+#avaSetUrl.url=http://tinfra06.test.aol.com:8039/ava/set
+#Testpea AVA Set
+#avaSetUrl.url=http://buzz.office.aol.com:8383/ava/set
+
+proactiveLiveHelp.upxGetUrl=https://dbr.services.aol.com/query?key=
+#Testpea
+#proactiveLiveHelp.upxGetUrl=http://tipt23.test.aol.com:9998/query?key=
+proactiveLiveHelp.connectionTimeOut=10000
+proactiveLiveHelp.upxGetAttributes=&dataset=supportportal_vdb&attr=live_help_pref&applicationId=bill_aol_com
+
+proactiveLiveHelp.upxSetUrl=https://dbr.services.aol.com/set?key=
+#proactiveLiveHelp.upxSetUrl=http://tipt23.test.aol.com:9998/set?key=
+proactiveLiveHelp.upxSetAttributes=&dataset=supportportal_vdb&attr=live_help_pref&value=1&applicationId=bill_aol_com
+
+transactionTimeThresold=2000
+transactionPercentageThresold=20
+parental.control.url=https://parentalcontrols.aol.com
+
+#the below brandi list is for change password page, for these brandis, the
+#change password will not be allowed
+atschool.brandi.list=_1_2_3_4_5_6_49_50_51_52_53_61_81_
+
+proactiveLiveHelp.HoldOut.enabled=true
+proactiveLiveHelp.holdOut.NumberOfDigits=2
+proactiveLiveHelp.holdOut.EvenOrOdd=EVEN
+
+error.systemErrorPsb=We are sorry your request could not be processed at this time. Please try again later. You can also call us at 1-866-485-9217 to expedite your request.
+error.systemErrorOpr=This page is currently unavailable, please try back later.
+error.systemErrorOprIneligible=You have either already declined this feature or it is not currently available for your account.
+error.systemError=Sorry! We are having issues with our systems. Please try again later.
+error.requestFailedChangePlan=Sorry! We are having issues with our systems. Please try again later.
+error.PsbError=Either you do not have premium services, or we are experiencing a system problem. <br><a href="http://help.aol.com/help/microsites/microsite.do?cmd=displayKC&docType=kc&externalId=10148">Click here</a> to read more about managing your premium services.
+error.PsbError.engb=Either you do not have premium services, or we are experiencing a system problem. <br><a href="http://help.aol.co.uk/help_uk/documentLink.do?cmd=displayKC&docType=kc&externalId=28351">Click here</a> to read more about managing your premium services.
+error.restrictedAccess.bid=This information is not available to non-US accounts.
+error.restrictedAccess.notallow=Your account does not have access to this feature.
+error.submisstion=There was an error in your submission. Please correct the fields indicated below.
+
+error.restrictedAccess.hasSubs=Because you have additional paid services tied to this account, we are unable to cancel your AOL account online at this time.  Please call 1-800-827-6364 to speak with an agent to complete your cancelation. 
+error.restrictedAccess.prepay=Because of your account type, you are not eligible to cancel your plan online.  Please call a customer support consultant at 1-800-827-6364.
+error.restrictedAccess.dsl=Because of your account type, you are not eligible to cancel your plan online.  Please call a customer support consultant at 1-800-827-6364.
+error.restrictedAccess.legacyCable=Because of your account type, you are not eligible to cancel your plan online.  Please call a customer support consultant at 1-800-827-6364.
+error.restricted.premiumService.block.bundle=Sorry, you have a special account type that cannot be canceled online. Please call 1-800-827-6364.
+error.restricted.premiumService.block.prepay=Sorry, you have a special account type that cannot be canceled online. Please call 1-800-827-6365
+
+error.sn.snAlreadyCreated=Your screen name has already been created.
+error.sn.asqnotselect=Please select a question.
+error.sn.asqnoanswer=Please input your answer.
+error.sn.asqanswernotmatch=Your answers did not match.
+error.sn.asqanswershort=Your answers are too short.
+error.sn.createasqfail=Your answers are not valid.
+error.sn.suggestempty=You must provide First Word to suggest screen names.
+error.sn.suggestnotvalid=Please enter only letters and numbers into the First Word text box.
+error.sn.suggesttryagain=Failed to get suggested screen names, please try again.
+error.sn.suggestnotselect=Please select a screen name from Available Screen Names.
+error.sn.deletefail=Delete Screen name failed.
+error.sn.deletedevidefail=You may not delete a screen name that has registered for a device.
+label.sn.deletesuccess=Thank you. Your screen name was deleted.
+error.sn.restoreempty=Please select a screen from the below list to restore.
+error.sn.restorefail=Restore a screen name failed.
+error.sn.restoresuccess=Your screen name has been restored.
+error.sn.avafail=Authorization failed, please try again.
+error.sn.guardianerror=You have successfully created a screen name, but an error has ocurred include that name in the guardian service.
+error.sn.specialcharacter=The information that you have provided for screen name is invalid. Please try again.
+error.sn.tosnotset=The information that you have provided for Terms of Service is invalid. Please try again.
+
+
+label.password.error1=Type your password.
+label.password.error2=Your password must be 6-16 characters long, and can include upper and lower case letters, numbers and special characters (e.g., @, #, &). Please choose another password.
+#label.password.error2=For your safety, passwords must be at least 6 characters long, contain both numbers and letters, and not be easily guessed. Please choose another password.
+label.password.error3=Your passwords do not match. Please retype your passwords.
+label.password.error5=You have successfully changed the password for the Screen Name:
+label.password.error6=Change password please select a screen name.
+label.password.error7=To change your password, you must input your current password.
+label.password.error8=The new password must not be the same as the old one.
+label.password.error9=Your password must be between 6 and 16 characters long.
+label.password.error10=Incorrect current password. Please type in the correct password.
+label.password.inlineerror.invalid=Incorrect Password
+label.password.inlineerror.blank=Your password cannot be blank
+label.password.inlineerror.match=Your passwords do not match
+label.password.inlineerror.length=Your password is not the correct length
+label.password.success=Thank you. Your password was changed.
+
+#delay in milli-seconds for phone and chat stored proc calls
+chat.delay=60000
+phone.delay=60000
+
+#pm2=Checking
+pm2=Account
+pm3=American Express
+pm4=VISA
+pm5=MasterCard
+pm6=Discover Network
+pm10=VISA Debit
+pm11=MasterCard Debit
+pm12=AOL VISA
+
+#pm13=Phone Bill
+#pm14=Phone Bill
+#pm19=Paper Bill
+#pm20=Gateway Household
+#pm21=Gateway EZ Pay
+#pm22=Gateway MBNA
+#13 and 14 will handle it differently
+pm13=Account
+pm14=Account
+pm19=Account
+pm20=Account
+pm21=Account
+pm22=Account
+
+pm23=SEARS
+pm24=Target Guest Card
+pm25=Prepaid Usage Card
+pm26=Time Warner Cable
+
+#pm27=Bill Me Later
+pm27=Account
+
+pm28=WalMart Card
+pm33=Diners Card
+pm45=Citi Cards
+pm58=PeachDirect
+
+#pm61=Pay with Cash
+#pm62=Partner Billed
+pm61=Account
+pm62=Account
+
+#pm63 free account will be treat it separately
+pm63=Free Account
+
+pm64=PayPal
+pm65=PayPal AC Payable
+pm66=MONEYBOOKERS
+
+#pm67=SAP_EFT
+#pm68=SAP_PAPERCHECK
+#pm69=SAP_WIRELESS
+pm67=Account
+pm68=Account
+pm69=Account
+
+error.noSession=No Session is available.
+error.noPmsnInSnsHeader=PMSN not received from SNS header
+error.noBrandiInSnsHeader= No Brandi information received in SNS header
+error.internalError= <p align=center>Please try again</p><p align=left style="font-weight:normal;margin:10px 10px 0 10px;"> We're sorry, we were unable to process your request due to high transaction volumes. Please try to submit your request again. Thank you.</p>
+
+error.internalErrorCode=<p align=center>Please try again</p><p align=left style="font-weight:normal;margin:10px 10px 0 10px;"> We're sorry, we were unable to process your request due to high transaction volumes. Please try to submit your request again. Thank you.Error Code: {0}.</p>
+
+error.arpuPayment=<p class='alert'>We're sorry, but the services you have are not eligible for payment by checking or savings account. Payment may only be made by credit or debit card. If you still wish to change your method of payment, please call 1-866-265-4415 to speak with a member services representative. Thank you!</p>
+error.dupPaymentFailed=We were not able to authorize the charge on this card, please use another card.
+error.validationFailed=Validation of payment information failed, please correct the information entered.
+error.authorizationFailed=We were not able to authorize the charge on this card, please use another card.
+error.authorizationFailedChecking=We were not able to authorize the charge on this account please use another payment method.
+error.invalidFlow=The system has detected an invalid page flow. Please start from the \"My Account\" page by clicking on the \"My Account\" hyperlink on the left-hand side.
+error.requestFailed=<p align=center>Please try again</p><p align=left style="font-weight:normal;margin:10px 10px 0 10px;"> We're sorry, we were unable to process your request due to high transaction volumes. Please try to submit your request again. Thank you.</p>
+error.creditcard=The card number you have entered is not valid.
+error.cedCheckFailed=The information that you have provided for \"{0}\" is invalid. <br/> Please try again.
+error.zipCode=The zip code you have entered is invalid.
+error.hack=The text you have entered for \"{0}\" is not allowed.
+error.restrictedAccess=The information you are trying to access is only available to master or master designated accounts.
+error.firstName=the first name is required.
+error.securityCheckFailed=Information from request failed security check.
+errors.nameFirst=First name is required.
+errors.nameLast=Last name is required.
+errors.addressStreet1=Address is required.
+errors.addressCity=City is required.
+errors.addressZipCode=Zip Code is required.
+errors.addressState=State is required.
+errors.phoneDay=Day Phone is required.
+errors.phoneEvening=Evening Phone is required.
+errors.state=State is required
+errors.required={0} Please check that you have filled all required fields denoted by *.
+errors.addressStreet2= address street2
+errors.addressApt=Apt/Suite
+error.restrictedAccess.masterDesignated=This information is not available to master designated accounts.
+error.restrictedAccess.subAccount=This information is not available to non-master accounts.
+error.restrictedAccess.internal=This information is not available to internal accounts.
+error.restrictedAccess.care=This information is not available to past due accounts.
+error.restrictedAccess.onePlusOne=This information is not available to 1+1 accounts.
+error.restrictedAccess.prepaid=To view your billing information and make changes to your account please visit AOL Keyword: Billing. Please note that you will need to have the AOL software installed to access this keyword.
+error.restrictedAccess.invoice=Invoice accounts are not able to make changes to this functionality.  Please call 1-800-827-6364 to change information. 
+error.restrictedAccess.overhead=This information is not available to overhead accounts.
+error.restrictedAccess.bid=This information is not available to non-US accounts.
+error.kwCancelError=<p  style="width:700px;font-weight:bold; color:red" align=center>Please try again</p><p align=left style="width:700px;color:red;font-weight:normal;margin:10px 10px 0 10px;">We're sorry, we were unable to process your request due to high transaction volumes. Please try to submit your request again. If you need immediate assistance, please call AOL Member Services at: 1-800-827-6364. Thank you.</p>
+error.restrictedAccess.notallow=Your account does not have access to this feature.
+error.requestSamePI=<p>You have selected a price plan that is same as your current plan, please select a different price plan and try again.</p>
+error.ppPminvalid=<p>A valid payment method is required before changing to a paid price plan. Please update your payment method <a href="payment_list.jsp">here</a></p>
+error.NotAllowedChangePi=Because of your account type, you are not eligible to change your plan online.  Please call a customer support consultant at 1-800-827-6364.
+error.NotAllowedChangeLegacyDSL=Because of your account type, you are not eligible to change your plan online.  Please call a customer support consultant at 1-800-827-6364.
+error.NotAllowedChangePrepay=Because of your account type, you are not eligible to change your plan online.  Please call a customer support consultant at 1-800-827-6364.
+
+image.backToTop=/images/up_red_arrow.gif
+image.help=/images/home_help_icon_small.gif
+image.table.topLeftCorner=/images/corner_white_tl_6_6.gif
+image.table.topRightCorner=/images/corner_white_tr_6_6.gif
+image.table.bottomLeftCorner=/images/corner_white_bl_6_6.gif
+image.table.bottomRightCorner=/images/corner_white_br_6_6.gif
+image.billing.expand=/images/menu_arrow_right.gif
+image.billing.collapse=/images/menu_arrow_down.gif
+image.table.bottomLeftCornerBlue=/images/corner_white_blue_bl_6_6.gif
+image.table.bottomRightCornerBlue=/images/corner_white_blue_br_6_6.gif
+image.CDNpath=https://s.aolcdn.com/bill.aol.com/new/images/
+#image.CDNpath=http://10.181.181.41:8080/SPortal/new/images/
+
+label.ced.title=Title
+label.ced.first\ name=First Name
+label.ced.last\ name=Last Name
+label.ced.cardNumber=Card Number
+label.ced.expiration\ Date=Expiration Date
+label.ced.expYear=Expiration Year
+label.ced.street1=Street 1
+label.ced.street2=Street 2
+label.ced.street3=Appartment
+label.ced.appartment=Appartment
+label.ced.city=City
+label.ced.state=State
+label.ced.zip=Zip Code
+label.ced.dayphone=Day Phone
+label.ced.daytime_phone=Day Phone
+label.ced.eveninghone=Evening Phone
+label.ced.evening_phone=Evening Phone
+label.ced.bankname=Bank Name
+label.ced.bankstate=Bank State
+label.ced.bank_location=Bank State or Bank Name
+label.ced.routingnumber=Routing Number
+label.ced.accountnumber=Account Number
+label.ced.paymentmethod=Payment Method
+label.ced.unknown=Unknown
+label.ced.cc\ acct\ number = Card Number
+label.ced.cc_exp_date= Expiration Date
+label.ced.transit_num= Bank Routing Number
+label.ced.bank_acctnum = Bank Account Number
+label.ced.unknownField=The information you have provided is invalid.<br/> Please try again.
+label.payment.premiumService=By updating your payment information on file with AOL, you authorize AOL to bill your new payment method for all current subscriptions, plus any taxes, fees, or prorated amounts, until you cancel your subscriptions(s). 
+
+contactInfo_notification=Your contact information may not be correct. {0}Details{1}
+cardExpiration_notification=Your {0} expires on {1}. To update your payment method now, click {2}Update{3}
+#hard coded campaing id 4485/1304
+campx_ruleset_name=campaign_4485
+
+#style.CDNpath=https://s.aolcdn.com/bill.aol.com/new/styles/
+style.CDNpath=../new/styles
+#aifang
+contactmobileupdate=Thank you! Your contact information has been updated.<br>A confirmation message has been delivered to your mobile phone. You must reply to confirm your mobile number.
+contactparcial.error=We're sorry, but some or all of your data was not able to be updated at this time. Please try again later.
+contactnewmanupdate.updated=Thank you!  Your contact information has been updated. Please note that for security reasons updates to your alternate email may take a few days to complete.
+contactprimaryupdate.updated=Thank you! Your contact information has been updated.
+oprupdate.updated=Thank you.  Your automatic password recovery preference has been updated.
+contactsecondaryupdate.updated=Thank you. Your secondary contact information was changed.
+contactprimaryupdate.error=There was an error in your submission. Please correct the fields indicated below.
+contactsecondaryupdate.error=There are errors in the information provided. Please verify all information is complete.
+contact.alert=Alert: Your contact information may be out of date.
+payment.alert=Alert: Your payment method has expired.
+paymentupdate.error=There was an error in your submission. Please correct the fields indicated below.
+paymentupdate.specailchar.error=The information that you have provided is invalid. Please try again.
+paymentupdate.premiummessage=By updating your payment information on file with AOL, you authorize AOL to bill your new payment method for all current subscriptions, plus any taxes, fees, or prorated amounts, until you cancel your subscriptions(s).
+paymentupdate.updated=Thank you. Your payment method information was changed.
+error.goodpaymenterrorcontact=Your payment type has been updated.  Unfortunately your contact information cannot be updated at this time, please try again later.
+error.payment.cardnumber=Please correct your Card Number.
+error.payment.checkingnumber=The information that you have provided for Bank Account Number is invalid, Please try again.
+
+error.payment.expirationdate=Please correct your Expiration Date.
+error.payment.firstname=Please correct your First Name.
+error.payment.lastname=Please correct your Last Name.
+error.payment.routingnumber=Please correct your Routing Number.
+error.payment.street1=Please correct your Address.
+
+error.payment.street2=Please correct your Address.
+error.payment.street3=Please correct your Address.
+error.payment.city=Please correct your City.
+error.payment.state=Please correct your State.
+error.payment.zipcode=Please correct your Zip Code, it should be a 5 digit number.
+
+error.notallowchangepayment=Because of your account type, you are not eligible to change your payment method.
+
+
+#I3
+error.asq.restricted=Access to this feature has restricted for up to 24 hours - please try again later.
+asq.updated=Thank you. Your Account Security Question information was changed.
+generic.error=There was an error in your submission. Please correct the fields indicated below.
+psb.updated=Thank you. Your paid subscription xPSBx is being cancelled. It may take a couple of hours for the cancellation to take effect. Please print this page for confirmation.
+psb.updatedSn=Thank you. Your paid subscription xPSBx of xsubsSNx is being cancelled by xloggedSNx. It may take a couple of hours for the cancellation to take effect. Please print this page for confirmation.
+psb.updatedArpu=Thank you. Your paid subscription xPSBx is being cancelled. It may take a couple of hours for the cancellation to take effect. Please print this page for confirmation.
+
+psb.can.confirm.free=Thank you. Your paid subscription xPSBx is being cancelled. It may take a couple of hours for the cancellation to take effect. Please print this page for confirmation.
+psb.can.confirm.free.sn=Thank you. Your paid subscription xPSBx of xsubsSNx is being cancelled by xloggedSNx. It may take a couple of hours for the cancellation to take effect. Please print this page for confirmation.
+psb.can.confirm=Thank you. Your paid subscription xPSBx will be cancelled on xNextBillDatex. Your paid xPSBx subscription will be active until this date. Please print this page for confirmation.
+psb.can.confirm.sn=Thank you. Your paid subscription xPSBx of xsubsSNx will be cancelled by xloggedSNx on xNextBillDatex. Your paid xPSBx subscription will be active until this date. Please print this page for confirmation.
+
+#Omniture variables. 
+omniture.notifyUrl="http://notify.aol.com"
+omniture.billingUrl="https://bill.aol.com"
+omniture.sitedomain =bill.aol.com
+omniture.siteStateEscapeString=escape("bill.aol.com")
+
+#this url used in other flows like contact us. 
+freeToPaidURL=https://new.aol.com/free2paidweb
+freeToPaidURL72=https://new.aol.com/free2paidweb?promocode=876707
+freeToPaidURL1138=https://new.aol.com/free2paidweb?promocode=876710
+freeToPaidURL2898=https://new.aol.com/free2paidweb?promocode=876713
+freeToPaidURL4071=https://new.aol.com/free2paidweb?promocode=876716
+freeToPaidURL4043=https://new.aol.com/free2paidweb?promocode=876719
+freeToPaidURL4073=https://new.aol.com/free2paidweb?promocode=876722
+freeToPaidURL4072=https://new.aol.com/free2paidweb?promocode=876725
+freeToPaidURL4130=https://new.aol.com/free2paidweb?promocode=876728
+freeToPaidURL4131=https://new.aol.com/free2paidweb?promocode=876731
+freeToPaidURL4100=https://new.aol.com/free2paidweb?promocode=876731
+freeToPaidURL4157=https://new.aol.com/free2paidweb?promocode=876805
+freeToPaidURL4146=https://new.aol.com/free2paidweb?promocode=876768
+freeToPaidURL4147=https://new.aol.com/free2paidweb?promocode=876772
+freeToPaidURL4163=https://subscribe.aol.com/free2paidweb?promocode=876731
+freeToPaidURL4140=?????
+freeToPaidURL4177=https://new.aol.com/free2paidweb?promocode=876870
+
+# this url is used in change plan once user selects a PI. 
+freeToPaidURLCP=http://help.channels.aol.com/topic.adp?topicId=PI
+freeToPaidURL499CP=http://help.channels.aol.com/topic.adp?topicId=PI
+
+
+#delay in milli-seconds for phone and chat stored proc calls
+chat.delay=60000
+phone.delay=60000
+
+label.netagent.waittime.enable=false
+#label.netagent.membercount.enable=true
+#label.netagent.both.message=There are currently xMEMBERx members waiting an average of xMINUTEx for Live Help as of xDATEx.
+#label.netagent.waittime.message=The current wait time for Live Help chat as of xDATEx is as long as xMINUTEx.
+#label.netagent.membercount.message=There are currently xMEMBERx members waiting for Live Help chat as of xDATEx.
+
+label.phone.waittime.enable=true
+#label.phone.membercount.enable=true
+#label.phone.both.message=There are currently xMEMBERx members waiting an average of xMINUTEx for phone support as of xDATEx.
+#label.phone.waittime.message=The current wait time for Help via phone support as of xDATEx is as long as xMINUTEx.
+#label.phone.membercount.message=There are currently xMEMBERx members waiting for phone support as of xDATEx.
+
+displayFullPageForFree=true
+
+# updated! for new contact us page
+label.netagent.waittime.message2=Approximate wait time is <B>xMINUTEx</B> for Live Help as of xDATEx.
+label.phone.waittime.message2=Approximate wait time is <B>xMINUTEx</B> for phone support as of xDATEx.
+
+
+#
+#cms configs
+#
+
+# for DEV
+#cms.rootpath=C:/Program Files/Apache Software Foundation/Tomcat 6.0/webapps/SPortal/jsp/cms/
+#cms.screennameAllowed=<sp85t11><brucesunqa8>
+# for QA
+#cms.rootpath=/data/servers/bill_tomcat/webapps/SPortal/jsp/cms/
+#cms.screennameAllowed=<sp85t11><brucesunqa8>
+# for PROD
+cms.rootpath=/data/servers/bill_tomcat/webapps/SPortal/jsp/cms/
+#cms.rootpath=C://workspace//SPortal//WebContent//jsp//cms//
+cms.screennameAllowed=<vanessamanset><kirkmanj1><sriadidam><robertstoops05><jasoncrum1>
+
+
+
+label.displayname.error1=Change display name please select a screen name.
+label.displayname.error2=Your display name must be 0-20 characters long, and can include upper and lower case letters, numbers and special characters (e.g., ., -, _). Please choose another display name.
+label.displayname.error3=Your display name must be between 0 and 20 characters long.
+label.displayname.update.success=Thank you. Your Display Name has successfully been updated.
+label.displayname.delete.success=Thank you. Your Display Name has successfully been cleared.
+
+
+
+#error messages for update morf contact
+label.morf.contact.confirm=Thank you.  Your information has been updated. Please note: for alternate email updates, we will send you a confirmation email. Follow the instructions in the email and this new alternate email address will be verified.
+label.morf.contact.error1=Please fill out all required fields.
+label.morf.contact.error2=Your Display Name must be less than 20 characters.
+label.morf.contact.error3=Your display name must be 0-20 characters long, and can include upper and lower case letters, numbers and special characters (e.g., ., -, _). Please choose another display name.
+label.morf.contact.error4=Your Zip Code must be less than 10 characters.
+label.morf.contact.error5=Your E-mail Address must be between 6 - 97 characters.
+label.morf.contact.error6=Invalid E-mail Address. Please try again.
+label.morf.contact.error7==Please select the desired Country.
+label.morf.contact.error8=Zip Code should be a 5 digit number.
+label.morf.contact.error9=Zip Code must begin with alpha numeric characters and can only include alpha numeric or space, "#", "-".
+label.morf.contact.error10=Your other contact information has been updated except your email address which is already connected to 20 other accounts, which is the max.  Please use a different email address.
+label.morf.contact.error11=Your email address is already connected to 20 other accounts, which is the max.  Please use a different email address. 
+label.morf.contact.error12=Your other contact information has been updated except your email address. There is already a pending E-mail change at this time.
+label.morf.contact.error13=There is already a pending change. We cannot change your E-mail Address at this time.
+label.morf.contact.confirm2=Your contact information except your email address has been updated!
+
+label.morf.password.pwnotallowed=You are not eligible to change your Password.
+
+label.mkpf.error=We're sorry. Due to technical reasons, this feature is temporarily unavailable at the moment. We apologize for the inconvenience.
+label.mkpf.confirm=Your marketing preferences have been saved.
+
+label.premium_service_url=http://help.aol.com/help/microsites/microsite.do?cmd=displayKC&docType=kc&externalId=10148
+
+
+#Prod
+dfs.url=https://mpx.aol.com:8334/mpX
+#QA 
+#dfs.url=https://tweb28.web.aol.com:8499/mpX
+#QA - non SSL url
+#dfs.url=http://tweb28.web.aol.com:8088/mpX
+#Testpea
+#dfs.url=http://reddev-l11.tred.aol.com:8018/mpX
+dfs.connectionTimeOut=10000
+
+
+#error message for denied access for brandi members
+error.accessdeny.brandi=You do not have access to this page.<BR>If you are an AOL member, please call 1-877-773-4462<BR>If you are a CompuServe member, please call 1-800-848-8990<BR>If you are a Netscape Connect member, please call 1-888-855-0942
+
+
+
+changePlan.premiumServicesCancelled=Your information has been submitted successfully. <br><br><br> Please note that your Premium Service subscription listed below has also been cancelled.<br>
+changePlan.premiumServicesNotCancelled=Your information has been submitted successfully. <br><br><br> Please note that your Premium Service subscription listed below has not been cancelled.<br>
+changePlan.premiumServicesPhoneMessage=<br>To make changes to your premium services, please call 1-866-265-4415.
+
+accessdenyphone=You do not have access to this page. <br/> If you are an AOL member, please call 1-877-773-4462 <br/> If you are a Compuserve member, please call 1-800-848-8990 <br/> If you are a Netscape member, please call 1-888-855-0942 <br/> If you are a Paid Service Subscriber, please call 1-866-485-9217
+carepaymenterrorphone=This transaction could not be completed. <br/> If you are an AOL member, please call 1-877-773-4462 <br/> If you are a Compuserve member, please call 1-800-848-8990 <br/> If you are a Netscape member, please call 1-888-855-0942 <br/> If you are a Paid Service Subscriber, please call 1-866-485-9217
+helpphone=1-877-773-4462
+helpcompserve=1-800-848-8990
+helpnetscape=1-888-855-0942
+
+carepaymenterrorphoneenca=This transaction could not be completed. <br/> If you are an AOL member, please call 1-888-265-4357 <br/> If you are a Compuserve member, please call 1-800-848-8990 <br/> If you are a Netscape member, please call 1-888-855-0942 <br/> If you are a Paid Service Subscriber, please call 1-866-485-9217
+myaccounturl=https://myaccount.aol.com
+
+label.screenName.MCarePremium.error= We are unable to delete this user name because there is at least one paid services associated with this user name.  Please go to <a href="premium_subs.jsp">Manage My Subscriptions</a> page to change or cancel the paid services or call 1-866-770-9450 for assistance.
+label.screenName.NonMCarePremium.error=We are not able to delete this screen name because there is at least one premium services subscription associated with this screenname.  Please call 1-866-265-4415 to change or cancel this subscription.
+
+psbFreeMessage=To make changes to your premium services please<a href="premium_services_manage.jsp"> click here</a> or call 1-866-485-9217.
+psbPendingMessage=<p class='alert'>This subscription is in pending status; please call 1-866-485-9217 to make changes to your subscription OR Select a different Subscription.</p>
+psbCancelledMessage=<p class='alert'>This service is already in a cancelled status.</p>
+
+#Contact for en-gb and de-de
+left.contact=Address
+contact=Contact Information
+error.contactrequiredfield=Please fill out all required fields to continue.
+message.contactupdated=Your Contact Infomation has been updated.
+error.contactspecialchar=The information that you have provided is invalid. Please try again.
+error.contactnotallowed=You are not eligible to change your contact information.
+
+contact.info=Change Your Contact Information
+contact.address=Address:
+contact.city=Town/City:
+contact.zip=Postcode:
+contact.country=Country:
+contact.evephone=Eve Phone:
+contact.dayphone=Day Phone:
+contact.invalid.address=address
+contact.invalid.city=city
+contact.invalid.zip=postcode
+contact.invalid.country=country
+contact.invalid.evephone=eve phone
+contact.invalid.dayphone=day phone
+contact.invalid.address1=address1
+contact.invalid.address2=address2
+contact.invalid.address3=address3
+
+payment.info=Change Your Payment Method
+payment.select=Please Select
+payment.method=Payment Method:
+payment.cardnumber=Card Number:
+payment.expdate=Expiration Date:
+payment.cvv2=CVV2:
+payment.firstname=Billing First Name:
+payment.lastname=Billing Last Name:
+payment.acctnumber=Account Number:
+payment.sortcode=Sort Code:
+payment.month=Month
+payment.year=Year
+payment.jan=January
+payment.feb=February
+payment.mar=March
+payment.apr=April
+payment.may=May
+payment.jun=June
+payment.jul=July
+payment.aug=August
+payment.sep=September
+payment.oct=October
+payment.nov=November
+payment.dec=December
+payment.invalid1=The information that you have provided for
+payment.invalid2=is invalid. Please try again.
+payment.invalid.and=and
+payment.invalid.firstname=first name
+payment.invalid.lastname=last name
+payment.invalid.cardnumber=card number
+payment.invalid.expmonth=expiration month
+payment.invalid.expyear=expiration year
+payment.invalid.cvv2=cvv2
+payment.invalid.acctnumber=account number
+payment.invalid.sortcode=sort code
+
+error.psbPayment=In order to complete your update to your Payment Method information, you will need to re-enter your card number.
+
+#Prod premium services path
+premiumServicesPropertiesFileLocation=/Users/rdoshi61/Documents/workspace/supportportal/src/main/resources
+#premiumServicesPropertiesFileLocation=/data/servers/bill_tomcat/webapps/SPortal/WEB-INF/classes/
+#premiumServicesPropertiesFileLocation=C://workspace//SPortal//WebContent//WEB-INF//classes//
+#QA path
+#premiumServicesPropertiesFileLocation=/home/qrq/Support_Portal/webapps/SPortal/WEB-INF/classes/
+#Dev path
+#premiumServicesPropertiesFileLocation=C:\\workspace\\SPortal\\WebContent\\WEB-INF\\classes\\
+#premiumServicesPropertiesFileLocation=/var/lib/tomcat6/webapps/SPortal/WEB-INF/classes/
+
+priceplan.listSupported=3829,72,4100,4071,4072,4073,4043,-9999,4130,4131,2898,1138,4133,4146,4147,4157,31,4158,3165,1005,4167,4168,4176,4175,4171,4179,4181,4180,4178,4165,4166,4164,4163,4177,4185,4186,4187,4188,4193,4194,4161,4196,4197,4198,4199,4200,4201,4202,294
+priceplan.listSupported.CompuServe = 4142,4141,4140,4139,4138,4137,4136,4135,4099
+priceplan.listSupported.NetscapeConnect = 4134,4145,4144,4143
+priceplan.listSupported.AOLca = 4156,4155,4154,4153,4152,4151,4150,4149,3903,4115
+priceplan.testEnabled=false
+priceplan.testPiRosterEnabled=false
+priceplan.testAccountRosterEnabled=false
+priceplan.digitsTestEnabled=false
+pricePlan.cpNumberOfBenefitsRows=3
+
+#number of digits from right to include in the match.
+priceplan.numberOfDigitsToMatch
+# , separated list of digits to match in the primary master acct number. 
+priceplan.digitsToMatch=
+upsellPI=4157
+
+priceplan.cancelTos=Your cancellation is effective today but you will have access to your account until the end of your monthly cycle. You will not be charged any additional monthly membership fees, but you will be responsible for any other charges you might have incurred since your last billing date. Within 7-10 business days, a letter will be mailed to your billing address confirming your cancellation of your AOL service. We would love to welcome you back to AOL, so even after your account has been closed, you can reactivate it by simply clicking on the AOL icon and selecting a plan.
+
+# ChangePlan differentiator bullet texts.
+pricePlan.bullet1=<li>Unlimited dial-up access</li>
+pricePlan.bullet2=<li>24X7 Live Technical Support</li>
+pricePlan.bullet3=<li>McAfee<sup>&reg;</sup> Internet Security Suite Special Edition from AOL<sup>&reg;</sup></li>
+pricePlan.bullet4=<li>LifeLock<sup>&reg;</sup> Identify Theft Protection*</li>
+pricePlan.bullet5=<li>$1250 Extended Computer Protection Plan*</li>
+pricePlan.bullet6=<li>Sprint 10% Discount*</li>
+pricePlan.bullet7=<li>VIP Loyalty Program</li>
+pricePlan.bullet8=<li>Norton<sup>&trade;</sup> Online Backup 5GB</li>
+pricePlan.bullet9=<li>Hyatt Legal Services</li>
+pricePlan.bullet10=<li>AOL Mail</li>
+pricePlan.bullet11=<li>Back Up Dial-up Access (50 hrs/mo)</li>
+pricePlan.bullet12=<li>$750 Extended Computer Protection Plan</li>
+pricePlan.bullet13=<li>$250 Extended Computer Protection Plan*</li>
+pricePlan.bullet14=<li>McAfee <sup>&reg;</sup> VirusScan Plus -- Special Edition from AOL<sup>&reg;</sup></li>
+#pricePlan.bullet15=<li>$10K identity-theft insurance coverage</li>
+pricePlan.bullet16=<li>Limited Live Technical Support</li>
+#pricePlan.bullet17=<li>Access to unlimited AIM</li>
+pricePlan.bullet18=<li>Personalized AOL.com home page</li>
+#pricePlan.bullet19=<li>Continued use of AOL's all-in-one desktop software</li>
+pricePlan.bullet20=<li>Back Up Dial-up Access (10 hrs/mo)</li>
+pricePlan.bullet21=<li>Back Up Dial-up Access (5 hrs/mo)</li>
+pricePlan.bullet22=<li>ID Theft Insurance Coverage (Up To $10K)</li>
+pricePlan.bullet23=<li>AOL's All-In-One Desktop Software</li>
+pricePlan.bullet24=<li>AIM - AOL Instant Messenger</li>
+pricePlan.bullet25=<li>AOL Advantage Plans</li>
+pricePlan.bullet26=<li>AOL On</li>
+pricePlan.bullet27=<li>Pricecheck by AOL </li>
+pricePlan.bullet28=<li>Shortcuts </li>
+pricePlan.bullet29=<li>My Portfolios</li>
+pricePlan.bullet30=<li>AOL Easy Transfer</li>
+pricePlan.bullet31=<li>AOL MyBenefits Toolbar</li>
+pricePlan.bullet32=<li>My Reputation</li>
+pricePlan.bullet33=<li>DataMask By AOL</li>
+pricePlan.bullet34=<li>AOL One Point</li>
+pricePlan.bullet35=<li>Private Wifi - provided by AOL</li>
+pricePlan.bullet36=<li>My Privacy</li>
+pricePlan.bullet37=<li>$1250 Extended Computer Protection - from AOL</li>
+pricePlan.bullet38=<li>$750 Extended Computer Protection - from AOL</li>
+pricePlan.bullet39=<li>AOL Live Virus Removal</li>
+pricePlan.bullet40=<li>Easy Transfer</li>
+pricePlan.bullet41=<li>Live Technical Support (Not 24x7)</li>
+pricePlan.bullet42=<li>$1000 Extended Computer Protection Plan*</li>
+pricePlan.bullet43=<li>Back Up Dial-up Access (20 hrs/mo)</li>
+pricePlan.bullet44=<li>Back Up Dial-up Access (4 hrs/mo)</li>
+pricePlan.bullet45=<li>Dial-up Access</li>
+pricePlan.bullet46=<li>Dial-up Access</li>
+pricePlan.bullet47=<li>Dial-up Access</li>
+pricePlan.bullet48=<li>Dial-up Access</li>
+pricePlan.bullet49=<li>Dial-up Access</li>
+pricePlan.bullet50=<li>Dial-up Access</li>
+pricePlan.bullet51=<li>Dial-up Network Access</li>
+pricePlan.bullet52=<li>AOL Canada & US Free Roaming Dial-up Access</li>
+pricePlan.bullet53=<li>AOL Canada High Speed</li>
+pricePlan.bullet54=<li>Back Up Dial-up Access (15 hrs/mo)</li>
+pricePlan.bullet55=<li>$1500 Extended Computer Protection Plan</li>
+pricePlan.bullet56=<li>$250 Extended Computer Protection - from AOL</li>
+pricePlan.bullet57=<li>CompuServe Email</li>
+pricePlan.bullet58=<li>CompuServe's Comprehensive Internet Software</li>
+pricePlan.bullet59=<li>Netscape Connect Email</li>
+pricePlan.bullet60=<li>Netscape Connect Internet Software</li>
+pricePlan.bullet61=<li>Games.com</li>
+pricePlan.bullet62=<li>AOL Jobs</li>
+pricePlan.bullet63=<li>About.me</li>
+pricePlan.bullet64=<li>AOL Lifestream</li>
+pricePlan.bullet65=<li>AOL Travel</li>
+pricePlan.bullet66=<li>Mapquest Discover</li>
+pricePlan.bullet67=<li>AOL Music</li>
+pricePlan.bullet68=<li>Priceline</li>
+pricePlan.bullet69=<li>AOL Help Me Use IT</li>
+pricePlan.bullet70=<li>AOL Help Me Fix IT</li>
+pricePlan.bullet71=<li>AOL Help Me Setup</li>
+pricePlan.bullet72=<li>AOL Help Me Optimize</li>
+pricePlan.bullet73=<li>DataMask Mobile By AOL</li>
+pricePlan.bullet74=<li>Private Wifi Mobile - provided by AOL</li>
+pricePlan.bullet75=<li>Life360</li>
+pricePlan.bullet76=<li>AARP</li>
+pricePlan.bullet77=<li>AOL Tech Fortress</li>
+pricePlan.bullet78=<li>Aftersteps</li>
+
+
+
+addServicesUrl=http://lifestore.aol.com
+addGathrServicesUrl=http://www.gathr.com
+
+error.backendsave=We are so sorry!  We are having technical issues and cannot save your update.  Please try again later.
+error.backend=Sorry!  We are having issues with our systems.  Please try again later.
+
+payment.badnumber=This payment method is not eligible to be updated.
+payment.badname=The information that you have provided is invalid. Please try again.
+
+#keepCurrentPlanFlag=on
+keepCurrentPlanFlag=on
+#keepCurrentPlanFlag=off
+mboxKeepCurrentPlanFlag=on
+#mboxKeepCurrentPlanFlag=off
+
+########## OSB WAIVE PERCENTAGES BY NCID FOR CARE ########################
+
+ncid.osb.waive.percents=emlblstussupp00000285:100,emlblstussupp00000286:100,emlblstussupp00000287:100,emlblstussupp00000288:100,emlblstussupp00000289:100
+
+error.waiveAccessOSBError=We are sorry. We are unable to clear your outstanding balance at this time. Please contact customer service at 1-877-773-4462
+
+#####################################
+#
+#FOR AOL PLAN FEATURES BUTTONS
+#
+#####################################
+#
+
+#priceline
+60661EligibleActionText=Enroll Now
+60661EligibleActionUrl=https://subscribe.aol.com/paidservices?productId=priceline
+
+# help me optimize
+60660ActiveActionText=Get Help Now
+60660ActiveActionUrl=http://helpme.aol.com/optimize
+
+# help me setup
+60659ActiveActionText=Get Help Now
+60659ActiveActionUrl=http://helpme.aol.com/setup
+
+# help me fix it
+60658ActiveActionText=Get Help Now
+60658ActiveActionUrl=http://helpme.aol.com/fixit
+
+# help me use it
+60657ActiveActionText=Get Help Now
+60657ActiveActionUrl=http://helpme.aol.com/useit
+
+# life lock
+60353ActiveActionText=Sign into LifeLock
+60353ActiveActionUrl=https://secure.lifelock.com/portal/login/
+60353EligibleActionText=Register Now
+60353EligibleActionUrl=http://lifelock.aol.com
+
+# McAfee(60414)
+60414ActiveActionText=Protect an additional computer
+60414ActiveActionUrl=https://subscribe.aol.com/sscweb/Controller.jpf?promo1=824136&promo2=824136
+60414EligibleActionText=Download Now
+60414EligibleActionUrl=https://subscribe.aol.com/sscweb/Controller.jpf?promo1=824136&promo2=824136
+
+# McAfee(60415)
+60415ActiveActionText=Protect an additional computer
+60415ActiveActionUrl=https://subscribe.aol.com/sscweb/Controller.jpf?promo1=824136&promo2=824136
+60415EligibleActionText=Download Now
+60415EligibleActionUrl=https://subscribe.aol.com/sscweb/Controller.jpf?promo1=824136&promo2=824136
+
+
+# $250 Extended Computer Protection 
+60408ActiveActionText=File a Claim
+60408ActiveActionUrl=http://extendedprotection.aol.com
+60408EligibleActionText=File a Claim
+60408EligibleActionUrl=http://extendedprotection.aol.com
+
+# $750 Extended Computer Protection Plan*
+60407ActiveActionText=File a Claim
+60407ActiveActionUrl=http://extendedprotection.aol.com
+60407EligibleActionText=File a Claim
+60407EligibleActionUrl=http://extendedprotection.aol.com
+
+# $1250 Extended Computer Protection Plan*
+60400ActiveActionText=File a Claim
+60400ActiveActionUrl=http://extendedprotection.aol.com
+60400EligibleActionText=File a Claim
+60400EligibleActionUrl=http://extendedprotection.aol.com
+
+# Sprint Discount 
+60401ActiveActionText=Visit Sprint Store
+60401ActiveActionUrl=http://shop.sprint.com/index.html?INTNAV=ATG:HE:Shop
+60401EligibleActionText=Get Sprint Discount
+60401EligibleActionUrl=http://sprint.aol.com
+
+
+# 24X7 Live Technical Support 
+60406ActiveActionText=Contact AOL
+60406ActiveActionUrl=https://bill.aol.com/SPortal/jsp/contact_us.jsp
+
+# AOL Mail
+60413ActiveActionText=Check AOL Mail
+60413ActiveActionUrl=http://mail.aol.com
+
+# Limited Live Technical Support*
+60412ActiveActionText=Contact AOL
+60412ActiveActionUrl=https://bill.aol.com/SPortal/jsp/contact_us.jsp
+
+# VIP Loyalty Program
+60402ActiveActionText=Learn More
+60402ActiveActionUrl=http://vip.help.aol.com
+
+# VIP Loyalty Program
+60423ActiveActionText=Learn More
+60423ActiveActionUrl=http://vip.help.aol.com
+
+# VIP Loyalty Program
+60424ActiveActionText=Learn More
+60424ActiveActionUrl=http://vip.help.aol.com
+
+# Norton
+60403ActiveActionText=Sign In to Norton
+60403ActiveActionUrl=http://nobu.backup.com
+60403EligibleActionText=Register Now
+60403EligibleActionUrl=http://norton.aol.com
+
+
+# Hyatt legal. 
+60404ActiveActionText=Contact Hyatt
+60404ActiveActionUrl=http://hyattlegal.aol.com
+60404EligibleActionText=Activate
+60404EligibleActionUrl=javascript:activateHyattLegal(this);void 0;
+
+
+# $750 Extended Computer Protection from AOL
+60407ActiveActionText=File a Claim
+60407ActiveActionUrl=http://extendedprotection.aol.com
+60407EligibleActionText=File a Claim
+60407EligibleActionUrl=http://extendedprotection.aol.com
+
+
+#AOL Client
+60451ActiveActionText=Download Now
+60451ActiveActionUrl=http://daol.aol.com/software/aoldesktop97/
+60451EligibleActionText=Download Now
+60451EligibleActionUrl=http://daol.aol.com/software/aoldesktop97/
+
+#Chartis
+60450ActiveActionText=File a Claim
+60450ActiveActionUrl=http://help.aol.com/help/microsites/search.do?cmd=displayKC&docType=kc&externalId=72203&sliceId=1&docTypeID=DT_AOLFAQS_1_1&dialogID=1395120653&stateId=0 0 464186402&radios=False#3
+
+#AIM
+60449ActiveActionText=Download Now
+60449ActiveActionUrl=http://download.newaol.com/aim/win95/Install_AIM.exe
+
+#Back Up Dial-up Access (5hrs/mo)
+60411ActiveActionText=Download Now
+60411ActiveActionUrl=http://daol.aol.com/software/aoldesktop97/
+
+#Unlimited Dial-up Access
+60405ActiveActionText=Download Now
+60405ActiveActionUrl=http://daol.aol.com/software/aoldesktop97/
+
+#Back Up Dial-up Access (50 hrs/mo)
+60409ActiveActionText=Download Now
+60409ActiveActionUrl=http://daol.aol.com/software/aoldesktop97/
+
+#Back Up Dial-up Access (10 hrs/mo)
+60410ActiveActionText=Download Now
+60410ActiveActionUrl=http://daol.aol.com/software/aoldesktop97/
+
+#AOL Advantage Plan
+60495ActiveActionText=Upgrade Your Plan
+60495ActiveActionUrl=http://get.aol.com/plans/index.php?regtype=upsell 
+
+#AOL Video
+60496ActiveActionText=Go to AOL On
+60496ActiveActionUrl=http://on.aol.com
+
+
+#pricecheck by AOL
+60497ActiveActionText=Get It Now
+60497ActiveActionUrl=http://pricecheck.aol.com/download.html 
+
+#Shortcuts
+60498ActiveActionText=Register/Log In
+60498ActiveActionUrl=http://shortcuts.com/ 
+
+#My Portfolios
+60499ActiveActionText=Create Portfolio/Sign In
+60499ActiveActionUrl=http://www.dailyfinance.com/
+
+#Easy Transfer
+60500ActiveActionText=Get Started
+60500ActiveActionUrl=https://secure5.trueswitch.com/aolweb/
+
+#AOL MyBenefits Toolbar
+60317ActiveActionText=Download Now
+60317ActiveActionUrl=http://toolbar.aol.com/aol/download.html
+
+#CS Back up Dial Up 4hrs
+60482ActiveActionText=Download Now
+60482ActiveActionUrl=http://free.compuserve.com/
+
+#CS Back up Dial Up 20hrs
+60483ActiveActionText=Download Now
+60483ActiveActionUrl=http://free.compuserve.com/
+
+#CS Internet Software
+60484ActiveActionText=Download Now
+60484ActiveActionUrl=http://free.compuserve.com/
+
+#CS Email
+60485ActiveActionText=Check CompuServe Email
+60485ActiveActionUrl=http://webmail.compuserve.com/
+
+
+
+#CS Unlimited Dial Up
+60545ActiveActionText=Download Now
+60545ActiveActionUrl=http://free.compuserve.com/
+
+#CS Live Tech Support
+60547ActiveActionText=Contact CompuServe
+60547ActiveActionUrl=http://member.compuserve.com/membercenter/contactus.jsp
+
+#Back Up Dial-up Access (20hrs/mo)
+60552ActiveActionText=Download Now
+60552ActiveActionUrl=http://daol.aol.com/software/aoldesktop97/
+
+#Back Up Dial-up Access (15hrs/mo)
+60553ActiveActionText=Download Now
+60553ActiveActionUrl=http://daol.aol.com/software/aoldesktop97/
+
+#CS Live Tech Support
+60550ActiveActionText=Contact CompuServe
+60550ActiveActionUrl=http://member.compuserve.com/membercenter/contactus.jsp
+
+#NSC Limited Tech Support
+60551ActiveActionText=Contact Netscape Connect
+60551ActiveActionUrl=http://www.wmconnect.com/membercenter/contactus.jsp
+
+#NSC Email
+60486ActiveActionText=Check Netscape Connect Email
+60486ActiveActionUrl=http://webmail.wmconnect.com/
+
+#NSC Live Tech Support
+60548ActiveActionText=Contact Netscape Connect
+60548ActiveActionUrl=http://www.wmconnect.com/membercenter/contactus.jsp
+
+#AARP
+60736EligibleActionText=Enroll Now
+60736EligibleActionUrl=http://get.aol.com/aarp/enroll
+
+#Tech-Fortress
+60735ActiveActionText=Download Now
+60735ActiveActionUrl=http://techfortress.aol.com
+
+# life360
+60734EligibleActionText=Activate
+60734EligibleActionUrl=http://life360.aol.com
+
+#Aftersteps
+60737EligibleActionText=Activate
+60737EligibleActionUrl=http://get-stage.aol.com/aftersteps
+
+# PROD ecommerceUrl
+ecommerceUrl=https://oep-api.ops.aol.com/ecommerce/
+# QA ecommerceUrl
+#ecommerceUrl=https://oep-api.crmqa.aol.com/ecommerce/
+# DEV ecommerceUrl
+#ecommerceUrl=http://ecom-m01.crmdev.aol.com:8080/ecommerce/
+akesParameters=devId=ec1OhHE6uYs5haBb&cipher=MD5&cipherData=hello&hexResult=5CE8DF4EF8D18E9C0D33A02A8E41309A&source=sportal
+
+#cancel_billing
+0083YearSavingDollar=$1,135
+0082YearSavingDollar=$1,111
+0081YearSavingDollar=$1,135
+0080YearSavingDollar=$422
+0074YearSavingDollar=$432
+0073YearSavingDollar=$1,135
+0072YearSavingDollar=$992
+0071YearSavingDollar=$1,236
+0070YearSavingDollar=$1,135
+0069YearSavingDollar=$872
+0068YearSavingDollar=$0
+0067YearSavingDollar=$0
+0066YearSavingDollar=$0
+0065YearSavingDollar=$0
+0064YearSavingDollar=$0
+0063YearSavingDollar=$0
+0062YearSavingDollar=$432
+0061YearSavingDollar=$644
+0060YearSavingDollar=$644
+0059YearSavingDollar=$764
+0058YearSavingDollar=$996
+0057YearSavingDollar=$1,056
+0056YearSavingDollar=$872
+0055YearSavingDollar=$1,080
+0054YearSavingDollar=$1,200
+0053YearSavingDollar=$872
+0052YearSavingDollar=$1,092
+0051YearSavingDollar=$1,092
+0050YearSavingDollar=$1,135
+
+enableInfor=true
+
+#Social Login Redirects
+mybenefits.redirect.url=https://get.aol.com/mybenefits/
+myaccounts.redirect.url=https://account.aol.com

@@ -1,0 +1,61 @@
+package com.aol.sportal.filter;
+
+import java.io.IOException;
+import java.util.Enumeration;
+
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+
+import jxl.common.Logger;
+
+import com.aol.sportal.app.AppSession;
+import com.aol.sportal.app.SPortalSession;
+import com.aol.sportal.beans.LoginInfo;
+import com.aol.sportal.util.AccountAccess;
+
+/**
+ * @author ksuvarna34
+ * Servlet Filter implementation to log actions and user information
+ */
+public class RequestLoggingFilter implements Filter {
+
+	private static final Logger logger = Logger.getLogger(RequestLoggingFilter.class);
+	/**
+	 * @see Filter#doFilter(ServletRequest, ServletResponse, FilterChain)
+	 */
+	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        HttpServletRequest req = (HttpServletRequest) request;
+
+        String jspPage = req.getRequestURI();
+        logger.info("***Request from page: " + jspPage);
+		logger.info("***Remote Address: " + req.getRemoteAddr());
+		String realm = AccountAccess.getLoginItem(req, "Realm");
+		logger.info("***Realm: " + realm);		
+		LoginInfo info = SPortalSession.getLoginInfo(req);
+		logger.info("***Login Info: " + info.toString(req));
+		Enumeration<String> params = req.getParameterNames();
+        while(params.hasMoreElements()){
+            String name = params.nextElement();
+            String value = request.getParameter(name);
+            logger.info(req.getRemoteAddr() + "::Request Params::{"+name+"="+value+"}");
+        }
+        // pass the request along the filter chain
+        chain.doFilter(request, response);
+    }
+	/**
+	 * @see Filter#init(FilterConfig)
+	 */
+	public void init(FilterConfig fConfig) throws ServletException {
+	}
+	/**
+	 * @see Filter#destroy()
+	 */
+	public void destroy() {
+	}
+
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.GotoLineAction$GotoLineDialog_dialogBounds">
+		<item value="484" key="DIALOG_X_ORIGIN"/>
+		<item value="295" key="DIALOG_Y_ORIGIN"/>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
+		<item value="false" key="isRegEx"/>
+		<item value="canIWin" key="selection"/>
+		<item value="false" key="casesensitive"/>
+		<item value="true" key="incremental"/>
+		<item value="true" key="wrap"/>
+		<item value="false" key="wholeword"/>
+		<list key="findhistory">
+			<item value="caniwin"/>
+			<item value="worker"/>
+			<item value="doctrix"/>
+			<item value="document"/>
+			<item value="decide"/>
+			<item value="range"/>
+			<item value="interval"/>
+			<item value="trian"/>
+		</list>
+		<list key="replacehistory">
+			<item value="Integer"/>
+			<item value="longestCommonSubsequence"/>
+			<item value="logger"/>
+			<item value="loggerCarePaymentBean"/>
+			<item value="loggerBillingInfo"/>
+			<item value="loggerAccountData"/>
+			<item value="loggerUdrModelHelperTest"/>
+			<item value="loggerScreenNameModelHelperTest"/>
+		</list>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
+		<item value="265" key="DIALOG_WIDTH"/>
+		<item value="1|.Helvetica Neue DeskInterface|11.0|0|COCOA|1|.HelveticaNeueDeskInterface-Regular" key="DIALOG_FONT_NAME"/>
+		<item value="399" key="DIALOG_HEIGHT"/>
+		<item value="180" key="DIALOG_Y_ORIGIN"/>
+		<item value="1086" key="DIALOG_X_ORIGIN"/>
+	</section>
+</section>

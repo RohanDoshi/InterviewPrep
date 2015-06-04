@@ -1,0 +1,87 @@
+package pack;
+
+import java.util.Arrays;
+
+public class ArrayDataStructure {
+	public static void main(String args[]) {
+		int arr[] = {91, 56, 58, 57, 90, 92, 94, 93, 1, 45};//{1,2,3};
+		Arr obj = new Arr();
+		//obj.printPermutations(arr);
+		obj.largestSubArr(arr);
+		
+	}
+}
+
+
+class IntersectionArrays { 
+	
+	public void printCommonElements(int[] a, int[] b, int[] c) {
+		int i=0, j=0, k=0;
+		while(i<a.length && j<b.length && k < c.length) {
+			if(a[i] == b[j] && a[i] == c[k]) {
+				System.out.print(a[i]+" ");
+				i++; j++; k++;
+			} else {
+				if(a[i] < b[j]) {
+					i++;
+				} else if(a[i] > b[j]) {
+					j++;
+				} else {
+					if(a[i] < c[k]) {
+						i++;
+						j++;
+					} else {
+						k++;
+					}
+				}
+			}
+		}
+	}
+}
+
+class Arr {
+	
+	public void largestSubArr(int arr[]) {
+		int maxLen = 0;
+		for(int i=0; i<arr.length; i++) {
+			int max = arr[i];
+			int min = arr[i];
+			for(int j=i+1; j<arr.length; j++) {
+				if(max < arr[j]) {
+					max = arr[j];
+				}
+				if(min > arr[j]) {
+					min = arr[j];
+				}
+				
+				if(max-min == j-i) {
+					maxLen = Math.max(maxLen, j-i + 1);
+				}
+			}
+		}
+		System.out.println("maxLen = " +maxLen);
+	}
+	
+	
+	public void printPermutations(int arr[]) {
+		printPerm(arr, 0);
+	}
+	
+	private void printPerm(int arr[], int index) {
+		if(index == arr.length) {
+			System.out.println(Arrays.toString(arr));
+			return;
+		}
+		for(int i= index; i < arr.length; i++) {
+			swap(arr, i, index);
+			printPerm(arr, index+1);
+			swap(arr, i,index);
+		}
+	}
+	
+	private void swap(int arr[], int i, int j) {
+		int temp = arr[i];
+		arr[i] = arr[j];
+		arr[j] = temp;
+	}
+}

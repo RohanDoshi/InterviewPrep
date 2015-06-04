@@ -1,0 +1,43 @@
+package pack;
+
+import java.util.Arrays;
+
+public class ArrayDataStructure {
+	public static void main(String args[]) {
+		int arr[] = {1, 56, 58, 57, 90, 92, 94, 93, 91, 45};//{1,2,3};
+		Arr obj = new Arr();
+		//obj.printPermutations(arr);
+		
+		
+	}
+}
+
+class Arr {
+	
+	public void largestSubArr(int arr[]) {
+		
+	}
+	
+	
+	public void printPermutations(int arr[]) {
+		printPerm(arr, 0);
+	}
+	
+	private void printPerm(int arr[], int index) {
+		if(index == arr.length) {
+			System.out.println(Arrays.toString(arr));
+			return;
+		}
+		for(int i= index; i < arr.length; i++) {
+			swap(arr, i, index);
+			printPerm(arr, index+1);
+			swap(arr, i,index);
+		}
+	}
+	
+	private void swap(int arr[], int i, int j) {
+		int temp = arr[i];
+		arr[i] = arr[j];
+		arr[j] = temp;
+	}
+}

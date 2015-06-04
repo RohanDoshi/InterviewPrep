@@ -1,0 +1,508 @@
+package com.aol.sportal.servlets;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Properties;
+import java.util.ResourceBundle;
+import java.util.StringTokenizer;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.log4j.Logger;
+
+import com.aol.mm.common.subscription.ListSubscriptionsResp.SubscriptionInfo;
+import com.aol.obi.schema.CustomerSubPaymentInfo;
+import com.aol.sportal.app.AppSession;
+import com.aol.sportal.app.MorfSession;
+import com.aol.sportal.app.SPortalSession;
+import com.aol.sportal.beans.UserSessionObj;
+import com.aol.sportal.service.SubscriptionService;
+import com.aol.sportal.service.SubscriptionService.REEStatus;
+import com.aol.sportal.util.AccountAccess;
+
+public class PremiumServicesServlet extends HttpServlet{
+	
+	private static final Logger logger = Logger.getLogger(PremiumServicesServlet.class)
+;	public void doGet(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		doPost(req, rspn);
+	}
+	
+	public void doPost(HttpServletRequest req, HttpServletResponse rspn) throws ServletException, IOException {
+		req.setCharacterEncoding("UTF-8");
+		String jspPage = "premium_subs_cancel.jsp";
+		logger.debug("PremiumServicesServlet::doPost Start");
+		
+		AppSession spSession = null;
+		SubscriptionService subsService = null;
+		Map psbMap = null;
+		if (AccountAccess.isMorf(req) == false) {
+			spSession = (SPortalSession) AccountAccess.getSession(req, rspn);
+			subsService = ((SPortalSession) spSession).getPsbService(req, rspn);
+			psbMap = ((SPortalSession) spSession).getPsbMap(req, rspn);
+		} else {
+			spSession = (MorfSession) AccountAccess.getMorfSession(req, rspn);
+			subsService = ((MorfSession) spSession).getPsbService(req, rspn);
+			psbMap = ((MorfSession) spSession).getPsbMap(req, rspn);
+		}
+		
+		String doWhat = req.getParameter("doWhat");
+		if (doWhat != null && doWhat.equalsIgnoreCase("resendEmail")) {
+			String sn = req.getParameter("sn");
+			if ((AccountAccess.isMorf(req) == false) && (sn != null) && (sn.length() > 0)) {
+				subsService = ((SPortalSession) spSession).getPsbService(req, rspn, sn);
+			}
+			
+			logger.error("PremiumServicesServlet::resendEmail loop ");
+			String offerSubId = req.getParameter("offerSubsId");
+			String partnerId = req.getParameter("partnerId");
+			try {
+				logger.error("PremiumServicesServlet::Calling REE offerSubId=" + offerSubId + " partnerId=" + partnerId);
+				REEStatus emailStatus = subsService.resendSubsEmail(offerSubId, partnerId);
+				logger.error("PremiumServicesServlet::After Calling REE ");
+				if (emailStatus != null && emailStatus.getCode() == 0) {
+					logger.error("PremiumServicesServlet::Status from OBI SUCCESS");
+					req.setAttribute("confirmMsgText", "Please check your email. We have re-sent your Order Confirmation email which includes all the information you need to get started!");
+					String omniturePageName = "My Account:Main Get Started Success";
+					req.setAttribute("omnitureprop2", "Premium Services");
+					if (AccountAccess.isMorf(req) == true) {
+						req.setAttribute("issuccessupdate", "psb");
+						omniturePageName = "My Account:Main MORF Get Started Success";
+						
+					}
+					
+					req.setAttribute("omniturepagename", omniturePageName);
+					req.setAttribute("isSuccess", new Boolean(true));
+					String isGathr = req.getParameter("isGathr");
+					req.setAttribute("isGathr", isGathr);
+					req.setAttribute("isFailure", new Boolean(false));
+					String isPriceline = req.getParameter("isPriceline");
+					req.setAttribute("isPriceline", isPriceline);
+				} else {
+					
+					req.setAttribute("errorMsgText", "Sorry, we are not able to complete your request now.  Please try again later");
+					String omniturePageName = "My Account:Main Get Started Error";
+					req.setAttribute("omniturepagename", omniturePageName);
+					req.setAttribute("omnitureprop2", "Premium Services");
+					logger.error("PremiumServicesServlet::Status from OBI FAILURE");
+					req.setAttribute("isSuccess", new Boolean(false));
+					req.setAttribute("isFailure", new Boolean(true));
+				}
+			} catch (Exception e) {
+				
+				req.setAttribute("isSuccess", new Boolean(false));
+				req.setAttribute("isFailure", new Boolean(true));
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			RequestDispatcher dispatcher = null;
+			if (AccountAccess.isEnGb(req)) {
+				
+				dispatcher = req.getRequestDispatcher("main.jsp");
+				/*
+				 * if (AccountAccess.isMorf(req)==true)
+				 * dispatcher= req.getRequestDispatcher("premium_services_manage_morf.jsp");
+				 * else
+				 * dispatcher= req.getRequestDispatcher("premium_services_manage.jsp");
+				 */
+			} else dispatcher = req.getRequestDispatcher("premium_list.jsp");
+			dispatcher.forward(req, rspn);
+			return;
+			
+		}
+		
+		// cancel case..
+		logger.error(
+						"PremiumServicesServlet:: Start doPost, productId=" + req.getParameter("productId") + " ReeKey= " + req.getParameter("reeKey") + " Type=" + req.getParameter("type"));
+		// long acctNum = AccountAccess.getAcctData(req, rspn).getMAAccountNumber(req, rspn);
+		
+		// Call REE to cancel the PSB selected by the user
+		// redirect to main.jsp on success - error page if error.
+		String productIdSelected = req.getParameter("productId");
+		String orderId = req.getParameter("orderId");
+		String reeKey = req.getParameter("reeKey");
+		String subsType = req.getParameter("type");
+		String topKey = req.getParameter("topKey");
+		String isFreeTrial = req.getParameter("isFreeTrial");
+		String nextBillDate = req.getParameter("nextBillDate");
+		String reason = req.getParameter("cancelReason");
+		String productName = "";
+		
+		String screenName = "";
+		String bundleOrNot = "";
+		boolean isBundle = false;
+		StringTokenizer tokenizer = new StringTokenizer(topKey, ":");
+		screenName = tokenizer.nextToken();
+		if (tokenizer.hasMoreTokens()) bundleOrNot = tokenizer.nextToken();
+		logger.debug("bundleOrNot String = " + bundleOrNot);
+		if (bundleOrNot != null && bundleOrNot.equalsIgnoreCase("obiBundles")) isBundle = true;
+		
+		logger.debug("In PremiumServicesServlet isBundle=" + isBundle);
+		
+		String productSelectedName = "";
+		String offerSubsId = "";
+		SubscriptionInfo legacySubscriptionInfo = null;
+		CustomerSubPaymentInfo obiCustomerSubPaymentInfo = null;
+		CustomerSubPaymentInfo myBenefitCustomerSubPaymentInfo = null;
+		Object selectedPsb = null;
+		String productId = null;
+		Map<String, Object> bundleHeader = null;
+		logger.debug("PremiumServicesServlet::topKey=" + topKey + " reeKey=" + reeKey + " type=" + subsType);
+		if (psbMap != null) {
+			
+			if (subsType != null && subsType.equalsIgnoreCase("legacy")) {
+				
+				Map legacyMap = (HashMap) psbMap.get(topKey);
+				if (legacyMap != null && legacyMap.size() > 0) {
+					logger.debug("PremiumServicesServlet::LegacySubs reeKey=" + reeKey);
+					legacySubscriptionInfo = (SubscriptionInfo) legacyMap.get(reeKey);
+					if (legacySubscriptionInfo != null) {
+						productName = legacySubscriptionInfo.getProductName();
+						offerSubsId = "AOL";
+						logger.debug("legacySubscriptionInfo product being cancelled=  " + legacySubscriptionInfo);
+					} else logger.error("Null legacy object returned to cancel.");
+				}
+				
+			} else if (subsType != null && subsType.equalsIgnoreCase("obi") && !isBundle) {
+				
+				LinkedHashMap obiMap = (LinkedHashMap) psbMap.get(topKey);
+				if (obiMap != null && obiMap.size() > 0) obiCustomerSubPaymentInfo = (CustomerSubPaymentInfo) obiMap.get(reeKey);
+				if (obiCustomerSubPaymentInfo.getOfferSubscriptionId() != null) offerSubsId = obiCustomerSubPaymentInfo.getOfferSubscriptionId().getValue();
+				productId = obiCustomerSubPaymentInfo.getSvuProductId();
+				Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(req);
+				productName = premiumServiceResources.getProperty(productId);
+				// productName=obiCustomerSubPaymentInfo.getSubscriptionName();
+				logger.debug("obiCustomerSubPaymentInfo product being cancelled= " + productName + " screenName=" + screenName);
+				
+			} else if (subsType != null && subsType.equalsIgnoreCase("obi") && isBundle) {
+				
+				LinkedHashMap obiMap = (LinkedHashMap) psbMap.get(topKey);
+				if (obiMap != null && obiMap.size() > 0) bundleHeader = (Map<String, Object>) obiMap.get(reeKey);
+				
+				if (bundleHeader != null) {
+					if (obiMap != null && obiMap.size() > 0) {
+						
+						for (Iterator it2 = obiMap.entrySet().iterator(); it2.hasNext();) {
+							Map.Entry obiEntry = (Map.Entry) it2.next();
+							String obiKey = (String) obiEntry.getKey();
+							logger.debug("obiKey=" + obiKey);
+							String subType = "";
+							StringTokenizer tokenizer1 = new StringTokenizer(obiKey, ":");
+							String offerSubscriptionID = tokenizer1.nextToken();
+							
+							if (tokenizer1.hasMoreTokens()) subType = tokenizer1.nextToken();
+							else continue;
+							if (subType.equalsIgnoreCase("bundle")) {
+								// bundle header..
+								
+								for (Iterator headerIterator = bundleHeader.entrySet().iterator(); headerIterator.hasNext();) {
+									String isGathr = req.getParameter("isGather");
+									if (isGathr == null) isGathr = "false";
+									Map.Entry headerEntry = (Map.Entry) headerIterator.next();
+									String headerName = (String) headerEntry.getKey();
+									if (headerName != null && headerName.equalsIgnoreCase("bundleSvuProdId")) {
+										productId = (String) headerEntry.getValue();
+										if (!isGathr.equalsIgnoreCase("true")) {
+											Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(req);
+											productName = premiumServiceResources.getProperty(productId);
+											// productName=obiCustomerSubPaymentInfo.getSubscriptionName();
+											logger.debug("obiCustomerSubPaymentInfo product being cancelled= " + productName + " screenName=" + screenName);
+										}
+									}
+								}
+							}
+							
+						}
+					}
+					
+				}
+				
+			}
+			if (subsType != null && subsType.equalsIgnoreCase("myBenefits")) {
+				
+				// if the cancellation is for a product from mybenefits, get the corresponding OBI object from
+				// AccessSubs in the map.
+				StringTokenizer tokenizer2 = new StringTokenizer(topKey, ":");
+				String sn = tokenizer2.nextToken();
+				
+				// for AOL features, go to SN:AccessSubs to get the correct sub to send to cancel.
+				topKey = sn + ":accessSubs";
+				logger.debug("PremiumServicesServlet::myBenefits::topKey=" + topKey);
+				LinkedHashMap obiMap = (LinkedHashMap) psbMap.get(topKey);
+				for (Iterator it = obiMap.entrySet().iterator(); it.hasNext();) {
+					
+					Map.Entry mapEntry = (Map.Entry) it.next();
+					String headerName = (String) mapEntry.getKey();
+					
+					CustomerSubPaymentInfo customerSubPaymentInfo = (CustomerSubPaymentInfo) mapEntry.getValue();
+					if (customerSubPaymentInfo != null) {
+						
+						String orderIdObi = customerSubPaymentInfo.getOrderId();
+						String productIdObi = customerSubPaymentInfo.getSvuProductId();
+						logger.debug("orderIdObi=" + orderIdObi + "productIdObi=" + productIdObi + " orderId=" + orderId + " productIdSelected=" + productIdSelected);
+						if (orderId.equalsIgnoreCase(orderIdObi) && productIdSelected.equalsIgnoreCase(productIdObi)) {
+							logger.debug("FOUND the mybenefits feature object from accessSubs");
+							myBenefitCustomerSubPaymentInfo = customerSubPaymentInfo;
+							break;
+						}
+						
+					}
+					
+				}
+				
+			}
+		}
+		
+		REEStatus cancelStatus = null;
+		if (subsService != null) {
+			try {
+				
+				UserSessionObj userSessionObj = AccountAccess.getUserSessionObj(req, rspn);
+				String ncid = userSessionObj.getNcid();
+				String isGathr = req.getParameter("isGather");
+				if (subsType != null && subsType.equalsIgnoreCase("legacy")) {
+					
+					productSelectedName = legacySubscriptionInfo.getProductName();
+					
+					cancelStatus = subsService.cancel(legacySubscriptionInfo, screenName, ncid);
+				} else if (subsType != null && subsType.equalsIgnoreCase("obi")) {
+					// productSelectedName= obiCustomerSubPaymentInfo.getSubscriptionName();
+					
+					if (isBundle) {
+						if (isGathr.equalsIgnoreCase("true")) {
+							productSelectedName = req.getParameter("productName");
+						} else {
+							Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(req);
+							productSelectedName = premiumServiceResources.getProperty(productId);
+							productSelectedName = premiumServiceResources.getProperty(productId);
+							
+						}
+						cancelStatus = subsService.cancel(bundleHeader, screenName, ncid);
+					} else {
+						productId = obiCustomerSubPaymentInfo.getSvuProductId();
+						Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(req);
+						productSelectedName = premiumServiceResources.getProperty(productId);
+						cancelStatus = subsService.cancel(obiCustomerSubPaymentInfo, screenName, ncid);
+					}
+				} else if (subsType != null && subsType.equalsIgnoreCase("myBenefits")) {
+					productId = myBenefitCustomerSubPaymentInfo.getSvuProductId();
+					Properties premiumServiceResources = SPortalSession.getPremiumServiceResources(req);
+					productSelectedName = premiumServiceResources.getProperty(productId);
+					
+					productSelectedName = premiumServiceResources.getProperty(productId);
+					cancelStatus = subsService.cancel(myBenefitCustomerSubPaymentInfo, screenName, ncid);
+				}
+				
+				logger.debug("PremiumServicesServlet::cancelStatus from REE :: " + cancelStatus);
+				ResourceBundle rb = AppSession.getResources(req);
+				if (cancelStatus != null && cancelStatus.getCode() == 0) {  // success.
+					String loggedUser = AccountAccess.compressSN(AccountAccess.getLoginItem(req, "Username"));
+					if (productSelectedName == null) productSelectedName = "";
+					
+					String successMessage = "";
+					String psbMessage = "";
+					
+					// keep old code, for lifestore, bug #SP-727
+					if ((isFreeTrial == null) || (isGathr == null) || (!isGathr.equalsIgnoreCase("true"))) {
+						if (!screenName.equalsIgnoreCase(loggedUser)) {
+							psbMessage = rb.getString("psb.updatedSn");
+							successMessage = psbMessage.replace("xPSBx", productSelectedName).replace("xsubsSNx", screenName).replace("xloggedSNx", loggedUser);
+						} else {
+							psbMessage = rb.getString("psb.updated");
+							successMessage = psbMessage.replace("xPSBx", productSelectedName);
+						}
+					} else // This handles Gathr messaging requirements when nextBillDate and isFreeTrial are known.
+					{
+						if (screenName.equalsIgnoreCase(loggedUser) && isFreeTrial.equalsIgnoreCase("true")) {
+							psbMessage = rb.getString("psb.can.confirm.free");
+							successMessage = psbMessage.replace("xPSBx", productSelectedName);
+						} else if (screenName.equalsIgnoreCase(loggedUser) && !isFreeTrial.equalsIgnoreCase("true")) {
+							psbMessage = rb.getString("psb.can.confirm");
+							successMessage = psbMessage.replace("xPSBx", productSelectedName).replace("xNextBillDatex", nextBillDate);
+						}
+						if (!screenName.equalsIgnoreCase(loggedUser) && isFreeTrial.equalsIgnoreCase("true")) {
+							psbMessage = rb.getString("psb.can.confirm.free.sn");
+							successMessage = psbMessage.replace("xPSBx", productSelectedName).replace("xsubsSNx", screenName).replace("xloggedSNx", loggedUser);
+						} else if (!screenName.equalsIgnoreCase(loggedUser) && !isFreeTrial.equalsIgnoreCase("true")) {
+							psbMessage = rb.getString("psb.can.confirm.sn");
+							successMessage = psbMessage.replace("xPSBx", productSelectedName).replace("xNextBillDatex", nextBillDate).replace("xsubsSNx", screenName).replace("xloggedSNx", loggedUser);
+						}
+					}
+					
+					req.setAttribute("confirmMsgName", successMessage);
+					String omniturePageName = "Premium Services:Cancel Confirmation Page " + productSelectedName;
+					req.setAttribute("omniturepagename", omniturePageName);
+					req.setAttribute("omnitureprop2", "Premium Services");
+					req.setAttribute("issuccessupdate", "psb");
+					// UK END
+					
+					AccountAccess.reloadPaymentSubs(req, rspn);
+					AccountAccess.reloadPremiumAccess(req, rspn);
+					
+					req.setAttribute("isSuccess", new Boolean(true));
+					req.setAttribute("isFailure", new Boolean(false));
+					req.setAttribute("productName", productName);
+					
+					// success case
+					logger.debug("PremiumServicesServlet:: Success Recieved from REE");
+					
+					this.writeSvuAction(req, rspn, reason, true);
+					
+					try {
+						
+						AccountAccess.getSession(req, rspn).loadActivityObj(req, true);
+						AccountAccess.getSession(req, rspn).clearActivityObj(req);
+						
+					} catch (Exception e) {
+						
+						logger.error("PremiumServicesServlet::after successfully failed to load account activity info.",e);
+					}
+					
+					logger.debug("PremiumServicesServlet::Premium Service CANCEL successful.");
+					
+				} else {
+					// error case.
+					
+					// UK Start
+					String errorString = "";
+					if (cancelStatus != null) {
+						String errorMessage = "";
+						if (cancelStatus.getMessage() != null) errorMessage = cancelStatus.getMessage().substring(0, 25);
+						errorString = productSelectedName + " Source " + cancelStatus.getSource() + " Message " + errorMessage + " Code " + cancelStatus.getCode();
+						logger.error("Error Updating PremiumService:: " + errorString);
+					}
+					req.setAttribute("psbError", errorString);
+					req.setAttribute("omniture", "psb");
+					// AccountAccess.displayError(req, rspn, "error.systemErrorPsb");
+					
+					AccountAccess.reloadPaymentSubs(req, rspn);
+					
+					logger.error(" Setting map to null - fetch it again");
+					req.setAttribute("isSuccess", new Boolean(false));
+					req.setAttribute("isFailure", new Boolean(true));
+					/*
+					 * if (AccountAccess.isMorf(req)==false)
+					 * ((SPortalSession)spSession).setPsbMap(null);
+					 * else
+					 * ((MorfSession)spSession).setPsbMap(null);
+					 */
+					
+					this.writeSvuAction(req, rspn, reason, true);
+					
+					logger.error("PremiumServicesServlet:: Error occurred trying to cancel Premium Service.");
+					logger.error("SPortal-510, Error Cancelling Premium Services");
+					
+					AccountAccess.displayError(req, rspn, "error.systemErrorPsb");
+					return;
+				}
+				
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				req.setAttribute("isSuccess", new Boolean(false));
+				req.setAttribute("isFailure", new Boolean(true));
+				
+				this.writeSvuAction(req, rspn, reason, false);
+				
+				e.printStackTrace();
+				req.setAttribute("psbError", e.getMessage());
+				logger.error("SPortal-510, CBI did not return anything, either CBI or REE (Premium Service Cancel) got error",e);
+				req.setAttribute("omniture", "psb");
+				// if(AccountAccess.isEnGb(req))
+				AccountAccess.displayError(req, rspn, "error.systemErrorPsb");
+				
+				return;
+				
+			}
+		} else // error case
+		{
+			req.setAttribute("isSuccess", new Boolean(false));
+			req.setAttribute("isFailure", new Boolean(true));
+			this.writeSvuAction(req, rspn, reason, false);
+			logger.error("Error creating premium service");
+			// if(AccountAccess.isEnGb(req))
+			AccountAccess.displayError(req, rspn, "error.systemErrorPsb");
+			return;
+		}
+		
+		RequestDispatcher dispatcher = null;
+		dispatcher = req.getRequestDispatcher("main.jsp");
+		if (!AccountAccess.isEnGb(req)) { // US
+											// String productCancelledName = (String)request.getAttribute("productName");
+			
+			String omniturePageNameStr = "Manage My Services Cancel Confirmation for " + productName + " Success";
+			
+			req.setAttribute("omniturepagename", omniturePageNameStr);
+			req.setAttribute("omnitureprop2", "Manage My Services");
+			String confirm_msg_msgText = "Your " + productSelectedName + " has been cancelled.  <a href=\"premium_list.jsp\">Click Here</a> to view your other services";
+			req.setAttribute("confirmMsgText", confirm_msg_msgText);
+		}
+		
+		/*
+		 * if(AccountAccess.isEnGb(req))
+		 * dispatcher = req.getRequestDispatcher("main.jsp");
+		 * else
+		 * dispatcher = req.getRequestDispatcher("premium_subs_cancel.jsp");
+		 */
+		logger.debug("Just before dispatcher.forward");
+		dispatcher.forward(req, rspn);
+		return;
+	}
+	
+	private void writeSvuAction(HttpServletRequest req, HttpServletResponse rspn, String reason, boolean isSucces) {
+		
+		if (isSucces) {
+			if (AccountAccess.isMasterAccount(req)) {
+				if (reason != null && reason.equalsIgnoreCase("techProblem")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_TECHNICAL", true, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("NotWorthPrice")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_PRICE", true, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("switchingProviders")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_ANOTHER_SIMILAR", true, 0,
+								0);
+				else if (reason != null && reason.equalsIgnoreCase("noLongerWanted")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_NO_LONGER_USE", true, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("noLongerUse")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_DID_NOT_REALIZE", true, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("other")) {
+					logger.debug("Writing action SVU_PREMIUM_CANCEL_OTHER ");
+					SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_OTHER", true, 0, 0);
+				} else SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL", true, 0, 0);
+				
+			} else {
+				
+				if (reason != null && reason.equalsIgnoreCase("techProblem")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_TECHNICAL", true, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("NotWorthPrice")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_PRICE", true, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("switchingProviders")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_ANOTHER_SIMILAR", true, 0,
+								0);
+				else if (reason != null && reason.equalsIgnoreCase("noLongerWanted")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_NO_LONGER_USE", true, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("noLongerUse")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_DID_NOT_REALIZE", true, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("other")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_OTHER", true, 0, 0);
+				else SPortalSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL", true, 0, 0);
+			}
+		} else // error case.
+		{
+			if (AccountAccess.isMasterAccount(req)) {
+				if (reason != null && reason.equalsIgnoreCase("techProblem")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_TECHNICAL", false, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("NotWorthPrice")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_PRICE", false, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("switchingProviders")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_ANOTHER_SIMILAR", false, 0,
+								0);
+				else if (reason != null && reason.equalsIgnoreCase("noLongerWanted")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_NO_LONGER_USE", false, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("noLongerUse")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_DID_NOT_REALIZE", false, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("other")) SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_OTHER", false, 0, 0);
+				else SPortalSession.getActionWriter(req).writeSvuAction(req, rspn, "SVU_PREMIUM_CANCEL", false, 0, 0);
+			} else {
+				if (reason != null && reason.equalsIgnoreCase("techProblem")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_TECHNICAL", false, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("NotWorthPrice")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_PRICE", false, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("switchingProviders")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_ANOTHER_SIMILAR", false,
+								0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("noLongerWanted")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_NO_LONGER_USE", false, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("noLongerUse")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_DID_NOT_REALIZE", false, 0, 0);
+				else if (reason != null && reason.equalsIgnoreCase("other")) MorfSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL_OTHER", false, 0, 0);
+				else SPortalSession.getActionWriter(req).writeMorfSvuAction(req, rspn, "SVU_PREMIUM_CANCEL", false, 0, 0);
+			}
+		}
+		
+	}
+	
+}

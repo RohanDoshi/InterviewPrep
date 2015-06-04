@@ -1,0 +1,17 @@
+package pack;
+
+import java.util.PriorityQueue;
+
+public class PriorityQueueDS {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		PriorityQueue<Integer> priorityQueue = new PriorityQueue<Integer>();
+		
+	}
+
+}
+
+class PriorityQ {
+	
+}

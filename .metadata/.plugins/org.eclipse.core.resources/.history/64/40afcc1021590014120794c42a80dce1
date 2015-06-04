@@ -1,0 +1,276 @@
+package pack;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+public class LinkedListDS {
+
+	public static void main(String[] args) {
+		
+		ListOfList<Integer> list = new ListOfList<>();
+		
+		List<Integer> l1 = new ArrayList<Integer>();
+		l1.add(1);
+		l1.add(2);
+		l1.add(3);
+		list.add(l1);
+		
+		List<Integer> l2 = new ArrayList<Integer>();
+		l2.add(4);
+		l2.add(5);
+		list.add(l2);
+		
+		List<Integer> l3 = new ArrayList<Integer>();
+		l3.add(6);
+		l3.add(7);
+		l3.add(8);
+		l3.add(9);
+		list.add(l3);
+		
+		Iterator<Integer> itr = list.iterator();
+//		while(itr.hasNext()) {
+//			System.out.print(itr.next()+" ");
+//		}
+		
+//		ListOfListFlatten<Integer> l = new ListOfListFlatten<>(l1, l2, l3);
+//		itr = l.iterator();
+//		while(itr.hasNext()) {
+//			System.out.print(itr.next()+" ");
+//		}
+		
+		LoopInLinkedList inLinkedList = new LoopInLinkedList();
+		System.out.println("has loop ? " +inLinkedList.hasLoop());
+		inLinkedList.removeLoop();
+	}
+
+}
+
+class LoopInLinkedList { 
+	
+	private Node head;
+	private class Node { 
+		int val;
+		Node next;
+		public Node(int val) {
+			this.val = val;
+		}
+		
+	}
+	
+	public Node removeLoop() {
+		Node slow = head;
+		Node fast = head;
+		while( fast != null && fast.next != slow ) {
+			slow = slow.next;
+			fast = fast.next;
+			if(fast != null) {
+				fast = fast.next;
+			}
+		}
+		
+		if(fast != null) {
+			// remove loop
+			// count num of nodes in loop
+			int count = 1; // for fast node itself
+			Node temp = fast.next;
+			while(temp != fast) {
+				count++;
+				temp = temp.next;
+			}
+			slow = head; 
+			fast = head;
+			while(count != 0) {
+				count--;
+				fast = fast.next;
+			}
+			
+			while(slow != fast) {
+				slow = slow.next;
+				fast = fast.next;
+			}
+			// loop node found at slow/fast
+			Node temp1 = slow;
+			while(temp1.next != slow) {
+				temp1 = temp1.next;
+			}
+			temp1.next = null;
+			return head;
+			
+		} else {
+			return head;
+		}
+	}
+	
+	
+	public boolean hasLoop() {
+		Node slow = head;
+		Node fast = head;
+		while( fast != null && fast.next != slow ) {
+			slow = slow.next;
+			fast = fast.next;
+			if(fast != null) {
+				fast = fast.next;
+			}
+		}
+		
+		if(fast != null) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
+	public LoopInLinkedList() {
+		head = new Node(1);
+		head.next = new Node(2);
+		head.next.next = new Node(3);
+		head.next.next.next = new Node(4);
+		head.next.next.next.next = new Node(5);
+		head.next.next.next.next.next = new Node(6);
+		head.next.next.next.next.next.next = new Node(7);
+		head.next.next.next.next.next.next.next  = head.next.next;
+		
+	}
+	
+}
+
+class LList implements Iterable<Integer>{ 
+	private Node root = null; 
+	private Node last = null;
+	private class Node { 
+		int val;
+		Node next;
+		public Node(int val) {
+			this.val = val;
+		}
+		
+	}
+	
+	public void add(int key) {
+		if(root == null) {
+			root = new Node(key);
+			last = root;
+		} else { 
+			last.next = new Node(key);
+			last = last.next;
+		}
+	}
+
+	@Override
+	public Iterator<Integer> iterator() {
+		return new Iterator<Integer>() {
+
+			@Override
+			public boolean hasNext() {
+				// TODO Auto-generated method stub
+				return false;
+			}
+
+			@Override
+			public Integer next() {
+				// TODO Auto-generated method stub
+				return null;
+			}
+
+			@Override
+			public void remove() {
+				// TODO Auto-generated method stub
+				
+			}
+		};
+	}
+	
+}
+class ListOfListFlatten<T> implements Iterable<T> {
+
+	private List<T> list = null;
+
+	public ListOfListFlatten(List<T> l1, List<T> l2, List<T> l3) {
+		list = new ArrayList<>();
+		list.addAll(l1);
+		list.addAll(l2);
+		list.addAll(l3);
+	}
+	
+	@Override
+	public Iterator<T> iterator() {
+		// TODO Auto-generated method stub
+		return new Iterator<T>() {
+
+			Iterator<T> itr = list.iterator();
+			@Override
+			public boolean hasNext() {
+				// TODO Auto-generated method stub
+				return itr.hasNext();
+			}
+
+			@Override
+			public T next() {
+				// TODO Auto-generated method stub
+				return itr.next();
+			}
+
+			@Override
+			public void remove() {
+				// TODO Auto-generated method stub
+				
+			}
+		};
+	}
+	
+}
+
+
+class ListOfList<T> implements Iterable<T>{
+	
+	private List<List<T>> list = null;
+	
+	public ListOfList() {
+		list = new ArrayList<List<T>>();
+	}
+	
+	public void add(List<T> newList) {
+		list.add(newList);
+	}
+
+	@Override
+	public Iterator<T> iterator() {
+	
+		return new Iterator<T>() {
+
+			private int currInnerList = 0;
+			private int currentItem = 0;
+			private List<T> temp = null;
+			
+			@Override
+			public boolean hasNext() {
+				if(currInnerList >= list.size()) {
+					
+				} else {
+					temp = list.get(currInnerList);
+					if(temp.size() > currentItem ) {
+						return true;
+					} else {
+						currInnerList++;
+						currentItem = 0;
+						return hasNext();
+					}
+				}
+				
+				return false;
+			}
+
+			@Override
+			public T next() {
+				return temp.get(currentItem++);
+			}
+
+			@Override
+			public void remove() {
+				
+			}
+		};
+	}
+	
+}

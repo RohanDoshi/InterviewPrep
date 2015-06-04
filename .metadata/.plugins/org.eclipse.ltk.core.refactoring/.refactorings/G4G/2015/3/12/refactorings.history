@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename local variable &apos;largest&apos; in &apos;Heap.heapCompare(...)&apos; to &apos;parent&apos;&#x0A;- Original project: &apos;G4G&apos;&#x0A;- Original element: &apos;Heap.heapCompare(int, int).largest&apos;&#x0A;- Renamed element: &apos;largest&apos;&#x0A;- Update references to refactored element" description="Rename local variable &apos;largest&apos;" id="org.eclipse.jdt.ui.rename.local.variable" input="/src&lt;{Heap.java[Heap~heapCompare~I~I@largest!937!947!941!947!I!0!true" name="parent" references="true" stamp="1426787326633" version="1.0"/>
+</session>

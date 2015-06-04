@@ -1,0 +1,246 @@
+package pack;
+
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
+
+public class StringDS {
+	public static void main(String args[]) {
+//		StringClass str= new StringClass("gksrek");
+//	//	System.out.println(str.isPalindrome());
+//	//	System.out.println(str.longestPalindrome());
+//		//System.out.println(str.longestPalinDP());
+//		System.out.println(str.isSubsequence("geeksforgeeks"));
+//		System.out.println(str.isSubsequenceIterative("gkwrek", "geeksforgeeks"));
+		
+		ConvertNumberToWords convertNumberToWords = new ConvertNumberToWords();
+		convertNumberToWords.convert(123456789);
+	}
+}
+
+class FindOrderCharacters { 
+		private String[] words = null;
+		private char[] c = {'a','b','c','d','e'};
+		private class Vertex { 
+			char c;
+			List<Vertex> edgeTo;
+			public Vertex(char c) {
+				this.c = c;
+				this.edgeTo = new ArrayList<>();
+			}
+		}
+		public FindOrderCharacters(String[] words) {
+			this.words = words;
+		}
+		
+		
+}
+
+class StringClass {
+	String str;
+	public StringClass(String str) {
+		this.str = str;
+	}
+	
+	public boolean isSubsequence(String s2) {
+		return isSubsequence(str,s2) ;
+	}
+	
+	public boolean isSubsequenceIterative(String s1, String s2) {
+		if(s1 == null || s2 == null) {
+			return false;
+		}
+		
+		int j = 0;
+		for(int i=0; i<s2.length() && j<s1.length(); i++) {
+			if(s2.charAt(i) == s1.charAt(j)) {
+				j++;
+			}
+		}
+		
+		if(j == s1.length())
+			return true;
+		else
+			return false;
+	}
+	
+	private boolean isSubsequence(String str2, String s2) {
+		int l1 = str2.length(); 
+		int l2 = s2.length();
+		if(l1 == 0 && l2 == 0) {
+			return true;
+		}
+		if(l1 == 0) {
+			return false;
+		}
+		if(l2 == 0) {
+			return false;
+		}
+		boolean b1 = false, b2 = false, b3 = false;
+		if(str2.charAt(l1-1) == s2.charAt(l2-1)) {
+			b1 = true && isSubsequence(str2.substring(0, l1-1), s2.substring(0, l2-1));
+		} else { 
+			b2 = isSubsequence(str2, s2.substring(0, l2-1));
+			b3 = isSubsequence(str2.substring(0, l1-1), s2);
+		}
+		return b1 || b2 || b3;
+	}
+
+	boolean isPalindrome() {
+		return isPalindrome(str);
+	}
+	
+	boolean isPalindrome(String str) {
+		char c[] = str.toCharArray();
+		for(int i=0; i<c.length/2; i++) {
+			if(c[i] != c[(c.length-1)-i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	String longestPalindrome() {
+		String longestPal = "";
+		char ch[] = str.toCharArray();
+		StringBuffer buffer= null;
+		for(int i=0; i<ch.length; i++) {
+			buffer = new StringBuffer();
+			buffer.append(ch[i]);
+			for(int j=i+1; j<ch.length; j++) {
+				buffer.append(ch[j]);
+				if(isPalindrome(buffer.toString()) && buffer.length() > longestPal.length()) {
+					longestPal = buffer.toString();
+				}
+			}
+		}
+		
+		return longestPal;
+	}
+	
+	String longestPalinDP() {
+		
+		char ch[] = str.toCharArray();
+		boolean table[][] = new boolean[ch.length][ch.length];
+		for(int i=0; i<ch.length; i++) {
+			table[i][i] = true;
+		}
+		int longIndex = -1, longLen = -1;
+		for(int i=0; i<ch.length -1; i++) {
+			if(ch[i] == ch[i+1]) {
+				table[i][i+1] = true;
+				longIndex = i;
+				longLen =2;
+			}
+		}
+		// ababa
+		for(int len=3; len<=ch.length; len++) {
+			for(int i=0; i<= ch.length - len; i++) {
+				int j = i+len-1;
+				if(ch[i] == ch[j] && table[i+1][j-1] ) {
+					table[i][j] = true;
+					longIndex = i;
+					longLen = len;
+				}
+			}
+		}
+		
+		return str.substring(longIndex, longIndex + longLen); 
+	}
+}
+
+
+class ConvertNumberToWords { 
+
+	  private static final String[] tensNames = {
+	    "",
+	    " ten",
+	    " twenty",
+	    " thirty",
+	    " forty",
+	    " fifty",
+	    " sixty",
+	    " seventy",
+	    " eighty",
+	    " ninety"
+	  };
+
+	  private static final String[] numNames = {
+	    "",
+	    " one",
+	    " two",
+	    " three",
+	    " four",
+	    " five",
+	    " six",
+	    " seven",
+	    " eight",
+	    " nine",
+	    " ten",
+	    " eleven",
+	    " twelve",
+	    " thirteen",
+	    " fourteen",
+	    " fifteen",
+	    " sixteen",
+	    " seventeen",
+	    " eighteen",
+	    " nineteen"
+	  };
+	  
+	  
+	  public void convert(int number) {
+		  String mask = "000000000";
+		  DecimalFormat df = new DecimalFormat(mask);
+		  String str = df.format(number);
+		  
+		  String million = str.substring(0, 3);
+		  
+		  String thousand = str.substring(3,6);
+		  
+		  String hundred = str.substring(6,9);
+		  
+		  String res = "";
+		  if(!million.equals("000")) {
+			  res = res + convertToHundred(million);
+			  res = res + " million";
+		  }
+		  
+		  if(!thousand.equals("000")) {
+			  res = res + convertToHundred(thousand);
+			  res = res + " thousand";
+		  }
+		  
+		  if(!hundred.equals("000")) {
+			  res = res + convertToHundred(hundred);
+		  }
+		  
+		  System.out.println(res);
+		  
+	  }
+	  
+	  private String convertToHundred(String str) {
+		  int n = Integer.parseInt(str);
+		  String res = "";
+		  if(n < numNames.length) {
+			  return numNames[n];
+		  }
+		  if(n / 100 != 0 ) {
+			  res = res + numNames[n/100];
+			  res = res +" hundred and ";
+		  }
+		  
+		  n = n % 100;
+		  if(n / 10 != 0) {
+			  res = res + tensNames[n/10];
+		  }
+		  
+		  n = n % 10;
+		  if(n != 0) {
+			  res = res + numNames[n];
+		  }
+		  
+		  return res;
+		  
+	  }
+}
